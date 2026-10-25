@@ -311,6 +311,17 @@ FIXING WHERE A VIDEO WENT (and teaching HERO TV)
   "Put it here" button. With "Remember" ticked, HERO TV writes your choice to config\my-sorting.json, and from then on
   new episodes of that show (or other copies of that film) go there by themselves - before keywords and smart sorting.
 
+A NEW CHANNEL FOR A NEW KIND OF SHOW
+  Drop a show (or a folder of episodes) into the Inbox. If no channel fits, Settings > Tools > Inbox lists it once,
+  with how many videos it has. Choose "+ New channel for these..." in its list, check the name, and press "Make the
+  channel": the channel is created, every episode moves into its folder, and with Remember ticked new episodes of
+  that show go there by themselves. New episodes of a show you already have always follow it to its channel.
+
+MISSING EPISODES AND DUPLICATES (Settings > Tools)
+  "Check my shows" compares every show with TMDB's list of aired episodes (needs the TMDB key); a show's Details
+  screen says the same for that show. "The same video twice" lists films/episodes you have more than once; "Set
+  aside" moves the extra copy into the hidden .originals folder, and "Free up space" deletes those for good.
+
 INSTALLING ON A NEW PC, SUBTITLE STYLE
   New PC: download  HERO-TV-Setup-v1.x.x.exe  from github.com/trentnick99/Hero-tv > Releases and run it. No administrator
   rights needed; it installs into your user folder, adds HERO TV to the Start menu (and the desktop if you tick it),

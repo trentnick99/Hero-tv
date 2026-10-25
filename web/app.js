@@ -360,8 +360,10 @@ async function openInfo(){const t=renameTarget();if(!t)return;infoCtx={back:laye
  $("#in-cr").textContent=d.source==="TMDB"?"Cover art and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.":"";
  hints($("#in-hints"),[["Enter",infoCtx.back==="lib"?"play":"back"],...(REMOTE?[]:[["M","move to another channel"]]),["Esc","back"]])}
 /* ---- wrong channel? move a film (or a whole show) and remember it ---- */
-function moveUI(t,d){const old=$("#in-on");if(old)old.remove();const old2=$("#in-move");if(old2)old2.remove();
+function moveUI(t,d){const old=$("#in-on");if(old)old.remove();const om=$("#in-miss");if(om&&!d.missingAsked)om.remove();const old2=$("#in-move");if(old2)old2.remove();
  const on=el("div");on.id="in-on";on.textContent=(d.on||[]).length?"On: "+d.on.join(", "):"Not on a channel yet";$("#in-m").after(on);
+ if(t.series&&d.has_key&&!d.missingAsked){d.missingAsked=true;api("/api/missing/"+t.id).then(m=>{if(!m.known||!infoCtx||infoCtx.t!==t)return;const x=el("div");x.id="in-miss";
+  x.textContent=m.missing?`You have ${m.aired-m.missing} of ${m.aired} aired episodes - missing ${m.text}`:`You have all ${m.aired} aired episodes`;const o=$("#in-miss");if(o)o.remove();$("#in-on").after(x)}).catch(()=>{})}
  if(REMOTE||!(d.channels||[]).length)return;
  $("#in-btns").append(sBtn("Move to another channel",()=>openMove()));infoCtx.move={t,d}}
 function openMove(){if(!infoCtx||!infoCtx.move||$("#in-move"))return;const {t,d}=infoCtx.move;
@@ -556,12 +558,18 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
    const row=el("div","sbar");row.append(p,b);c.append(row);main.append(c)}
  { const c=tCard("Inbox",t.inbox_waiting?`${t.inbox_waiting} video(s) waiting in the Inbox. HERO TV could not tell where these belong - pick a channel for each and it is filed right away.`:"The Inbox is empty.");const b=sBtn("Sort the Inbox now",()=>runJob({name:"sort"},b));
    const row=el("div","sbar");row.append(b);c.append(row);
-   for(const f of (t.inbox_files||[])){const r=el("div","ibx"),txt=el("div");txt.append(el("b",0,f.title));if(f.about)txt.append(el("small",0,f.about));
-    const sel=el("select");sel.append(el("option",0,"Choose a channel..."));sel.options[0].value="";for(const ch of t.move_channels||[]){const o=el("option",0,ch.name);o.value=ch.id;sel.append(o)}
+   for(const f of (t.inbox_files||[])){const r=el("div","ibx"),txt=el("div","ibt");txt.append(el("b",0,f.group>1?`${f.pack} (${f.group} videos)`:f.title));if(f.about)txt.append(el("small",0,f.about));
+    const sel=el("select");sel.append(el("option",0,"Choose a channel..."));sel.options[0].value="";for(const ch of t.move_channels||[]){const o=el("option",0,ch.name+((f.suggest||[]).includes(ch.id)?"  (suggested)":""));o.value=ch.id;if((f.suggest||[]).includes(ch.id))o.selected=true;sel.append(o)}
+    {const o=el("option",0,f.group>1?`+ New channel for these ${f.group} videos...`:"+ New channel for this...");o.value="__new";sel.append(o)}
+    const nm=el("input");nm.type="text";nm.value=f.pack||f.title;nm.placeholder="Channel name";nm.autocomplete="off";nm.style.width="18vw";nm.style.display="none";nm.maxLength=40;
+    sel.addEventListener("change",()=>{nm.style.display=sel.value==="__new"?"":"none";go.textContent=sel.value==="__new"?"Make the channel":"Put it here";if(sel.value==="__new")nm.focus()});
+    if(f.group>1)txt.append(el("small",0,"They move together, onto the channel you pick."));
     const rl=el("label","lb"),rc=el("input");rc.type="checkbox";rc.checked=true;rl.append(rc," Remember");rl.title="Next time a video with this title (or a new episode of this show) arrives, it goes here by itself.";
-    const go=sBtn("Put it here",()=>{if(!sel.value)return sMsg("Choose a channel for "+f.title+" first.","err");runJob({name:"place",file:f.file,channels:[sel.value],remember:rc.checked},go)},"pri");
-    const ctl=el("div","sbar");ctl.append(sel,rl,go);r.append(txt,ctl);c.append(r)}
-   if(t.inbox_waiting>(t.inbox_files||[]).length&&(t.inbox_files||[]).length)c.append(el("small",0,`...and ${t.inbox_waiting-t.inbox_files.length} more - they appear here as these are filed.`));
+    const go=sBtn("Put it here",()=>{if(!sel.value)return sMsg("Choose a channel for "+f.title+" first.","err");
+     if(sel.value==="__new"){if(!nm.value.trim())return sMsg("Give the new channel a name.","err");return runJob({name:"newchan",file:f.file,channel_name:nm.value.trim(),remember:rc.checked},go)}
+     runJob({name:"place",file:f.file,channels:[sel.value],remember:rc.checked},go)},"pri");
+    const ctl=el("div","sbar");ctl.append(sel,nm,rl,go);r.append(txt,ctl);c.append(r)}
+   {const listed=(t.inbox_files||[]).reduce((a,f)=>a+(f.group||1),0);if(listed&&t.inbox_waiting>listed)c.append(el("small",0,`...and ${t.inbox_waiting-listed} more - they appear here as these are filed.`))}
    const first=main.querySelector(".tcard");if((t.inbox_files||[]).length&&first)main.insertBefore(c,first);else main.append(c)}
  { const c=tCard("Videos that are skipped",t.skipped.length?"These cannot play in the TV yet. Fixing makes a copy that plays (keeps the original); a picture problem can take 15-40 minutes for a movie.":"Every video can play.");
    for(const v of t.skipped.slice(0,12)){const row=el("div","sbar"),b=sBtn("Fix",()=>runJob({name:"fix",media_id:v.id},b));row.append(b,el("span",0,v.title+" - "+v.why));c.append(row)}
@@ -572,6 +580,13 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
      const a=await api("/api/audio/"+it.id);res.textContent="";if(a.tracks.length<2){res.append(el("small",0,"This video has only one sound track - nothing to choose."));return}
      for(const tr of a.tracks){const tb=sBtn((tr.language||tr.lang||"Unknown")+(tr.title?" - "+tr.title:"")+(tr.n===a.playing?"  (plays now)":""),()=>runJob({name:"audio",media_id:it.id,track:tr.n},tb));if(tr.n===a.playing)tb.disabled=true;res.append(tb)}});res.append(b)}},350)});
    c.append(q,res);main.append(c)}
+ { const c=tCard("Missing episodes",t.shows?`Checks each of your ${t.shows} show(s) against TMDB's episode lists and tells you which aired episodes you do not have. A show's Details screen shows this too.`:"No shows in your library yet.");
+   if(t.shows){const b=sBtn("Check my shows",()=>runJob({name:"missing"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
+ { const d=t.duplicates||[],c=tCard("The same video twice",d.length?`${d.length} film(s) or episode(s) are here more than once - ${gb(d.reduce((a,g)=>a+g.extra,0))} of extra copies. The best copy is marked keep; Set aside moves another one into the hidden .originals folder (Free space deletes it for good).`:"No video is in your library twice.");
+   for(const g of d.slice(0,8)){const r=el("div","ibx");r.append(el("b",0,g.name));
+    for(const cp of g.copies){const row=el("div","sbar"),txt=el("small",0,`${cp.folder} / ${cp.file}  -  ${gb(cp.size)}${cp.plays?"":"  -  does not play here"}`);
+     if(cp.keep){row.append(el("span","keep","Keep"),txt)}else{const b=sBtn("Set aside",()=>runJob({name:"aside",media_id:cp.id},b));row.append(b,txt)}r.append(row)}c.append(r)}
+   if(d.length>8)c.append(el("small",0,`...and ${d.length-8} more. Set these aside first, then come back.`));main.append(c)}
  { const c=tCard("iPhone-friendly copies",t.not_phone?`${t.not_phone} video(s) cannot play on an iPhone as they are (usually .mkv files). This makes .mp4 copies that play on phones, the PC and over AirPlay - normally quick, because the picture is copied, not re-encoded. Originals are kept, and so are resume points and favorites.`:"Every video can play on an iPhone.");
    if(t.not_phone){const b=sBtn("Make iPhone-friendly copies",()=>runJob({name:"phone"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
  { const c=tCard("Free up space",t.originals_bytes?`Original copies kept after fixing or shrinking videos use ${gb(t.originals_bytes)}. Delete them once you are happy with the new versions. This is permanent.`:"No original copies are being kept.");

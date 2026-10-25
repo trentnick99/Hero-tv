@@ -2,6 +2,13 @@
 from . import __version__
 
 NOTES = {
+    "1.10.0": [
+        "New channels from the Inbox: a show or pack nobody planned for (say an old PBS Kids show) can get its own channel - pick '+ New channel', name it, done.",
+        "A show or a folder of episodes dropped in the Inbox is listed once and moves together.",
+        "New episodes of a show you already have go straight to that show's channel.",
+        "Missing episodes: a show's Details say which aired episodes you don't have; Tools > Check my shows lists them for every show (needs the TMDB key).",
+        "The same video twice: Tools lists duplicates and can set the extra copy aside to free space.",
+    ],
     "1.9.0": [
         "Wrong channel? Open a video's Details (D) and press M: tick where it belongs and Save. A show moves with all its episodes.",
         "Details now say which channels a video is on.",

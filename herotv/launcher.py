@@ -961,6 +961,7 @@ def sort_movies(assume_yes=False, cfg=None):
     lookup = _inbox.facts_lookup(cfg) if smart else None
     from . import fixes as _fixes
     mine = _fixes.load(cfg)
+    follow = _inbox.series_lookup(cfg, channels)
     todo = []
     for dp, dn, fn in os.walk(media):
         if os.path.abspath(dp) != media and not _under(dp, inbox):
@@ -977,6 +978,7 @@ def sort_movies(assume_yes=False, cfg=None):
     for src in todo:
         stem = os.path.splitext(os.path.basename(src))[0]
         picked = sortrules.targets(stem, rules, channels, None if _fixes.lookup(mine, stem) else (lookup(stem) if lookup else None), smart, mine)
+        picked = picked or follow(stem)                    # a new episode of a show you already have
         (plan if picked else left).append((src, picked))
     say(f"Found {len(todo)} movie(s) to sort:\n")
     for src, picked in plan:

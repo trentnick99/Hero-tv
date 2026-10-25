@@ -82,6 +82,25 @@ def facts_lookup(cfg):
     return get
 
 
+def series_lookup(cfg, channels):
+    """A function stem -> channels the show's earlier episodes are on (a new episode follows its show)."""
+    from . import insights
+    from .db import connect
+
+    def get(stem):
+        try:
+            c = connect(cfg.db_path)
+        except Exception:
+            return []
+        try:
+            return insights.series_channels(c, channels, stem)
+        except Exception:
+            return []
+        finally:
+            c.close()
+    return get
+
+
 def run_once(cfg, seen, now=None, place=None, facts=None):
     """One pass. Files are filed one at a time (converting can be slow). Returns {"filed": [...], "left": n}."""
     from . import launcher
@@ -98,10 +117,13 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
     facts = facts or (facts_lookup(cfg) if smart else None)
     from . import fixes as F
     mine = F.load(cfg)
+    follow = series_lookup(cfg, channels)
     media = os.path.abspath(str(cfg.media_dir))
     for src in ready:
         stem = os.path.splitext(os.path.basename(src))[0]
         picked = sortrules.targets(stem, rules, channels, None if F.lookup(mine, stem) else (facts(stem) if facts else None), smart, mine)
+        if not picked:
+            picked = follow(stem)                         # a new episode of a show you already have
         if not picked:
             out["left"] += 1
             continue

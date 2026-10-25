@@ -241,3 +241,6 @@ body.cue-yellow video::cue{color:#ffe14d}
 #in-move .picks .sbtn.on::before{content:"\2713  "}#in-move .lb{display:flex;gap:.6vw;align-items:center;font-size:1.9vh}
 .ibx{display:flex;flex-direction:column;gap:.6vh;border-top:1px solid var(--line);padding-top:1vh}.ibx b{font-size:calc(2vh*var(--tx))}
 .ibx .lb{display:flex;gap:.4vw;align-items:center;font-size:calc(1.9vh*var(--tx))}
+#in-miss{font-size:1.9vh;color:var(--accent);opacity:.95}
+.ibx .keep{font-size:calc(1.7vh*var(--tx));font-weight:700;color:var(--on);background:var(--accent);border-radius:.8vh;padding:.4vh .8vw}
+.ibx .ibt{display:flex;flex-direction:column;gap:.3vh}

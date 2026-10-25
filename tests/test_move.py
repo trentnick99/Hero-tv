@@ -168,6 +168,29 @@ class ServerMoveTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError):
                 self.call("/api/job", body)
 
+    def test_new_channel_for_a_pack_nobody_planned_for(self):
+        ib = os.path.join(self.media, "Inbox")
+        for i in (1, 2, 3):
+            touch(os.path.join(ib, "Zoboomafoo Collection", f"Episode {i}.mp4"))
+        for i in (1, 2):
+            touch(os.path.join(ib, f"Arthur.S01E0{i}.mp4"))
+        touch(os.path.join(ib, "Other Film (1999).mp4"))
+        files = {f["file"]: f for f in self.call("/api/tools")["inbox_files"]}
+        self.assertEqual(sorted(files), ["Arthur.S01E01.mp4", "Other Film (1999).mp4", "Zoboomafoo Collection/Episode 1.mp4"])   # one row per show/pack
+        self.assertEqual((files["Arthur.S01E01.mp4"]["pack"], files["Arthur.S01E01.mp4"]["group"]), ("Arthur", 2))
+        z = files["Zoboomafoo Collection/Episode 1.mp4"]
+        self.assertEqual((z["pack"], z["group"]), ("Zoboomafoo Collection", 3))
+        placed = []
+        with mock.patch.object(launcher, "_place", side_effect=lambda src, picked, media, force_move=False: placed.append((os.path.basename(src), picked[0]["id"])) or True):
+            self.call("/api/job", {"name": "newchan", "file": "Arthur.S01E01.mp4", "channel_name": "PBS Kids"})
+            self.assertEqual(self.wait()["state"], "done")
+        self.assertEqual(sorted(placed), [("Arthur.S01E01.mp4", "pbs-kids"), ("Arthur.S01E02.mp4", "pbs-kids")])
+        chans = json.load(open(self.cfg.channels_file, encoding="utf-8"))["channels"]
+        new = [c for c in chans if c["id"] == "pbs-kids"][0]
+        self.assertEqual(new["match"], {"franchise": ["PBS Kids"]})
+        self.assertTrue(os.path.isdir(os.path.join(self.media, "PBS Kids")))
+        self.assertEqual(fixes.load(self.cfg)["arthur"], ["pbs-kids"])                     # Arthur S02 will follow
+
     def test_details_say_which_channels_and_move_whole_show(self):
         base = os.path.join(self.media, "Marvel Television", "Daredevil")
         for i in (1, 2):
