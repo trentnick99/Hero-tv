@@ -68,7 +68,15 @@ class RemoteTests(unittest.TestCase):
 
     def enable(self):
         R.set_enabled(True)
-        self.app.start_lan()
+        for _ in range(8):              # Windows reserves some ports at random: pick again if this one is refused
+            try:
+                self.app.start_lan()
+                break
+            except ValueError:
+                self.cfg.port = free_pair_of_ports()
+        else:
+            self.fail("could not open a test port")
+        self.lan = f"http://127.0.0.1:{R.lan_port(self.cfg)}"
 
     def pair(self):
         code = R.start_pairing()["code"]
