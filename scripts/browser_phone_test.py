@@ -140,8 +140,18 @@ def main(engine):
         pcp.screenshot(path=str(ROOT / f"pc-devices-{engine}.png"))
         try:
             import cv2
-            got = cv2.QRCodeDetector().detectAndDecode(cv2.imread(str(ROOT / f"pc-devices-{engine}.png")))[0]
-            check(got.startswith("http://") and got.endswith(f":{R.lan_port(cfg)}/"), f"a QR reader can read the code on the screen ({got!r})")
+            shot = str(ROOT / f"pc-qr-{engine}.png")
+            pcp.locator("#phone-qr").screenshot(path=shot)
+            img = cv2.imread(shot)
+            got = cv2.QRCodeDetector().detectAndDecode(img)[0]
+            if not got:                                  # try once more, enlarged and in pure black and white
+                g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                g = cv2.resize(g, None, fx=3, fy=3, interpolation=cv2.INTER_NEAREST)
+                g = cv2.copyMakeBorder(cv2.threshold(g, 128, 255, cv2.THRESH_BINARY)[1], 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255)
+                got = cv2.QRCodeDetector().detectAndDecode(g)[0]
+            box = pcp.locator("#phone-qr").bounding_box()
+            check(got.startswith("http://") and got.endswith(f":{R.lan_port(cfg)}/"),
+                  f"a QR reader can read the code on the screen ({got!r}, shown at {box and round(box['width'])}px, image {img.shape[1]}x{img.shape[0]})")
         except ImportError:
             print("  (no QR reader installed here - skipped reading the code off the screen)")
         from herotv import dlna as D
