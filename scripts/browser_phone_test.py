@@ -144,11 +144,23 @@ def main(engine):
             pcp.locator("#phone-qr").screenshot(path=shot)
             img = cv2.imread(shot)
             got = cv2.QRCodeDetector().detectAndDecode(img)[0]
-            if not got:                                  # try once more, enlarged and in pure black and white
-                g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-                g = cv2.resize(g, None, fx=3, fy=3, interpolation=cv2.INTER_NEAREST)
-                g = cv2.copyMakeBorder(cv2.threshold(g, 128, 255, cv2.THRESH_BINARY)[1], 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255)
-                got = cv2.QRCodeDetector().detectAndDecode(g)[0]
+            g0 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            for fx in (3, 2, 4, 5):                      # like a camera: try a few sizes and light levels
+                for th in (128, 100, 160):
+                    if got:
+                        break
+                    for interp in (cv2.INTER_NEAREST, cv2.INTER_AREA):
+                        g = cv2.resize(g0, None, fx=fx, fy=fx, interpolation=interp)
+                        g = cv2.threshold(g, th, 255, cv2.THRESH_BINARY)[1]
+                        g = cv2.copyMakeBorder(g, 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255)
+                        got = cv2.QRCodeDetector().detectAndDecode(g)[0]
+                        if got:
+                            break
+            if not got:                                  # page placed it on a half pixel: shoot it on whole pixels
+                b = pcp.locator("#phone-qr").bounding_box()
+                pcp.screenshot(path=shot, clip={"x": int(b["x"]) - 20, "y": int(b["y"]) - 20,
+                                                "width": int(b["width"]) + 41, "height": int(b["height"]) + 41})
+                got = cv2.QRCodeDetector().detectAndDecode(cv2.imread(shot))[0]
             box = pcp.locator("#phone-qr").bounding_box()
             check(got.startswith("http://") and got.endswith(f":{R.lan_port(cfg)}/"),
                   f"a QR reader can read the code on the screen ({got!r}, shown at {box and round(box['width'])}px, image {img.shape[1]}x{img.shape[0]})")
