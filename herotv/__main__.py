@@ -1,4 +1,5 @@
 import argparse
+import os
 import datetime as dt
 import json
 import sys
@@ -73,6 +74,7 @@ def main(argv=None):
     pk = sub.add_parser("posterkey", help="save your free TMDB key for cover art and descriptions")
     pk.add_argument("key", nargs="?")
     fo = sub.add_parser("folders", help="create the Inbox and channel folders inside your media folder")
+    fo.add_argument("--open", action="store_true", help="then open the media folder in Explorer")
     fr = sub.add_parser("free", help="download free public-domain movies and shows from the Internet Archive")
     fr.add_argument("--count", type=int, help="titles per list (default 3)")
     fr.add_argument("--pick", help="list numbers, e.g. 1,3 (default: ask / all)")
@@ -108,6 +110,8 @@ def main(argv=None):
         if a.cmd == "folders":
             launcher.ensure_folders(Config())
             print(f"Your media folder is ready: {Config().media_dir}")
+            if a.open and os.name == "nt":
+                os.startfile(str(Config().media_dir))      # the folder chosen in Settings, not a guess
             return 0
         if a.cmd == "free":
             return launcher.get_free_movies(a.count, a.pick, a.yes)

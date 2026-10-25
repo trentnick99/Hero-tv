@@ -157,3 +157,34 @@ def restore(cfg, conn, zip_path):
             out["prefs"] += 1
     conn.commit()
     return out
+
+
+AUTO_EVERY_S = 7 * 86400
+AUTO_KEEP = 8
+
+
+def auto_enabled():
+    try:
+        return json.loads(config.settings_file().read_text(encoding="utf-8-sig")).get("auto_backup", True) is not False
+    except (OSError, ValueError, AttributeError):
+        return True
+
+
+def auto(cfg, conn, dest_dir=None, now=None):
+    """Weekly safety copy (Settings > Backup and about). Returns the new backup's path, or None when not due.
+    Keeps the newest AUTO_KEEP backups and deletes older ones."""
+    now = now or time.time()
+    if not auto_enabled():
+        return None
+    last = latest(dest_dir)
+    if last and now - os.path.getmtime(last) < AUTO_EVERY_S:
+        return None
+    path = make(cfg, conn, dest_dir, now=now)
+    d = Path(dest_dir or default_dir())
+    old = sorted(d.glob("HERO-TV-backup-*.zip"), key=lambda p: p.name)      # names carry the date and time
+    for p in old[:-AUTO_KEEP]:
+        try:
+            p.unlink()
+        except OSError:
+            pass
+    return path

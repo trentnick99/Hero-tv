@@ -216,3 +216,25 @@ class BackupTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AutoBackupTests(unittest.TestCase):
+    def test_weekly_and_keeps_eight(self):
+        from unittest import mock
+        d = tempfile.mkdtemp()
+        cfg = Config(); cfg.db_path = os.path.join(d, "t.sqlite3"); cfg.media_dir = d
+        cfg.channels_file = str(Path(config.ROOT) / "config" / "channels.json")
+        c = make_db(cfg.db_path)
+        out = os.path.join(d, "backups")
+        with mock.patch.object(config, "settings_file", return_value=Path(d) / "settings.json"):
+            t = 1_800_000_000
+            self.assertTrue(backup.auto(cfg, c, out, now=t))
+            os.utime(backup.latest(out), (t, t))
+            self.assertIsNone(backup.auto(cfg, c, out, now=t + 86400))           # not due yet
+            for i in range(1, 12):
+                when = t + i * 8 * 86400
+                p = backup.auto(cfg, c, out, now=when)
+                self.assertTrue(p); os.utime(p, (when, when))
+            self.assertEqual(len(os.listdir(out)), backup.AUTO_KEEP)
+            (Path(d) / "settings.json").write_text('{"auto_backup": false}')
+            self.assertIsNone(backup.auto(cfg, c, out, now=t + 1000 * 86400))

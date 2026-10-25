@@ -155,6 +155,13 @@ class App:
                     c = self.db()
                     try:
                         S.extend_all(c, time.time(), self.horizon(), tz=self.tz)
+                        try:
+                            from . import backup
+                            made = backup.auto(self.cfg, c)
+                            if made:
+                                print("Weekly backup saved: " + str(made), flush=True)
+                        except Exception:
+                            traceback.print_exc()       # a backup problem never stops the TV
                     finally:
                         c.close()
                 except Exception:

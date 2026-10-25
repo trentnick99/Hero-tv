@@ -36,6 +36,12 @@ def _save(data):
     os.replace(tmp, f)
 
 
+def _last_backup():
+    from . import backup
+    p = backup.latest()
+    return {"file": p, "when": int(os.path.getmtime(p))} if p else None
+
+
 def mask(key):
     return ("…" + key[-4:]) if key and len(key) > 8 else ("set" if key else "")
 
@@ -51,6 +57,8 @@ def read(cfg):
         "default_station": config.DEFAULT_STATION,
         "auto_inbox": inbox.enabled(),
         "windowed": bool(d.get("windowed")),
+        "auto_backup": d.get("auto_backup", True) is not False,
+        "last_backup": _last_backup(),
         "media_dir": str(cfg.media_dir),
         "weather": loc.get("name") if loc else "",
         "art": {"has_key": bool(key.strip()), "key_hint": mask(key.strip())},
@@ -92,6 +100,11 @@ def update(changes, geocode=None):
             raise ValueError("auto_inbox must be on or off")
         data["auto_inbox"] = changes["auto_inbox"]
         saved.append("auto_inbox")
+    if "auto_backup" in changes:
+        if not isinstance(changes["auto_backup"], bool):
+            raise ValueError("auto_backup must be on or off")
+        data["auto_backup"] = changes["auto_backup"]
+        saved.append("auto_backup")
     if "windowed" in changes:
         if not isinstance(changes["windowed"], bool):
             raise ValueError("windowed must be on or off")

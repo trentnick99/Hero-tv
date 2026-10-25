@@ -721,6 +721,9 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
  else{main.append(el("h3",0,"Backup and about"));
   const bar=el("div","sbar"),b1=sBtn("Back up my settings now",()=>sAct("backup",b1),"pri"),b2=sBtn("Open backups folder",()=>sAct("open-backups",b2)),b3=sBtn("Open log folder",()=>sAct("open-logs",b3));bar.append(b1,b2,b3);
   main.append(sField("","A backup keeps your favorites, resume points, channel settings and look - not the videos themselves.",null),bar,msg);
+  const ab=el("input");ab.type="checkbox";ab.checked=d.auto_backup!==false;ab.onchange=()=>sSave({auto_backup:ab.checked},ab.checked?"Weekly backups on.":"Weekly backups off.",()=>drawSettings());
+  const abl=el("label","lb");abl.append(ab," Back up automatically every week (keeps the last 8)");abl.style.display="flex";abl.style.gap="1vw";
+  main.append(sField("",d.last_backup?"Last backup: "+new Date(d.last_backup.when*1e3).toLocaleString():"No backup yet.",abl));
   const a=d.about,kv=el("div","kv");for(const[x,y]of[["HERO TV version",a.version+" (build "+a.api+")"],["Video tools (ffmpeg)",a.ffmpeg&&a.ffprobe?"installed":"MISSING - run Check-Setup.bat"],["Settings file",a.settings_file],["Log file",a.log_file],["Channel files",a.config_dir]])kv.append(el("span",0,x),el("span",0,y));
   main.append(el("h3",0,"About"),kv)}
  const sel=nav.querySelector(".on");if(sel&&document.activeElement===document.body)sel.focus()}
