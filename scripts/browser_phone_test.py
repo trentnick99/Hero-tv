@@ -143,11 +143,12 @@ def main(engine):
         if page.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
             page.tap("#tapgo"); tapped = True
         check(True, "tap-to-start " + ("was shown and tapped" if tapped else "was not needed"))
-        t0 = page.evaluate("document.querySelector('#v').currentTime")
+        s0, t0 = page.evaluate("[document.querySelector('#v').src, document.querySelector('#v').currentTime]")
         page.wait_for_timeout(2500)
-        t1 = page.evaluate("document.querySelector('#v').currentTime")
+        s1, t1 = page.evaluate("[document.querySelector('#v').src, document.querySelector('#v').currentTime]")
         rs = page.evaluate("document.querySelector('#v').readyState")
-        check(t1 > t0 and rs >= 2, f"a live channel really plays on the phone (time {t0:.1f} -> {t1:.1f}, readyState {rs})")
+        moved = t1 > t0 if s0 == s1 else t1 > 0            # the 12-second test clips may hand over to the next programme
+        check(moved and rs >= 2, f"a live channel really plays on the phone (time {t0:.1f} -> {t1:.1f}, readyState {rs})")
         check(any("k=" in u for u in media_urls), "video addresses carry the device's media key (for AirPlay)")
         err = page.evaluate("document.querySelector('#v').error && document.querySelector('#v').error.code")
         check(not err, f"no video error ({err})")
