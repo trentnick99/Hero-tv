@@ -24,13 +24,13 @@ class RelinkTests(unittest.TestCase):
         self.c = make_db()
 
     def put(self, rel, data=b"x" * 5000):
-        p = os.path.join(self.root, rel)
+        p = os.path.join(self.root, *rel.split("/"))
         os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, "wb").write(data)
         return p
 
     def mid(self, rel):
-        r = self.c.execute("SELECT id FROM media WHERE path=? AND available=1", (os.path.join(self.root, rel),)).fetchone()
+        r = self.c.execute("SELECT id FROM media WHERE path=? AND available=1", (os.path.join(self.root, *rel.split("/")),)).fetchone()
         return r and r["id"]
 
     def mark(self, mid):
@@ -50,7 +50,7 @@ class RelinkTests(unittest.TestCase):
         self.put("Inbox/Iron Man (2008).mp4")
         L.scan(self.c, self.root, fake_probe)
         old = self.mid("Inbox/Iron Man (2008).mp4"); self.mark(old)
-        shutil.move(os.path.join(self.root, "Inbox/Iron Man (2008).mp4"), os.path.join(self.root, "MCU/Iron Man (2008).mp4"))
+        shutil.move(os.path.join(self.root, "Inbox", "Iron Man (2008).mp4"), os.path.join(self.root, "MCU", "Iron Man (2008).mp4"))
         st = L.scan(self.c, self.root, fake_probe)
         new = self.mid("MCU/Iron Man (2008).mp4")
         self.assertEqual(st["relinked"], 1)
@@ -59,13 +59,13 @@ class RelinkTests(unittest.TestCase):
 
     def test_renamed_in_windows(self):
         self.put("MCU/iron.man.2008.1080p.mp4")
-        open(os.path.join(self.root, "MCU/iron.man.2008.1080p.hero.json"), "w").write('{"title": "My Iron Man"}')
+        open(os.path.join(self.root, "MCU", "iron.man.2008.1080p.hero.json"), "w").write('{"title": "My Iron Man"}')
         L.scan(self.c, self.root, fake_probe)
         old = self.mid("MCU/iron.man.2008.1080p.mp4"); self.mark(old)
-        os.rename(os.path.join(self.root, "MCU/iron.man.2008.1080p.mp4"), os.path.join(self.root, "MCU/Iron Man (2008).mp4"))
+        os.rename(os.path.join(self.root, "MCU", "iron.man.2008.1080p.mp4"), os.path.join(self.root, "MCU", "Iron Man (2008).mp4"))
         L.scan(self.c, self.root, fake_probe)
         self.assertEqual(self.kept(self.mid("MCU/Iron Man (2008).mp4")), (1, 600, 900, 1))
-        self.assertTrue(os.path.isfile(os.path.join(self.root, "MCU/Iron Man (2008).hero.json")))
+        self.assertTrue(os.path.isfile(os.path.join(self.root, "MCU", "Iron Man (2008).hero.json")))
         L.scan(self.c, self.root, fake_probe)
         self.assertEqual(self.c.execute("SELECT title FROM media WHERE available=1").fetchone()[0], "My Iron Man")
 
@@ -73,8 +73,8 @@ class RelinkTests(unittest.TestCase):
         self.put("MCU/Thor (2011).mkv", b"m" * 7000)
         L.scan(self.c, self.root, fake_probe)
         old = self.mid("MCU/Thor (2011).mkv"); self.mark(old)
-        os.makedirs(os.path.join(self.root, "MCU/.originals"))
-        shutil.move(os.path.join(self.root, "MCU/Thor (2011).mkv"), os.path.join(self.root, "MCU/.originals/Thor (2011).mkv"))
+        os.makedirs(os.path.join(self.root, "MCU", ".originals"))
+        shutil.move(os.path.join(self.root, "MCU", "Thor (2011).mkv"), os.path.join(self.root, "MCU", ".originals", "Thor (2011).mkv"))
         self.put("MCU/Thor (2011).mp4", b"p" * 6000)                     # different size: a converted copy
         L.scan(self.c, self.root, fake_probe)
         self.assertEqual(self.kept(self.mid("MCU/Thor (2011).mp4")), (1, 600, 900, 1))
@@ -83,7 +83,7 @@ class RelinkTests(unittest.TestCase):
         self.put("MCU/A.mp4"); self.put("MCU/B.mp4")
         L.scan(self.c, self.root, fake_probe)
         self.mark(self.mid("MCU/A.mp4"))
-        os.remove(os.path.join(self.root, "MCU/A.mp4")); os.remove(os.path.join(self.root, "MCU/B.mp4"))
+        os.remove(os.path.join(self.root, "MCU", "A.mp4")); os.remove(os.path.join(self.root, "MCU", "B.mp4"))
         self.put("MCU/C.mp4")                                             # same size as BOTH missing files: ambiguous
         st = L.scan(self.c, self.root, fake_probe)
         self.assertEqual(st["relinked"], 0)
