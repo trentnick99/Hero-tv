@@ -71,10 +71,12 @@ def lan_addresses():
         s.close()
     except OSError:
         pass
-    try:
-        found += socket.gethostbyname_ex(socket.gethostname())[2]
-    except OSError:
-        pass
+    if not found:                               # fallback: ask for this computer's own name, but never wait long
+        box = []
+        t = threading.Thread(target=lambda: box.extend(_by_name()), daemon=True)
+        t.start()
+        t.join(2)
+        found += box
     out = []
     for a in found:
         try:
@@ -84,6 +86,13 @@ def lan_addresses():
         if ip.version == 4 and ip.is_private and not ip.is_loopback and not ip.is_link_local and a not in out:
             out.append(a)
     return out
+
+
+def _by_name():
+    try:
+        return socket.gethostbyname_ex(socket.gethostname())[2]
+    except OSError:
+        return []
 
 
 def host_ok(host_header):

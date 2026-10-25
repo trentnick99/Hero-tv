@@ -113,7 +113,13 @@ def main(engine):
         pcp.keyboard.press("o"); pcp.wait_for_timeout(800)
         check(pcp.evaluate("document.querySelector('#settings').classList.contains('on')"), "O opens Settings on the PC")
         pcp.click("#st-nav >> text=Other devices"); pcp.wait_for_timeout(800)
-        txt = pcp.inner_text("#st-main")
+        for _ in range(20):
+            txt = pcp.inner_text("#st-main")
+            if "Pair a device" in txt:
+                break
+            pcp.wait_for_timeout(500)
+        if "Pair a device" not in txt:
+            LOG.append("st-main was: " + txt[:300].replace("\n", " | "))
         check("Let other devices on my home WiFi watch" in txt and "Pair a device" in txt, "the PC's Settings > Other devices shows the switch and Pair")
         pcp.click("#st-main >> button:has-text('Pair a device')"); pcp.wait_for_timeout(800)
         shown = "".join(ch for ch in pcp.inner_text("#st-main") if ch.isdigit())
