@@ -546,8 +546,10 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
   main.append(tCard("Watching on the TV","On the iPhone, start a video, tap the AirPlay icon and pick your TV (on a Roku TV, AirPlay must be on: Settings > Apple AirPlay and HomeKit). Or mirror this PC: press Windows key + K and pick the TV."))}
  { const x=d.dlna||{},c=tCard("Browse your library on the TV itself","For TVs with a media player app (Roku Media Player, VLC, the 'Media' app of many smart TVs): your folders, shows and new arrivals appear there, and play straight on the TV. Watch-only: nothing can be changed through it.");
    const w=el("small",0,"Important: this standard has no pairing. While it is on, ANY device on your WiFi can see and play your videos. Leave it off on shared or public networks.");w.style.color="var(--accent)";c.append(w);
-   const on=el("input");on.type="checkbox";on.checked=!!x.enabled;const l=el("label","lb");l.append(on," Let TV media players browse my library");l.style.display="flex";l.style.gap="1vw";
-   on.onchange=()=>{if(on.checked&&!c.dataset.sure){c.dataset.sure=1;on.checked=false;sMsg("Tick it again to confirm: every device on your WiFi will be able to watch your videos.","err");return}delete c.dataset.sure;devOp({op:on.checked?"dlna-on":"dlna-off"})};c.append(l);
+   const row=el("div","sbar");
+   if(x.enabled){row.append(el("b",0,"On"));const off=sBtn("Turn off",()=>devOp({op:"dlna-off"},off));off.id="dlna-btn";row.append(off)}
+   else{const go=sBtn("Turn on TV media player browsing",()=>{if(!c.dataset.sure){c.dataset.sure=1;go.textContent="Press again to confirm: anyone on my WiFi may watch";sMsg("Press again to confirm. Every device on your WiFi will be able to watch your videos.","err");return}delete c.dataset.sure;devOp({op:"dlna-on"},go)},"pri");go.id="dlna-btn";row.append(go)}
+   c.append(row);
    if(x.enabled)c.append(el("small",0,`On the Roku: open the Roku Media Player channel (free in the Roku Channel Store) and choose "${x.name}". If Windows asks about network access, choose Allow for private networks.`+(x.running?"":" (Not running right now - see the message above.)")));
    main.append(c)}
  main.append(msg)}

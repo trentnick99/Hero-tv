@@ -140,19 +140,18 @@ def main(engine):
         from herotv import dlna as D
         from unittest import mock as _mock
         with _mock.patch.object(D, "Announcer", side_effect=OSError("test")):
-            box = pcp.locator("#st-main >> text=Let TV media players browse my library")
-            box.click(); pcp.wait_for_timeout(600)
-            check(not D.enabled(), "the TV media player switch asks for a second tick first")
-            pcp.locator("#st-main >> text=Let TV media players browse my library").click()
+            pcp.click("#dlna-btn"); pcp.wait_for_timeout(600)
+            check(not D.enabled() and "Press again" in pcp.inner_text("#dlna-btn"), "turning on the TV media player asks to confirm first")
+            pcp.click("#dlna-btn")
             for _ in range(20):
                 if D.enabled() and app.dlna.running:
                     break
                 pcp.wait_for_timeout(250)
             ok = D.enabled() and app.dlna.running
-            check(ok, "the second tick switches the TV media server on" + ("" if ok else " - screen says: " + pcp.inner_text("#st-msg")[:200]))
+            check(ok, "pressing again switches the TV media server on" + ("" if ok else " - screen says: " + pcp.inner_text("#st-msg")[:200]))
             check("Roku Media Player" in pcp.inner_text("#st-main"), "it explains where to find it on the Roku")
-            pcp.locator("#st-main >> text=Let TV media players browse my library").click(); pcp.wait_for_timeout(1200)
-            check(not D.enabled() and not app.dlna.running, "unticking switches it off again")
+            pcp.click("#dlna-btn"); pcp.wait_for_timeout(1200)
+            check(not D.enabled() and not app.dlna.running, "Turn off switches it off again")
         page.wait_for_timeout(3000)
 
         tapped = False

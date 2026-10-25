@@ -321,7 +321,7 @@ WATCHING ON YOUR PHONE OR TV (Settings > Other devices)
   Settings > Apple AirPlay and HomeKit). Or mirror the whole PC: Windows key + K, pick the TV.
   iPhones cannot play .mkv files: Settings > Tools > "Make iPhone-friendly copies" makes .mp4 copies (quick).
   Browse on the TV itself (Roku Media Player, VLC, a smart TV's "Media" app): Settings > Other devices >
-  "Let TV media players browse my library" (tick twice to confirm). On the Roku open the free Roku Media Player
+  "Turn on TV media player browsing" (press twice to confirm). On the Roku open the free Roku Media Player
   channel and choose your station. Your folders, shows (in episode order) and new arrivals appear and play on the TV.
   IMPORTANT: this standard has no pairing - while it is on, ANY device on your WiFi can see and play your videos
   (nothing can be changed or deleted through it). Untick it when you are done if you share your WiFi.
