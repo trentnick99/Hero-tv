@@ -69,6 +69,24 @@ jobs:
           if ($page.Content -notmatch "NEED_API") { throw "the TV page was not served" }
           Invoke-RestMethod http://127.0.0.1:8799/api/settings | Out-Null
           Invoke-RestMethod http://127.0.0.1:8799/api/channels-config | Out-Null
+          # --- other devices on the network: off by default, then paired, then watch-only ---
+          $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress
+          Write-Host "This runner's network address: $ip"
+          $off = $false; try { Invoke-WebRequest "http://${ip}:8800/pair" -UseBasicParsing -TimeoutSec 5 | Out-Null } catch { $off = $true }
+          if (-not $off) { throw "the network port answered while switched off" }
+          $j = Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"enable"}'
+          if (-not $j.running) { throw "could not switch on other devices" }
+          $code = 0; try { Invoke-WebRequest "http://${ip}:8800/api/channels" -UseBasicParsing | Out-Null } catch { $code = $_.Exception.Response.StatusCode.value__ }
+          if ($code -ne 401) { throw "unpaired device was not refused ($code)" }
+          $j = Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"pair"}'
+          $s = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+          Invoke-RestMethod "http://${ip}:8800/api/pair" -Method Post -ContentType 'application/json' -Body ("{""code"":""" + $j.pairing.code + """}") -WebSession $s | Out-Null
+          $ch = Invoke-RestMethod "http://${ip}:8800/api/channels" -WebSession $s
+          Write-Host "Paired device sees $($ch.channels.Count) channels"
+          $code = 0; try { Invoke-WebRequest "http://${ip}:8800/api/settings" -UseBasicParsing -WebSession $s | Out-Null } catch { $code = $_.Exception.Response.StatusCode.value__ }
+          if ($code -ne 403) { throw "paired device could read settings ($code)" }
+          Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"disable"}' | Out-Null
+          Write-Host "Other-devices test passed."
           Stop-Process -Id $p.Id -Force
           Write-Host "Smoke test passed."
 
@@ -92,6 +110,12 @@ jobs:
           if ((Get-FileHash "$old\HERO-TV.exe").Hash -ne (Get-FileHash "$new\HERO-TV.exe").Hash) { throw "exe differs after update" }
           & "$old\HERO-TV.exe" doctor | Out-Null
           Write-Host "Update test passed."
+
+      - name: Phone test in Chrome's engine on Windows
+        run: |
+          python -m pip install playwright
+          python -m playwright install chromium
+          python scripts/browser_phone_test.py chromium
 
       - name: Upload the finished app
         uses: actions/upload-artifact@v5
@@ -130,3 +154,26 @@ jobs:
             Download HERO-TV-v${{ steps.ver.outputs.version }}-windows.zip below, then double-click Update-HERO-TV.bat in your HERO TV folder
             (it finds the zip in your Downloads folder). New install: unzip it anywhere and double-click HERO-TV.exe.
           generate_release_notes: true
+
+  safari-engine:
+    # Safari's engine (WebKit) on a Mac: the closest thing to an iPhone that runs in the cloud.
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install the Safari engine
+        run: |
+          python -m pip install playwright
+          python -m playwright install webkit
+      - name: Phone test (pair, watch, touch, watch-only) in Safari's engine
+        run: python scripts/browser_phone_test.py webkit
+      - name: Keep the screenshots
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: safari-screenshots
+          path: "*.png"
+          retention-days: 14

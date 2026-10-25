@@ -11,3 +11,5 @@ HERO-TV.exe
 _internal/
 app-build.txt
 .update-backup/
+phone-*.png
+pc-devices-*.png

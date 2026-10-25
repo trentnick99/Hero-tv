@@ -12,6 +12,16 @@ IS_WIN = os.name == "nt"
 PLAY_A = {"aac", "mp3", "opus", "vorbis", "flac", "pcm_s16le"}  # no ac3/eac3/dts: transcode (see README)
 
 
+PHONE_EXTS = {".mp4", ".m4v", ".mov"}          # Safari (iPhone/iPad/Mac) cannot open .mkv or .webm files
+PHONE_A = {"aac", "mp3", "ac3", "eac3", "alac"}
+
+
+def phone_ok(path, vcodec, acodec, vfmt=""):
+    """Will Safari on an iPhone play this file as it is? (Used for 'iPhone-friendly copies'.)"""
+    return (os.path.splitext(str(path))[1].lower() in PHONE_EXTS and vcodec in ("h264", "hevc")
+            and video_ok(vcodec, vfmt) and (not acodec or acodec in PHONE_A))
+
+
 def video_ok(vcodec, vfmt=""):
     """Can a browser really SHOW this picture? (audio-but-black-screen is what you get when it cannot).
     vfmt is "pix_fmt|profile" from ffprobe. 10-bit / 4:2:2 / 4:4:4 H.264 (common in anime rips) is not decodable by

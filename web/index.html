@@ -78,6 +78,13 @@ body.alerting #guide,body.alerting #lib,body.alerting #home,body.alerting #help,
 #info{flex-direction:row;gap:3vw;align-items:flex-start}#news{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;background:#000a}#news.on{display:flex}
 #news .card{background:var(--night);border:1px solid var(--accent,#ffcf1f);border-radius:1.6vh;padding:3vh 2.6vw;max-width:64vw;display:flex;flex-direction:column;gap:1.6vh}
 #news h3{margin:0;font-size:calc(3vh*var(--tx))}#news ul{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:.9vh;font-size:calc(2.1vh*var(--tx));line-height:1.4}#news button{align-self:flex-start}
+#tapgo{position:fixed;inset:0;z-index:96;display:none;align-items:center;justify-content:center;background:#000b;color:#fff;text-align:center;cursor:pointer}#tapgo.on{display:flex}
+#tapgo div{display:flex;flex-direction:column;gap:1.2vh;font-size:9vh;line-height:1}#tapgo b{font-size:3.4vh}#tapgo small{font-size:2vh;opacity:.75}
+#xclose{position:fixed;top:max(1.6vh,env(safe-area-inset-top));right:max(1.6vw,env(safe-area-inset-right));z-index:94;display:none;font:inherit;font-weight:700;font-size:2.2vh;padding:1.1vh 1.4vw;border-radius:1vh;border:1px solid var(--line);background:var(--panel);color:var(--text)}
+body.coarse.inlayer #xclose{display:block}
+body.coarse .hints{display:none}     /* keyboard hints mean nothing on a touch screen */
+#rotate{display:none}
+@media (orientation:portrait){body.coarse.inlayer #rotate{display:block;position:fixed;left:0;right:0;bottom:0;z-index:93;text-align:center;padding:1.2vh 4vw calc(1.2vh + env(safe-area-inset-bottom));background:var(--panel);color:var(--mute);font-size:1.8vh}}
 #dropz{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:#000c;color:#fff;font-size:4vh;font-weight:800;text-align:center;border:.6vh dashed var(--accent,#ffcf1f);margin:2vh;border-radius:2vh}#dropz.on{display:flex}#dropz small{display:block;font-size:2vh;font-weight:400;opacity:.8;margin-top:1vh}
 #settings{background:var(--night);padding:3.5vh 3vw 3vh;flex-direction:column;gap:1.6vh}#settings.on{display:flex}
 body.alerting #settings{padding-top:9.1vh}
@@ -233,6 +240,8 @@ video::cue{font-size:calc(3.6vh*var(--tx));line-height:1.25;background:rgba(0,0,
 <div id="home" class="layer"><div class="top"><h2>HERO TV</h2><span id="h-clock"></span></div><div class="hello" id="h-hello"></div><div id="tiles"></div><div class="hints" id="h-hints"></div></div>
 <div id="help" class="layer"><div class="top"><h2>Help</h2><span>Plain-English answers</span></div><div class="cols"><div id="hp-l"></div><div id="hp-r"></div></div><div class="hints" id="hp-hints"></div></div>
 <div id="settings" class="layer"><div class="top"><h2>Settings</h2><span id="st-sub">Changes are saved when you press Save</span></div><div id="st-body"><div id="st-nav" role="tablist"></div><div id="st-main"></div></div><div class="hints" id="st-hints"></div></div>
+<div id="tapgo" role="button" tabindex="0"><div>▶<b>Tap to start watching</b><small>Phones need one tap before they play sound</small></div></div><button id="xclose" type="button" aria-label="Close">✕ Close</button>
+<div id="rotate">Tip: turn your phone sideways for the full TV view</div>
 <div id="mbar"></div><div id="ctx" role="menu"></div>
 <div id="news" role="dialog" aria-labelledby="nw-h"><div class="card"><h3 id="nw-h"></h3><ul id="nw-l"></ul><button type="button" class="sbtn pri" id="nw-ok">OK</button></div></div>
 <div id="dropz"><div>Drop videos here to add them<small>They go into your Inbox and HERO TV puts them on the right channel</small></div></div>
@@ -259,7 +268,10 @@ function msg(t,s){$("#m-t").textContent=t;$("#m-s").textContent=s||"";show("#msg
 function onColor(hex){const m=/^#?([0-9a-f]{6})$/i.exec(hex||"");if(!m)return"#0b0d16";const n=parseInt(m[1],16),f=c=>{c/=255;return c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4)};
  const L=.2126*f(n>>16)+.7152*f(n>>8&255)+.0722*f(n&255);return L>.3?"#0b0d16":"#ffffff"}
 function paint(node,color){const c=/^#[0-9a-f]{6}$/i.test(color||"")?color:"#ffcf1f";node.style.setProperty("--accent",c);node.style.setProperty("--on",onColor(c))}
-const thumb=(id,lazy)=>{const i=el("img");i.alt="";i.decoding="async";if(lazy)i.loading="lazy";i.src="/thumb/"+id;i.onerror=()=>i.remove();return i};
+let REMOTE=false,MK="";   /* REMOTE = this is a phone/laptop on the home WiFi (watch-only); MK = its media key */
+const withK=u=>REMOTE&&MK?u+(u.includes("?")?"&":"?")+"k="+encodeURIComponent(MK):u;
+const COARSE=matchMedia("(pointer:coarse)").matches;
+const thumb=(id,lazy)=>{const i=el("img");i.alt="";i.decoding="async";if(lazy)i.loading="lazy";i.src=withK("/thumb/"+id);i.onerror=()=>i.remove();return i};
 const tile=t=>{let h=0;for(const ch of t||"")h=(h*31+ch.charCodeAt(0))%360;return`linear-gradient(135deg,hsl(${h} 34% 22%),hsl(${(h+50)%360} 40% 11%))`};
 function hints(box,pairs){box.textContent="";const k=el("div","kbd");for(const[a,b]of pairs){k.append(el("b",0,a),el("span",0,b))}box.append(k)}
 
@@ -293,7 +305,7 @@ async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels hav
  let j;try{j=await api(`/api/channel/${chans[ci].id}/now`)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open. Trying again."),setTimeout(()=>tune(ci),3e3)}
  if(my!==seq)return; /* a newer tune() superseded this one */
  slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Double-click Get-Free-Movies.bat to download some, then press F5."):msg("Nothing is scheduled on "+chans[ci].name,"Add videos to this channel with Add-Movies.bat or Sort-Movies.bat, then press F5.")}
- play(`/media/${slot.media_id}`,()=>Math.min(nowS()-slot.start,(v.duration||1e9)-.5));loadSubs(slot.media_id);osd()}
+ play(withK(`/media/${slot.media_id}`),()=>Math.min(nowS()-slot.start,(v.duration||1e9)-.5));loadSubs(slot.media_id);osd()}
 /* subtitles: files next to the video, or text subtitles inside it (C cycles off / each track) */
 let subs=[],subI=-1,subPref="",subMid=0,subPics=0;
 function clearSub(){for(const t of v.querySelectorAll("track"))t.remove();subI=-1}
@@ -301,19 +313,21 @@ async function loadSubs(id){subMid=id;subs=[];subPics=0;clearSub();
  try{const j=await api("/api/subs/"+id);if(subMid!==id)return;subs=j.tracks||[];subPics=j.picture_only||0}catch(e){return}
  if(subPref){const i=subPref==="*"?(subs.length?0:-1):subs.findIndex(t=>t.language===subPref);if(i>=0)setSub(i,true)}}
 function setSub(i,quiet){clearSub();subI=i;
- if(i>=0){const t=subs[i],tr=document.createElement("track");tr.kind="subtitles";tr.label=t.label;tr.src=`/sub/${subMid}/${t.key}.vtt`;tr.default=true;v.append(tr);tr.track.mode="showing"}
+ if(i>=0){const t=subs[i],tr=document.createElement("track");tr.kind="subtitles";tr.label=t.label;tr.src=withK(`/sub/${subMid}/${t.key}.vtt`);tr.default=true;v.append(tr);tr.track.mode="showing"}
  if(!quiet)toast(i>=0?"Subtitles: "+subs[i].label:"Subtitles off")}
 function cycleSub(){
  if(!subs.length)return toast(subPics?"This video's subtitles are pictures (Blu-ray style) that a browser cannot show. Use a .srt file instead.":"No subtitles for this video. Put a .srt file next to it with the same name.");
  const n=subI+1>=subs.length?-1:subI+1;setSub(n);subPref=n>=0?(subs[n].language||"*"):"";post("/api/prefs",{subs:subPref})}
-function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());v.play().catch(()=>{})};v.onplaying=()=>v.classList.remove("dim")}
+function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
 async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
  it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series))}catch(e){}if(vod!==it)return}
- play(`/media/${it.id}`,()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
+ play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
   const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0});loadSubs(it.id);osd()}
 v.addEventListener("ended",()=>{if(vod){post("/api/progress",{media_id:vod.id,position:0,completed:true});if(sleepAfter)return goToSleep();return tune(ci)}
  setTimeout(()=>tune(ci),Math.max(0,(slot?slot.end-nowS():0)*1e3)+80)});
-v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(!id)return;errs=errs.filter(t=>Date.now()-t<3e4);errs.push(Date.now());
+v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(!id)return;
+ if(REMOTE)return msg("This video can't play on this device yet","Usually a .mkv file. On the PC: Settings > Tools > Make iPhone-friendly copies. Change channel to keep watching.");
+ errs=errs.filter(t=>Date.now()-t<3e4);errs.push(Date.now());
  await post("/api/report-error",{media_id:id,reason:v.error&&v.error.message});
  if(errs.length>=5){msg("Playback keeps failing","This video may be in a format browsers can't play. Drag it onto Convert-Video.bat. Trying again in 10 seconds.");errs=[];return setTimeout(()=>tune(ci),1e4)}
  setTimeout(()=>tune(ci),1500)});
@@ -390,7 +404,7 @@ function homeTiles(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="
  list.push({ic:"😴",t:"Sleep timer",s:sleepLeft()?"Pauses in "+sleepLeft()+". Select to change":"Off. Select to set 30, 60, 90 or 120 minutes",stay:1,go:cycleSleep});
  const big=document.body.classList.contains("big");list.push({ic:"🔠",t:"Bigger text",s:big?"On. Select to turn off":"Off. Select to make text bigger",stay:1,go:()=>setBig(!big,true)});
  if(d.check){const miss=d.check.filter(l=>!l.ideas).reduce((a,l)=>a+l.missing,0);list.push({ic:"📝",t:"Checklist",s:miss?`${miss} titles still to find`:"Everything on your lists is here",go:()=>openCheck()})}
- list.push({ic:"⚙️",t:"Settings",s:"Look, library, weather, cover art, backup",go:()=>openSettings()});
+ if(!REMOTE)list.push({ic:"⚙️",t:"Settings",s:"Look, library, weather, cover art, backup",go:()=>openSettings()});
  list.push({ic:"❓",t:"Help",s:d.help&&d.help.problem_count?`${d.help.problem_count} video(s) need attention`:"Keys, and what to do if something looks wrong",go:()=>openHelp("home")});
  return list}
 function drawHome(){const box=$("#tiles"),L=homeTiles();box.textContent="";paint($("#home"),theme.color);hi=Math.max(0,Math.min(hi,L.length-1));
@@ -466,7 +480,7 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
   else for(const s of c.slots){const a=Math.max(s.start,g.t0),b=Math.min(s.end,g.t0+WIN),b_=el("div","blk");b_.style.left=(a-g.t0)*pxs+"px";b_.style.width=Math.max(2,(b-a)*pxs-4)+"px";
    const on=s.start<=nowS()&&nowS()<s.end;b_.append(thumb(s.media_id),el("b",0,label(s)),el("small",0,`${T(s.start)} to ${T(s.end)}`));
    if(on){const p=el("i");p.style.width=Math.min(100,(nowS()-s.start)/(s.end-s.start)*100)+"%";b_.append(p)}
-   if(r===g.row&&s.start<=g.t&&g.t<s.end)b_.classList.add("sel");b_.dataset.r=r;b_.dataset.t=s.start;b_.onclick=()=>{g.row=r;g.t=s.start;drawGuide()};b_.ondblclick=()=>{closeAll();tune(r)};track.append(b_)}
+   if(r===g.row&&s.start<=g.t&&g.t<s.end)b_.classList.add("sel");b_.dataset.r=r;b_.dataset.t=s.start;b_.onclick=()=>{if(COARSE&&g.row===r&&s.start<=g.t&&g.t<s.end){closeAll();return tune(r)}g.row=r;g.t=s.start;drawGuide()};b_.ondblclick=()=>{closeAll();tune(r)};track.append(b_)}
   if(!c.slots.length&&c.kind!=="weather")track.append(el("div","none","No programming"));
   row.append(ch,track);rows.append(row)});
  {const rh=rows.firstChild&&rows.firstChild.offsetHeight;if(rh){rows.style.flex="none";rows.style.height=Math.max(1,Math.floor((grid.getBoundingClientRect().bottom-rows.getBoundingClientRect().top)/rh))*rh+"px"}   /* whole rows only, never a half-cut one */
@@ -503,7 +517,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
   const resume=it.position>10&&!it.completed;if(resume&&it.runtime_s){const p=el("i");p.style.width=Math.min(100,it.position/it.runtime_s*100)+"%";pic.append(p)}
   pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));
   const meta=[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"");
-  c.append(pic,el("b",0,label(it)),el("small",0,meta||" "));c.onclick=()=>{li=k;drawList()};c.ondblclick=()=>startVod(it);L.append(c)});
+  c.append(pic,el("b",0,label(it)),el("small",0,meta||" "));c.onclick=()=>{if(COARSE&&li===k)return startVod(it);li=k;drawList()};c.ondblclick=()=>startVod(it);L.append(c)});
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;
   if(step>0){L.style.flex="none";L.style.height=Math.max(1,Math.floor((L.parentNode.clientHeight-L.offsetTop-$("#l-hints").offsetHeight-16)/step))*step+"px"}}   /* whole rows only */
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
@@ -561,7 +575,7 @@ async function openInfo(){const t=renameTarget();if(!t)return;infoCtx={back:laye
  $("#in-m").textContent=[d.year,d.runtime_min?d.runtime_min+" min":"",d.rating?"★ "+d.rating.toFixed(1):"",(d.genres||[]).join(", ")].filter(Boolean).join("  ·  ");
  $("#in-tag").textContent=d.tagline||"";$("#in-plot").textContent=d.plot||"";
  $("#in-cast").textContent=(d.cast||[]).length?"Starring "+d.cast.join(", "):"";
- if(d.poster){pic.style.backgroundImage=`url(/poster/${t.id}?v=${Date.now()%1e6})`;pic.classList.remove("wide")}
+ if(d.poster){pic.style.backgroundImage=`url(${withK(`/poster/${t.id}?v=${Date.now()%1e6}`)})`;pic.classList.remove("wide")}
  $("#in-note").textContent=d.plot?"":d.has_key?(d.searched?"No description was found for this title online.":"Looking this up in the background... check again in a minute."):"No description yet. Run Set-Poster-Key.bat once (free) to get posters, plots, cast and ratings.";
  $("#in-cr").textContent=d.source==="TMDB"?"Cover art and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.":"";
  hints($("#in-hints"),[["Enter",infoCtx.back==="lib"?"play":"back"],["Esc","back"]])}
@@ -643,7 +657,7 @@ async function pj(path,body){const r=await fetch(path,{method:"POST",headers:{"C
  if(!r.ok)throw new Error(j.error||"That did not work.");return j}
 async function loadTheme(){try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;document.documentElement.style.setProperty("--brand",theme.color)}catch(e){}}
 const SW=["#ffcf1f","#ff3b3b","#3d6bff","#3ddc84","#b06bff","#ff8c00","#ff2e88","#1fd1b4"];
-const SCATS=[["look","Appearance"],["chan","Channels"],["lib","Media library"],["weather","Weather"],["art","Cover art"],["tools","Tools"],["about","Backup and about"]];
+const SCATS=[["look","Appearance"],["chan","Channels"],["lib","Media library"],["weather","Weather"],["art","Cover art"],["tools","Tools"],["devices","Other devices"],["about","Backup and about"]];
 let chList=null,chSel=null;let sCat="look",sData=null,sDirty=false,sLeave=false;
 function sMsg(t,cls){const m=$("#st-msg");if(m){m.textContent=t||"";m.className="smsg"+(cls?" "+cls:"")}}
 function sField(label,help,input,row){const f=el("div","sf"+(row?" row":""));if(label)f.append(el("label",0,label));if(input)f.append(input);if(help)f.append(el("small",0,help));return f}
@@ -654,7 +668,7 @@ async function sSave(changes,okText,after){sMsg("Saving...");try{const r=await p
  catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}}
 async function sAct(name,btn){const old=btn.textContent;btn.disabled=true;btn.textContent="Working...";
  try{const r=await pj("/api/action",{name});sMsg(r.message||"Done.","ok")}catch(e){sMsg(String(e.message||e),"err")}btn.disabled=false;btn.textContent=old}
-async function openSettings(cat){if(cat)sCat=cat;layer="settings";sDirty=false;sLeave=false;chList=null;chSel=null;tData=null;
+async function openSettings(cat){if(REMOTE)return toast("Settings are on the PC.");if(cat)sCat=cat;layer="settings";sDirty=false;sLeave=false;chList=null;chSel=null;tData=null;
  for(const id of ["#guide","#lib","#home","#help","#check","#info","#osd","#msg"])show(id,false);placePreview(false);show("#settings",true);paint($("#settings"),theme.color);
  hints($("#st-hints"),[["Tab","next control"],["← →","change section"],["Esc","back"]]);
  try{sData=await api("/api/settings")}catch(e){sData=null}drawSettings()}
@@ -676,6 +690,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
     delete main.dataset.sure;sSave({reset_station:true},"Default look restored.",async()=>{await loadTheme();drawSettings()})},"warn"));main.append(msg)}
  else if(sCat==="chan"){drawChannelsCfg(main,msg)}
  else if(sCat==="tools"){drawTools(main,msg)}
+ else if(sCat==="devices"){drawDevices(main,msg)}
  else if(sCat==="lib"){main.append(el("h3",0,"Media library"));
   const dir=sInput(d.media_dir);dir.style.width="50vw";
   main.append(sField("Media folder","Where your videos live. Changing it needs HERO TV to be restarted. Type the full path, for example D:\\Movies.",dir));
@@ -733,12 +748,44 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
      const a=await api("/api/audio/"+it.id);res.textContent="";if(a.tracks.length<2){res.append(el("small",0,"This video has only one sound track - nothing to choose."));return}
      for(const tr of a.tracks){const tb=sBtn((tr.language||tr.lang||"Unknown")+(tr.title?" - "+tr.title:"")+(tr.n===a.playing?"  (plays now)":""),()=>runJob({name:"audio",media_id:it.id,track:tr.n},tb));if(tr.n===a.playing)tb.disabled=true;res.append(tb)}});res.append(b)}},350)});
    c.append(q,res);main.append(c)}
+ { const c=tCard("iPhone-friendly copies",t.not_phone?`${t.not_phone} video(s) cannot play on an iPhone as they are (usually .mkv files). This makes .mp4 copies that play on phones, the PC and over AirPlay - normally quick, because the picture is copied, not re-encoded. Originals are kept. Note: resume points of these videos start again.`:"Every video can play on an iPhone.");
+   if(t.not_phone){const b=sBtn("Make iPhone-friendly copies",()=>runJob({name:"phone"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
  { const c=tCard("Free up space",t.originals_bytes?`Original copies kept after fixing or shrinking videos use ${gb(t.originals_bytes)}. Delete them once you are happy with the new versions. This is permanent.`:"No original copies are being kept.");
    if(t.originals_bytes){const b=sBtn("Delete the originals",()=>{if(!c.dataset.sure){c.dataset.sure=1;sMsg(`Press again to permanently delete ${gb(t.originals_bytes)} of original copies.`,"err");return}delete c.dataset.sure;runJob({name:"clean"},b)},"warn");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
  { const c=tCard("This PC",t.ffmpeg?"Video tools (ffmpeg) are installed.":"Video tools (ffmpeg) are missing: needed to read, fix and convert videos.");const row=el("div","sbar");
    if(!t.ffmpeg){const b=sBtn("Install video tools",()=>runJob({name:"ffmpeg"},b),"pri");row.append(b)}
    const b2=sBtn("Check setup",()=>runJob({name:"check"},b2));row.append(b2);
    if(t.windows){const b3=sBtn("Make a desktop shortcut",()=>runJob({name:"shortcut"},b3));row.append(b3)}c.append(row);main.append(c)}}
+/* ---- Other devices: watch on a phone/laptop on the home WiFi (paired, watch-only) ---- */
+let dData=null,devT=null;
+async function devOp(body,btn){if(btn)btn.disabled=true;sMsg("");try{dData=await pj("/api/devices",body);drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}if(btn)btn.disabled=false}
+function devPoll(){clearTimeout(devT);if(layer!=="settings"||sCat!=="devices")return;
+ api("/api/devices").then(j=>{const before=dData;dData=j;const paired=before&&before.pairing&&!j.pairing&&j.devices.length>before.devices.length;
+  if(paired)toast("Paired: "+j.devices[j.devices.length-1].name);if(paired||!before||!!before.pairing!==!!j.pairing||before.devices.length!==j.devices.length)drawSettings();
+  else{const c=$("#pair-left");if(c&&j.pairing)c.textContent=Math.ceil(j.pairing.seconds_left/60)+" min left"}
+  if(j.pairing)devT=setTimeout(devPoll,2000)}).catch(()=>{})}
+function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
+ if(!dData){main.append(el("div","empty","Loading..."));api("/api/devices").then(j=>{dData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return}
+ const d=dData;
+ { const c=tCard("Watch on your phone or another computer","Lets devices on your home WiFi watch HERO TV after you pair them once. Paired devices can watch, browse and resume, but cannot change settings, channels or files. Off until you switch it on.");
+   const on=el("input");on.type="checkbox";on.checked=d.enabled;const l=el("label","lb");l.append(on," Let other devices on my home WiFi watch");l.style.display="flex";l.style.gap="1vw";
+   on.onchange=()=>devOp({op:on.checked?"enable":"disable"});c.append(l);
+   if(d.enabled)c.append(el("small",0,"The first time, Windows may ask whether HERO TV may use the network: choose Allow (private networks only)."));
+   main.append(c)}
+ if(d.enabled){
+  { const c=tCard("On the phone, open this address",d.addresses.length?"Type it into Safari or Chrome while the phone is on the same WiFi as this PC.":"This PC does not seem to be on a home network right now.");
+    for(const a of d.addresses){const b=el("b",0,a);b.style.fontSize="calc(3vh*var(--tx))";b.style.userSelect="all";c.append(b)}main.append(c)}
+  { const c=tCard("Pair a device",d.pairing?"Type this code on the phone. It works once, for 10 minutes.":"Each phone or computer needs pairing once.");
+    if(d.pairing){const code=el("b",0,d.pairing.code.replace(/(\d{3})(\d{3})/,"$1 $2"));code.style.cssText="font-size:calc(6vh*var(--tx));letter-spacing:.2em;color:var(--accent)";
+     const left=el("small",0,Math.ceil(d.pairing.seconds_left/60)+" min left");left.id="pair-left";c.append(code,left);const row=el("div","sbar");row.append(sBtn("Cancel",()=>devOp({op:"cancel"})));c.append(row);devPoll()}
+    else{const row=el("div","sbar"),b=sBtn("Pair a device",()=>devOp({op:"pair"},b),"pri");row.append(b);c.append(row)}main.append(c)}
+  { const c=tCard("Paired devices",d.devices.length?"":"None yet.");
+    for(const x of d.devices){const row=el("div","sbar"),seen=x.last_seen?new Date(x.last_seen*1e3).toLocaleString():"never";row.append(el("span",0,`${x.name} - last used ${seen}`));
+     const b=sBtn("Remove",()=>{if(!row.dataset.sure){row.dataset.sure=1;b.textContent="Press again to remove";return}devOp({op:"remove",id:x.id},b)},"warn");row.append(b);c.append(row)}
+    if(d.devices.length>1){const row=el("div","sbar"),b=sBtn("Remove all",()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to remove every device";return}devOp({op:"remove-all"},b)},"warn");row.append(b);c.append(row)}
+    main.append(c)}
+  main.append(tCard("Watching on the TV","On the iPhone, start a video, tap the AirPlay icon and pick your TV (on a Roku TV, AirPlay must be on: Settings > Apple AirPlay and HomeKit). Or mirror this PC: press Windows key + K and pick the TV."))}
+ main.append(msg)}
 function chBack(){chSel=null;sDirty=false;sLeave=false;drawSettings();$("#st-main").scrollTop=0}
 async function chSaved(r,text){chList=r.channels;sDirty=false;sLeave=false;try{libV=(await fetch("/api/hb").then(x=>x.json())).lib}catch(e){}libChanged("channels updated");sMsg(text+(r.note?" "+r.note:""),"ok")}
 async function chPost(body,okText,backToList){sMsg("Saving...");try{const r=await pj("/api/channels-config",body);await chSaved(r,okText);if(backToList){chSel=null;drawSettings();sMsg(okText+(r.note?" "+r.note:""),"ok")}}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}}
@@ -768,14 +815,14 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  bar.append(sBtn(isNew?"Create channel":"Save",()=>isNew?chPost(Object.assign({op:"add"},payload()),"Channel created.",true):chPost(Object.assign({op:"save",id:c.id},payload()),"Saved."),"pri"),sBtn("Back to the list",()=>{if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}chBack()}));
  if(!isNew)bar.append(sBtn("Delete this channel",()=>{if(!bar.dataset.sure){bar.dataset.sure=1;sMsg("Press Delete again to remove this channel from the guide. Your videos are not touched.","err");return}chPost({op:"delete",id:c.id},"Channel deleted.",true)},"warn"));
  main.append(bar,msg)}
-function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;drawSettings();$("#st-main").scrollTop=0}
+function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices")dData=null;drawSettings();$("#st-main").scrollTop=0}
 function closeSettings(){show("#settings",false);layer="";sDirty=false;sLeave=false}
 function settingsKey(e){const k=e.key;
  if(k==="Escape"){e.preventDefault();if(sDirty&&!sLeave){sLeave=true;return toast("You have unsaved changes. Press Esc again to leave without saving.")}if(sCat==="chan"&&chSel!==null)return chBack();return openHome()}
  if((k==="ArrowRight"||k==="ArrowLeft")&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest("#st-nav")){e.preventDefault();const ks=SCATS.map(x=>x[0]),i=ks.indexOf(sCat),n=ks[(i+(k==="ArrowRight"?1:-1)+ks.length)%ks.length];sGo(n);const b=$("#st-nav .on");if(b)b.focus()}}
 /* ---- on-screen buttons for the mouse + right-click menus ---- */
 let mbarT;function mbarInit(){const b=$("#mbar");if(b.dataset.ok)return;b.dataset.ok=1;
- for(const[t,fn]of[["Home",()=>openHome()],["Guide",()=>openGuide()],["Library",()=>openLib()],["Details",()=>openInfo()],["Settings",()=>openSettings()],["Full screen",()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})]]){const x=el("button",0,t);x.type="button";x.onclick=fn;b.append(x)}}
+ for(const[t,fn]of[...(COARSE?[["Ch ▲",()=>tune(ci+1)],["Ch ▼",()=>tune(ci-1)]]:[]),["Home",()=>openHome()],["Guide",()=>openGuide()],["Library",()=>openLib()],["Details",()=>openInfo()],...(REMOTE?[]:[["Settings",()=>openSettings()]]),["Full screen",()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})]]){const x=el("button",0,t);x.type="button";x.onclick=fn;b.append(x)}}
 function mbarShow(){if(layer!==""){show("#mbar",false);return}mbarInit();paint($("#mbar"),theme.color);show("#mbar",true);clearTimeout(mbarT);mbarT=setTimeout(()=>show("#mbar",false),3000)}
 let ctxI=0,ctxL=[];
 function ctxOpen(x,y,list){ctxL=list;ctxI=0;const m=$("#ctx");m.textContent="";paint(m,theme.color);list.forEach((it,i)=>{const d=el("div",i===0?"sel":"",it.t);d.setAttribute("role","menuitem");d.onmouseenter=()=>{ctxI=i;ctxDraw()};d.onclick=()=>{ctxClose();it.fn()};m.append(d)});
@@ -799,12 +846,18 @@ addEventListener("contextmenu",e=>{
   ctxOpen(e.clientX,e.clientY,[{t:"Home menu",fn:()=>openHome()},{t:"TV guide",fn:()=>openGuide()},{t:"Library and search",fn:()=>openLib()},t?{t:"Details about this video",fn:()=>openInfo()}:null,{t:"Settings",fn:()=>openSettings()}].filter(Boolean))}});
 addEventListener("mousedown",e=>{if(ctxIsOpen()&&!e.target.closest("#ctx"))ctxClose()});
 /* ---- what's new after an update (shown once) ---- */
-async function showNews(){try{const j=await api("/api/whatsnew");if(!j.notes||!j.notes.length)return;paint($("#news"),theme.color);
+async function showNews(){if(REMOTE)return;try{const j=await api("/api/whatsnew");if(!j.notes||!j.notes.length)return;paint($("#news"),theme.color);
  $("#nw-h").textContent="What's new in "+theme.name+" "+j.version;const ul=$("#nw-l");ul.textContent="";for(const n of j.notes)for(const l of n.lines)ul.append(el("li",0,l));
  show("#news",true);$("#nw-ok").focus()}catch(e){}}
 function closeNews(){show("#news",false);post("/api/whatsnew",{})}
 $("#nw-ok").onclick=closeNews;
+setTimeout(showNews,2500);   /* once, after the theme has loaded */
 const newsOpen=()=>$("#news").classList.contains("on");
+$("#tapgo").onclick=()=>{show("#tapgo",false);v.muted=false;v.play().catch(()=>{})};
+$("#xclose").onclick=()=>dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));
+document.body.classList.toggle("coarse",COARSE);
+addEventListener("touchstart",()=>{if(layer==="")mbarShow()},{passive:true});
+setInterval(()=>{document.body.classList.toggle("inlayer",layer!=="");if(layer!=="")show("#mbar",false)},300);
 /* ---- drag videos onto the window to add them (they land in the Inbox folder) ---- */
 const VEXT=/\.(mp4|m4v|mkv|webm|mov|avi|wmv|flv|ts|m2ts|mts|mpg|mpeg|divx|ogv|3gp|srt|vtt)$/i;let dragN=0,upBusy=false;
 const hasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes("Files");
@@ -813,7 +866,7 @@ addEventListener("dragover",e=>{if(hasFiles(e))e.preventDefault()});
 addEventListener("dragleave",e=>{if(!hasFiles(e))return;if(--dragN<=0){dragN=0;show("#dropz",false)}});
 async function entryFiles(en,out){if(en.isFile)await new Promise(r=>en.file(f=>{out.push(f);r()},r));
  else if(en.isDirectory){const rd=en.createReader();for(;;){const part=await new Promise(r=>rd.readEntries(r,()=>r([])));if(!part.length)break;for(const x of part)await entryFiles(x,out)}}}
-addEventListener("drop",async e=>{if(!hasFiles(e))return;e.preventDefault();dragN=0;show("#dropz",false);
+addEventListener("drop",async e=>{if(!hasFiles(e))return;e.preventDefault();dragN=0;show("#dropz",false);if(REMOTE)return toast("Add videos on the PC.");
  const files=[];const ents=[...(e.dataTransfer.items||[])].map(it=>it.webkitGetAsEntry&&it.webkitGetAsEntry()).filter(Boolean);   /* read everything before the first await: the browser empties the drop afterwards */
  const plain=[...e.dataTransfer.files];
  for(const en of ents)await entryFiles(en,files);
@@ -829,7 +882,8 @@ addEventListener("drop",async e=>{if(!hasFiles(e))return;e.preventDefault();drag
  upBusy=false;toast(done?`${done} video${done===1?"":"s"} added to your Inbox. HERO TV will file ${done===1?"it":"them"} in about a minute.${bad?` (${bad} failed)`:""}`:"Nothing could be added.")});
 /* the mouse pointer only shows while it is being used */
 let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();document.body.classList.remove("hide-cursor");clearTimeout(curT);curT=setTimeout(()=>document.body.classList.add("hide-cursor"),3e3)});
-(async()=>{try{await sync();setChans((await api("/api/channels")).channels)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open, then press F5.")}
+(async()=>{try{const dv=await api("/api/device");REMOTE=!!dv.remote;MK=dv.mk||"";document.body.classList.toggle("remote",REMOTE)}catch(e){}
+ try{await sync();setChans((await api("/api/channels")).channels)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open, then press F5.")}
  try{const h=await api("/api/health");if(h.api!==NEED_API)toast(h.frozen?"The HERO TV application is older than its files. Close it, then double-click Build-App.bat in the HERO TV folder (a few minutes) to bring it up to date.":"HERO TV is an older version than this page. Close it completely and start it again to get the newest features.")}catch(e){}
  try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color)}catch(e){}
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
@@ -837,5 +891,4 @@ let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();d
  let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();
  try{if(!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");setTimeout(()=>toast("Tip: press H for the home menu, or ? for help"),6000)}}catch(e){}})();
 })();
-setTimeout(showNews,2500);   /* after the theme has loaded */
 </script></body></html>

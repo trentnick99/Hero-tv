@@ -452,7 +452,7 @@ def _keep_original(src):
     return dest
 
 
-def _convert_one(src, ffmpeg):
+def _convert_one(src, ffmpeg, phone=False):
     """Make one file browser-playable. Returns (status, path): 'fine' | 'converted' | 'failed'.
     Video already in a playable codec is copied untouched; only the sound (AC-3/DTS -> AAC) is converted.
     The original is kept in a hidden '.originals' folder next to it."""
@@ -463,7 +463,12 @@ def _convert_one(src, ffmpeg):
     v_ok = library.video_ok(p["vcodec"], p.get("vfmt", ""))
     a_ok = (not p["acodec"]) or p["acodec"] in library.PLAY_A
     ext = os.path.splitext(src)[1].lower()
-    if v_ok and a_ok and ext in library.EXTS:
+    if phone:                                  # iPhone-friendly: .mp4 with H.264/HEVC picture and AAC-type sound
+        v_ok = v_ok and p["vcodec"] in ("h264", "hevc")
+        a_ok = (not p["acodec"]) or p["acodec"] in library.PLAY_A & library.PHONE_A
+        if v_ok and a_ok and ext in library.PHONE_EXTS:
+            return "fine", src
+    elif v_ok and a_ok and ext in library.EXTS:
         return "fine", src
     folder, stem = os.path.split(src)[0], os.path.splitext(os.path.basename(src))[0]
     tmp, final = os.path.join(folder, stem + ".converting.tmp"), os.path.join(folder, stem + ".mp4")
@@ -471,8 +476,10 @@ def _convert_one(src, ffmpeg):
         say("  [skip] a .mp4 with this name already exists")
         return "failed", src
     vopt = ["-c:v", "copy"] if v_ok else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+    if v_ok and p["vcodec"] == "hevc":
+        vopt += ["-tag:v", "hvc1"]               # Apple devices only play HEVC tagged this way
     aopt = ["-c:a", "copy"] if a_ok else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
-    say("  fixing for the TV: video " + ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 (slow: a movie can take 15-40 minutes)") +
+    say(("  making an iPhone-friendly copy:" if phone else "  fixing for the TV:") + " video " + ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 (slow: a movie can take 15-40 minutes)") +
         ", audio " + ("kept as is" if a_ok else f"converting {p['acodec']} -> AAC"))
     cmd = [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", "0:a:0?", *vopt, *aopt,
            "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
@@ -1488,3 +1495,23 @@ def finish_update(root, pid=None, start=True):
         subprocess.Popen([str(root / "HERO-TV.exe"), "launch", "--quiet"], cwd=str(root), close_fds=True,
                          creationflags=0x00000008 if IS_WIN else 0)
     return 0
+
+
+def make_phone_ready(paths, cfg=None):
+    """Make iPhone-friendly .mp4 copies (picture copied as is, so usually quick). Originals go to .originals."""
+    ffmpeg = tools.find_tool("ffmpeg")
+    if not ffmpeg or not tools.find_tool("ffprobe"):
+        say(f"{BAD} ffmpeg is missing - Settings > Tools > Install video tools.")
+        return 1
+    bad = done = 0
+    for i, src in enumerate(paths, 1):
+        say(f"\n[{i} of {len(paths)}] {os.path.basename(src)}")
+        st, _ = _convert_one(os.path.abspath(src), ffmpeg, phone=True)
+        bad += st == "failed"
+        done += st == "converted"
+        if st == "fine":
+            say("  already iPhone-friendly")
+    say(f"\n{OK if not bad else WARN} {done} copied, {bad} failed.")
+    if done:
+        _after_change(cfg or Config(), bad)
+    return 1 if bad else 0

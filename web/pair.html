@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pair with HERO TV</title>
+<style>
+:root{--bg:#0b0d16;--panel:#151a2b;--text:#f2f0ea;--mute:#a7adbf;--accent:#ffcf1f;--bad:#ff6b6b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:17px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:center;padding:24px 16px}
+main{width:100%;max-width:420px;background:var(--panel);border-radius:18px;padding:28px 22px;display:flex;flex-direction:column;gap:14px}
+h1{margin:0;font-size:24px}h1 b{color:var(--accent)}
+p{margin:0;color:var(--mute)}
+input{font:inherit;font-size:34px;letter-spacing:.35em;text-align:center;width:100%;padding:12px 8px;border-radius:12px;border:2px solid #2b3352;background:#0e1222;color:var(--text)}
+input:focus{outline:none;border-color:var(--accent)}
+button{font:inherit;font-weight:700;padding:14px;border-radius:12px;border:0;background:var(--accent);color:#111;cursor:pointer}
+button:disabled{opacity:.6}
+#msg{min-height:1.5em}#msg.err{color:var(--bad)}
+small{color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Watch <b>HERO TV</b> here</h1>
+  <p>On the PC, open <b>Settings &gt; Other devices</b> and choose <b>Pair a device</b>. Type the 6-digit code it shows.</p>
+  <form id="f" autocomplete="off">
+    <input id="code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" aria-label="Pairing code" autofocus>
+  </form>
+  <button id="go" type="button">Pair this device</button>
+  <div id="msg" role="status"></div>
+  <small>You only do this once on each device. You can remove it on the PC at any time.</small>
+</main>
+<script>
+const code=document.getElementById("code"),go=document.getElementById("go"),msg=document.getElementById("msg");
+code.addEventListener("input",()=>{code.value=code.value.replace(/\D/g,"").slice(0,6);if(code.value.length===6)pair()});
+document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();pair()});
+go.addEventListener("click",pair);
+async function pair(){if(code.value.length!==6){msg.className="err";msg.textContent="The code has 6 numbers.";return}
+ go.disabled=true;msg.className="";msg.textContent="Pairing...";
+ try{const r=await fetch("/api/pair",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:code.value})});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok){msg.textContent="Paired! Opening HERO TV...";location.replace("/");return}
+  msg.className="err";msg.textContent=j.error||"That did not work.";code.select()}
+ catch(e){msg.className="err";msg.textContent="Cannot reach the PC. Is HERO TV running, and is this device on the same WiFi?"}
+ go.disabled=false}
+</script>
+</body>
+</html>
