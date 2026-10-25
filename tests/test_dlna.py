@@ -58,6 +58,9 @@ class DlnaServerTests(unittest.TestCase):
             c.execute("INSERT INTO media(path,title,year,franchise,series,season,episode,verified,playable,available,runtime_s,size,added) "
                       "VALUES(?,?,?,?,?,?,?,1,1,1,3725.5,1024,?)", (str(f), title, 2008 + i, fr, series, se, ep, int(time.time()) if i == 0 else 0))
         c.commit(); c.close()
+        (Path(self.d) / "Iron Man.en.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nI am Iron Man\n", encoding="utf-8")
+        (Path(self.d) / "Iron Man.forced.srt").write_text("1\n00:00:01,000 --> 00:00:02,000\nforced\n", encoding="utf-8")
+        (Path(self.d) / "Thor.vtt").write_text("WEBVTT\n\n00:01.000 --> 00:02.500\nBring me Thanos\n", encoding="utf-8")
         self.app = SV.App(self.cfg)
         dlna.set_enabled(True)
         with mock.patch.object(dlna, "Announcer", side_effect=OSError("no multicast in tests")):
@@ -166,6 +169,25 @@ class DlnaServerTests(unittest.TestCase):
         self.assertIn("HERO TV", name)
         self.assertEqual(out["TotalMatches"], 3)
         self.assertIn("South Park", out["Result"])
+
+
+    def test_subtitles_offered_and_served(self):
+        d, _ = self.didl(self.browse("f:MCU")[1])
+        items = {i.find("dc:title", NS).text: i for i in d.findall("didl:item", NS)}
+        res = items["Iron Man (2008)"].findall("didl:res", NS)
+        self.assertEqual(len(res), 2)
+        self.assertIn("text/srt", res[1].get("protocolInfo"))
+        self.assertTrue(res[1].text.endswith("/dlna/sub/1.srt"))
+        self.assertIsNotNone(items["Iron Man (2008)"].find("{http://www.sec.co.kr/}CaptionInfoEx"))
+        st, raw, h = self.req("/dlna/sub/1.srt")
+        self.assertEqual(st, 200); self.assertIn(b"I am Iron Man", raw); self.assertNotIn(b"forced", raw)   # English, not forced
+        st, raw, _ = self.req("/dlna/sub/2.srt")
+        self.assertIn(b"00:00:01,000 --> 00:00:02,500", raw)                                       # .vtt converted to .srt
+        self.assertEqual(self.req("/dlna/sub/3.srt")[0], 404)
+        _, _, h = self.req("/dlna/media/1.mp4", headers={"getcaptionInfo.sec": "1", "Range": "bytes=0-1"})
+        self.assertTrue(h["CaptionInfo.sec"].endswith("/dlna/sub/1.srt"))
+        _, _, h = self.req("/dlna/media/3.mp4", headers={"getcaptionInfo.sec": "1", "Range": "bytes=0-1"})
+        self.assertIsNone(h["CaptionInfo.sec"])
 
 
 class LiveSsdpTest(unittest.TestCase):

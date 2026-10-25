@@ -137,6 +137,42 @@ def parent_of(oid):
     return "0"
 
 
+def subtitle_file(path):
+    """The subtitle file a TV should get for this video: English (or unlabelled) first, forced-only tracks last."""
+    from . import subtitles
+    files = subtitles.external_files(path)
+    if not files:
+        return None
+    rank = lambda f: (f["forced"], f["language"] not in ("English", ""), f["language"] != "English", f["file"])
+    return sorted(files, key=rank)[0]["file"]
+
+
+def vtt_to_srt(text):
+    """WebVTT -> SubRip (what TV media players read)."""
+    import re as _re
+    blocks, n = [], 0
+    for block in _re.split(r"\r?\n\s*\r?\n", text.replace("\ufeff", "")):
+        lines = [l for l in block.strip().splitlines()]
+        if not lines or lines[0].startswith(("WEBVTT", "NOTE", "STYLE", "REGION")):
+            continue
+        i = next((k for k, l in enumerate(lines) if "-->" in l), None)
+        if i is None:
+            continue
+        a, _, b = lines[i].partition("-->")
+        fix = lambda t: (("00:" + t) if t.count(":") == 1 else t).replace(".", ",")
+        a, b = fix(a.strip()), fix(b.strip().split(" ")[0])
+        n += 1
+        blocks.append(f"{n}\n{a} --> {b}\n" + "\n".join(lines[i + 1:]))
+    return "\n\n".join(blocks) + "\n"
+
+
+def srt_text(path):
+    from . import subtitles
+    with open(path, "rb") as fh:
+        text = subtitles.decode(fh.read())
+    return vtt_to_srt(text) if path.lower().endswith(".vtt") else text.replace("\ufeff", "")
+
+
 def _dur(s):
     s = max(0.0, float(s or 0))
     return f"{int(s // 3600)}:{int(s % 3600 // 60):02d}:{s % 60:06.3f}"
@@ -144,7 +180,8 @@ def _dur(s):
 
 def didl(entries, parent, base):
     parts = ['<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" '
-             'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">']
+             'xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/" '
+             'xmlns:sec="http://www.sec.co.kr/">']
     for kind, oid, title, x in entries:
         if kind == "c":
             parts.append(f'<container id="{_x(oid)}" parentID="{_x(parent)}" restricted="1" childCount="{int(x)}" searchable="0">'
@@ -154,12 +191,15 @@ def didl(entries, parent, base):
             ext = os.path.splitext(r["path"])[1].lower()
             mime = MIME.get(ext, "video/mp4")
             url = f"{base}/dlna/media/{r['id']}{ext}"
+            sub = f"{base}/dlna/sub/{r['id']}.srt" if subtitle_file(r["path"]) else ""
+            subs = (f'<sec:CaptionInfoEx sec:type="srt">{_x(sub)}</sec:CaptionInfoEx>'
+                    f'<res protocolInfo="http-get:*:text/srt:*">{_x(sub)}</res>') if sub else ""
             parts.append(f'<item id="{_x(oid)}" parentID="{_x(parent)}" restricted="1"><dc:title>{_x(title)}</dc:title>'
                          f'<upnp:class>object.item.videoItem</upnp:class>'
                          + (f'<dc:date>{int(r["year"])}-01-01</dc:date>' if r["year"] else "")
                          + f'<upnp:albumArtURI dlna:profileID="JPEG_TN">{base}/dlna/thumb/{r["id"]}.jpg</upnp:albumArtURI>'
                          f'<res protocolInfo="http-get:*:{mime}:{DLNA_FLAGS}" size="{int(r["size"] or 0)}" '
-                         f'duration="{_dur(r["runtime_s"])}">{_x(url)}</res></item>')
+                         f'duration="{_dur(r["runtime_s"])}">{_x(url)}</res>{subs}</item>')
     parts.append("</DIDL-Lite>")
     return "".join(parts)
 
@@ -308,7 +348,7 @@ def make_handler(app):
                 return self.send(200, CDS_XML)
             if p == "/dlna/cms.xml":
                 return self.send(200, CMS_XML)
-            m = re.fullmatch(r"/dlna/(media|thumb)/(\d+)(\.\w+)?", p)
+            m = re.fullmatch(r"/dlna/(media|thumb|sub)/(\d+)(\.\w+)?", p)
             if m:
                 c = app.db()
                 try:
@@ -317,16 +357,24 @@ def make_handler(app):
                     c.close()
                 if row is None:
                     return self.send(404, "not found", "text/plain")
+                if m.group(1) == "sub":
+                    f = subtitle_file(row["path"])
+                    if not f:
+                        return self.send(404, "no subtitles", "text/plain")
+                    return self.send(200, srt_text(f), "text/srt; charset=utf-8")
                 if m.group(1) == "thumb":
                     f = thumbs.thumb_file(app.cfg, row)
                     if not os.path.isfile(f):
                         return self.send(404, "no picture yet", "text/plain")
                     with open(f, "rb") as fh:
                         return self.send(200, fh.read(), "image/jpeg")
-                return self.file(row["path"])
+                extra = {}
+                if self.headers.get("getcaptionInfo.sec") == "1" and subtitle_file(row["path"]):
+                    extra["CaptionInfo.sec"] = f"{self.base()}/dlna/sub/{row['id']}.srt"   # Samsung-style TVs ask this way
+                return self.file(row["path"], extra)
             return self.send(404, "not found", "text/plain")
 
-        def file(self, path):
+        def file(self, path, extra=None):
             if not os.path.isfile(path):
                 return self.send(404, "not found", "text/plain")
             size = os.path.getsize(path)
@@ -352,6 +400,8 @@ def make_handler(app):
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
             self.send_header("transferMode.dlna.org", "Streaming")
             self.send_header("contentFeatures.dlna.org", DLNA_FLAGS)
+            for k, v in (extra or {}).items():
+                self.send_header(k, v)
             self.end_headers()
             if self.command == "HEAD":
                 return
