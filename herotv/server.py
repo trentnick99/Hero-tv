@@ -586,7 +586,9 @@ def make_handler(app, remote=False):
                 return self.send_json({"error": "not found"}, 404)
             b = f.read_bytes()
             self.send_response(200)
-            self.send_header("Content-Type", (mimetypes.guess_type(name)[0] or "application/octet-stream") + "; charset=utf-8")
+            ctype = {".js": "text/javascript", ".css": "text/css", ".html": "text/html"}.get(os.path.splitext(name)[1].lower())
+            self.send_header("Content-Type", (ctype or mimetypes.guess_type(name)[0] or "application/octet-stream") + "; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")      # after an update the browser must fetch the new page files
             self.send_header("Content-Length", str(len(b)))
             self.end_headers()
             self.wfile.write(b)

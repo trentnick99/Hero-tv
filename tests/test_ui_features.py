@@ -99,7 +99,7 @@ class UiFeatureServerTests(unittest.TestCase):
         self.assertEqual(self.get("/api/help")["hidden_channels"], ["2 DC"])
 
     def test_page_has_the_new_screens(self):
-        page = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "index.html"), encoding="utf-8").read()
+        page = __import__("helpers").page_source()
         for needle in ('id="home"', 'id="help"', 'id="upnext"', "cycleSleep", "markSkip", "setBig", "body.big"):
             self.assertIn(needle, page)
 

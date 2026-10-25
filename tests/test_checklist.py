@@ -155,7 +155,7 @@ class PersonalizeAndServerTests(unittest.TestCase):
         marvel = next(l for l in lists if l["name"] == "Marvel Movies")
         self.assertEqual(marvel["have"], 1)
         self.assertTrue(marvel["missing"] > 20)
-        page = open(os.path.join(ROOT, "web", "index.html"), encoding="utf-8").read()
+        page = __import__("helpers").page_source()
         for needle in ('id="check"', "openCheck", "/api/theme"):
             self.assertIn(needle, page)
 

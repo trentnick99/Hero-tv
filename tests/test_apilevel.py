@@ -19,7 +19,7 @@ class StaleServerTests(unittest.TestCase):
     """An older HERO TV left running after an update must be noticed (and restarted by the launcher)."""
 
     def test_api_level_matches_between_server_and_page(self):
-        page = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web", "index.html"), encoding="utf-8").read()
+        page = __import__("helpers").page_source()
         self.assertEqual(int(re.search(r"const NEED_API=(\d+)", page)[1]), API_LEVEL)
 
     def test_health_reports_api_level(self):

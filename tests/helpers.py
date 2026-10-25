@@ -36,3 +36,9 @@ def slots(c, cid="mcu"):
 def tmpdb():
     d = tempfile.mkdtemp()
     return os.path.join(d, "t.sqlite3")
+
+
+def page_source():
+    """The TV page as one text: index.html + app.css + app.js (for tests that look at the page's code)."""
+    web = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
+    return "\n".join(open(os.path.join(web, n), encoding="utf-8").read() for n in ("index.html", "app.css", "app.js"))
