@@ -23,6 +23,22 @@ let REMOTE=false,MK="";   /* REMOTE = this is a phone/laptop on the home WiFi (w
 const withK=u=>REMOTE&&MK?u+(u.includes("?")?"&":"?")+"k="+encodeURIComponent(MK):u;
 const COARSE=matchMedia("(pointer:coarse)").matches;
 const thumb=(id,lazy)=>{const i=el("img");i.alt="";i.decoding="async";if(lazy)i.loading="lazy";i.src=withK("/thumb/"+id);i.onerror=()=>i.remove();return i};
+/* one line-icon set (24x24, drawn with the station colour) instead of emoji, which look different on every PC */
+const ICONS={live:'<rect x="2.5" y="5.5" width="19" height="12.5" rx="2"/><path d="M8.5 21h7M12 18v3M8.5 2.5 12 5.5l3.5-3"/>',
+ resume:'<circle cx="12" cy="12" r="9"/><path d="M10 8.6v6.8l5.6-3.4z"/>',
+ new:'<path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9zM18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+ ticket:'<path d="M3.5 7h17v3a2 2 0 0 0 0 4v3h-17v-3a2 2 0 0 0 0-4z"/><path d="M14 7.5v9" stroke-dasharray="1.6 1.8"/>',
+ guide:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14.5h18M9 9v11"/>',
+ search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 15.3 15.3"/>',
+ star:'<path d="M12 3.6l2.6 5.3 5.8.9-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.9z"/>',
+ gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8.5h14V12M12 8v12.5M12 8C10.5 4.5 6.5 4.5 7 7c.3 1.3 3 1 5 1 2 0 4.7.3 5-1 .5-2.5-3.5-2.5-5 1"/>',
+ weather:'<path d="M7 19h10a4 4 0 0 0 .6-8 5.5 5.5 0 0 0-10.4 1.6A3.2 3.2 0 0 0 7 19z"/><path d="M5 3.5v1.6M1.8 7.6h1.6M2.6 4.6l1.1 1.1"/>',
+ moon:'<path d="M20 14.6A8.2 8.2 0 0 1 9.4 4a8.2 8.2 0 1 0 10.6 10.6z"/>',
+ text:'<path d="M2.5 19 7.5 5.5 12.5 19M4.4 14h6.2M14.5 19l3-8 3 8M15.6 16.2h3.8"/>',
+ list:'<path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11M3.5 6.5l1.3 1.3L7.3 5.3M3.5 12l1.3 1.3L7.3 10.8M3.5 17.5l1.3 1.3 2.5-2.5"/>',
+ gear:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.7 2.2 2.7-.7.5 2.8 2.4 1.5-1.2 2.5 1.2 2.5-2.4 1.5-.5 2.8-2.7-.7L12 21.2l-1.7-2.2-2.7.7-.5-2.8-2.4-1.5L5.9 12 4.7 9.5l2.4-1.5.5-2.8 2.7.7z"/>',
+ help:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2 1-1.2 1.8v.6M12 17.3v.1"/>'};
+function iconEl(name,cls){const w=el("span",cls||"ic");w.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.help}</svg>`;return w}
 const tile=t=>{let h=0;for(const ch of t||"")h=(h*31+ch.charCodeAt(0))%360;return`linear-gradient(135deg,hsl(${h} 34% 22%),hsl(${(h+50)%360} 40% 11%))`};
 function hints(box,pairs){box.textContent="";const k=el("div","kbd");for(const[a,b]of pairs){k.append(el("b",0,a),el("span",0,b))}box.append(k)}
 
@@ -55,7 +71,7 @@ async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels hav
  if(wx){slot=nextSlot=null;v.pause();v.removeAttribute("src");v.load();loadWx();return osd()}
  let j;try{j=await api(`/api/channel/${chans[ci].id}/now`)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open. Trying again."),setTimeout(()=>tune(ci),3e3)}
  if(my!==seq)return; /* a newer tune() superseded this one */
- slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Double-click Get-Free-Movies.bat to download some, then press F5."):msg("Nothing is scheduled on "+chans[ci].name,"Add videos to this channel with Add-Movies.bat or Sort-Movies.bat, then press F5.")}
+ slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Press O for Settings, then Tools > Free movies > Download."):msg("Nothing is scheduled on "+chans[ci].name,"Drag videos onto this window, or put them in this channel's folder. They appear by themselves.")}
  play(withK(`/media/${slot.media_id}`),()=>Math.min(nowS()-slot.start,(v.duration||1e9)-.5));loadSubs(slot.media_id);osd()}
 /* subtitles: files next to the video, or text subtitles inside it (C cycles off / each track) */
 let subs=[],subI=-1,subPref="",subMid=0,subPics=0;
@@ -80,7 +96,7 @@ v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(
  if(REMOTE)return msg("This video can't play on this device yet","Usually a .mkv file. On the PC: Settings > Tools > Make iPhone-friendly copies. Change channel to keep watching.");
  errs=errs.filter(t=>Date.now()-t<3e4);errs.push(Date.now());
  await post("/api/report-error",{media_id:id,reason:v.error&&v.error.message});
- if(errs.length>=5){msg("Playback keeps failing","This video may be in a format browsers can't play. Drag it onto Convert-Video.bat. Trying again in 10 seconds.");errs=[];return setTimeout(()=>tune(ci),1e4)}
+ if(errs.length>=5){msg("Playback keeps failing","This video may be in a format the TV cannot play. Settings > Tools > Videos that are skipped can fix it. Trying again in 10 seconds.");errs=[];return setTimeout(()=>tune(ci),1e4)}
  setTimeout(()=>tune(ci),1500)});
 setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall watchdog, progress
  sleepCheck();if(sleeping)return;
@@ -91,7 +107,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(v.src&&!v.paused&&v.currentTime===lastPos){if(++stall>20){stall=0;tune(ci)}}else stall=0;lastPos=v.currentTime;
  /* sound but no picture = a video format this browser cannot show: report it, say so, move on */
  if(v.src&&!v.paused&&v.readyState>=2&&v.currentTime>3&&v.videoWidth===0){if(++nopic>=3){nopic=0;const id=vod?vod.id:slot&&slot.media_id;
-   if(id){post("/api/report-error",{media_id:id,reason:"no-picture"});msg("This video has sound but no picture","Its video format cannot be shown here. It is being skipped. To fix it, drag the file onto Convert-Video.bat.");setTimeout(()=>{msg("");tune(ci)},5e3)}}}else nopic=0;
+   if(id){post("/api/report-error",{media_id:id,reason:"no-picture"});msg("This video has sound but no picture","Its video format cannot be shown here, so it is skipped. Settings > Tools > Videos that are skipped can fix it.");setTimeout(()=>{msg("");tune(ci)},5e3)}}}else nopic=0;
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
 setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.95})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
@@ -144,26 +160,28 @@ async function loadHome(){const d={};
 const dayWord=t=>(new Date(t*1e3).toDateString()===new Date(nowS()*1e3).toDateString()?"today ":"tomorrow ")+T(t);
 function homeTiles(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="free"),wxc=chans.find(x=>x.kind==="weather"),list=[];
  const tuneTo=i=>{closeAll();tune(i)};
- list.push({ic:"📺",t:"Live TV",s:c?`${c.number} ${c.name}${slot?": "+label(slot):""}`:"",img:slot&&slot.media_id,go:()=>closeAll()});
- list.push(d.cont?{ic:"⏯️",t:"Continue watching",s:`${label(d.cont)}, ${hms(d.cont.position)} in`,img:d.cont.id,go:()=>startVod(d.cont)}
-  :{ic:"⏯️",t:"Continue watching",s:"Nothing started yet. Pick something from the library.",dim:1,go:()=>{closeAll();openLib()}});
- if(d.recent)list.push({ic:"🆕",t:"New in your library",s:`${d.recentN} new: ${label(d.recent)}${d.recentN>1?" and more":""}`,img:d.recent.id,go:()=>{closeAll();openLib("recent")}});
- if(d.special){const x=d.special,on=x.s.start<=nowS();list.push({ic:"🍿",t:x.s.block,s:`${on?"On now":"Starts "+dayWord(x.s.start)} · ${x.c.number} ${x.c.name}`,img:x.s.media_id,go:()=>tuneTo(chans.findIndex(k=>k.id===x.c.id))})}
- list.push({ic:"🗓️",t:"TV guide",s:"See what is on every channel",go:()=>{closeAll();openGuide()}});
- list.push({ic:"🔍",t:"Library and search",s:"Find any movie or show and play it now",go:()=>{closeAll();openLib()}});
- const fv=d.counts&&d.counts.favorites||0;list.push({ic:"⭐",t:"Favorites",s:fv?`${fv} saved`:"Press F2 on any video to save it here",dim:!fv,go:()=>{closeAll();openLib("favorites")}});
- if(free){const n=d.help?d.help.free:null;list.push({ic:"🎁",t:"Free movies",s:n===0?"None yet. Double-click Get-Free-Movies.bat":n?`${n} free ${n===1?"title":"titles"} to watch`:"Free public-domain movies",go:()=>{const i=chans.indexOf(free);if(i<0){toast("No free movies yet. Double-click Get-Free-Movies.bat.");return}tuneTo(i)}})}
- if(wxc)list.push({ic:"⛅",t:"Weather",s:"Forecast and alerts",go:()=>tuneTo(chans.indexOf(wxc))});
- list.push({ic:"😴",t:"Sleep timer",s:sleepLeft()?"Pauses in "+sleepLeft()+". Select to change":"Off. Select to set 30, 60, 90 or 120 minutes",stay:1,go:cycleSleep});
- const big=document.body.classList.contains("big");list.push({ic:"🔠",t:"Bigger text",s:big?"On. Select to turn off":"Off. Select to make text bigger",stay:1,go:()=>setBig(!big,true)});
- if(d.check){const miss=d.check.filter(l=>!l.ideas).reduce((a,l)=>a+l.missing,0);list.push({ic:"📝",t:"Checklist",s:miss?`${miss} titles still to find`:"Everything on your lists is here",go:()=>openCheck()})}
- if(!REMOTE)list.push({ic:"⚙️",t:"Settings",s:"Look, library, weather, cover art, backup",go:()=>openSettings()});
- list.push({ic:"❓",t:"Help",s:d.help&&d.help.problem_count?`${d.help.problem_count} video(s) need attention`:"Keys, and what to do if something looks wrong",go:()=>openHelp("home")});
+ list.push({ic:"live",wide:1,t:"Live TV",s:c?`${c.number} ${c.name}${slot?": "+label(slot):""}`:"",img:slot&&slot.media_id,go:()=>closeAll()});
+ list.push(d.cont?{ic:"resume",t:"Continue watching",s:`${label(d.cont)}, ${hms(d.cont.position)} in`,img:d.cont.id,go:()=>startVod(d.cont)}
+  :{ic:"resume",t:"Continue watching",s:"Nothing started yet. Pick something from the library.",dim:1,go:()=>{closeAll();openLib()}});
+ if(d.recent)list.push({ic:"new",t:"New in your library",s:`${d.recentN} new: ${label(d.recent)}${d.recentN>1?" and more":""}`,img:d.recent.id,go:()=>{closeAll();openLib("recent")}});
+ if(d.special){const x=d.special,on=x.s.start<=nowS();list.push({ic:"ticket",t:x.s.block,s:`${on?"On now":"Starts "+dayWord(x.s.start)}, channel ${x.c.number}`,img:x.s.media_id,go:()=>tuneTo(chans.findIndex(k=>k.id===x.c.id))})}
+ list.push({ic:"guide",t:"TV guide",s:"See what is on every channel",go:()=>{closeAll();openGuide()}});
+ list.push({ic:"search",t:"Library and search",s:"Find any movie or show",go:()=>{closeAll();openLib()}});
+ const fv=d.counts&&d.counts.favorites||0;list.push({ic:"star",t:"Favorites",s:fv?`${fv} saved`:"Press F2 on any video to save it here",dim:!fv,go:()=>{closeAll();openLib("favorites")}});
+ if(free){const n=d.help?d.help.free:null;list.push({ic:"gift",t:"Free movies",s:n===0?"None yet: Settings > Tools":n?`${n} free ${n===1?"title":"titles"} to watch`:"Free public-domain movies",go:()=>{const i=chans.indexOf(free);if(i<0){toast("No free movies yet. Settings > Tools > Free movies.");return}tuneTo(i)}})}
+ if(wxc)list.push({ic:"weather",t:"Weather",s:"Forecast and alerts",go:()=>tuneTo(chans.indexOf(wxc))});
+ list.push({ic:"moon",t:"Sleep timer",s:sleepLeft()?"Pauses in "+sleepLeft()+". Select to change":"Off. Pick 30 to 120 minutes",stay:1,go:cycleSleep});
+ const big=document.body.classList.contains("big");list.push({ic:"text",t:"Bigger text",s:big?"On. Select to turn off":"Off. Select to make text bigger",stay:1,go:()=>setBig(!big,true)});
+ if(d.check){const miss=d.check.filter(l=>!l.ideas).reduce((a,l)=>a+l.missing,0);list.push({ic:"list",t:"Checklist",s:miss?`${miss} titles still to find`:"Everything on your lists is here",go:()=>openCheck()})}
+ if(!REMOTE)list.push({ic:"gear",t:"Settings",s:"Look, channels, phone, backup",go:()=>openSettings()});
+ list.push({ic:"help",t:"Help",s:d.help&&d.help.problem_count?`${d.help.problem_count} video(s) need attention`:"Keys, and fixes for common problems",go:()=>openHelp("home")});
  return list}
 function drawHome(){const box=$("#tiles"),L=homeTiles();box.textContent="";paint($("#home"),theme.color);hi=Math.max(0,Math.min(hi,L.length-1));
  $("#h-clock").textContent=dayStr();$("#h-hello").textContent=theme.tagline;$("#home h2").textContent=theme.name;
  hints($("#h-hints"),[["← → ↑ ↓","choose"],["Enter","open"],["Esc","back to TV"],["?","help"]]);
- L.forEach((t,i)=>{const n=el("div","tl"+(i===hi?" sel":"")+(t.dim?" dim":""));if(t.img)n.append(thumb(t.img));n.append(el("span","ic",t.ic),el("b",0,t.t),el("small",0,t.s));n.onclick=()=>{hi=i;t.go();if(t.stay)drawHome()};box.append(n)});
+ L.forEach((t,i)=>{const n=el("div","tl"+(i===hi?" sel":"")+(t.dim?" dim":"")+(t.wide?" wide":"")+(t.img?" has-img":""));if(t.img)n.append(thumb(t.img));
+  n.append(iconEl(t.ic));if(t.wide&&slot&&!wxOn())n.append(el("i","onnow","On now"));n.append(el("b",0,t.t),el("small",0,t.s));
+  n.onclick=()=>{hi=i;t.go();if(t.stay)drawHome()};box.append(n)});
  homeList=L}
 let homeList=[];
 function homeKey(e){const k=e.key,cols=getComputedStyle($("#tiles")).gridTemplateColumns.split(" ").length||4;
@@ -172,7 +190,11 @@ function homeKey(e){const k=e.key,cols=getComputedStyle($("#tiles")).gridTemplat
  if(k==="s"||k==="S"){return cycleSleep()}
  if(k==="t"||k==="T"){return setBig(!document.body.classList.contains("big"),true)}
  const mv=d=>{e.preventDefault();hi=Math.max(0,Math.min(homeList.length-1,hi+d));drawHome()};
- if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);else if(k==="ArrowDown")mv(cols);else if(k==="ArrowUp")mv(-cols);
+ if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);
+ else if(k==="ArrowDown"||k==="ArrowUp"){e.preventDefault();const ts=[...$("#tiles").children],r0=ts[hi]&&ts[hi].getBoundingClientRect();if(!r0)return;
+  const down=k==="ArrowDown",cx=r0.left+r0.width/2;let best=-1,bd=1e9;
+  ts.forEach((n,i)=>{const r=n.getBoundingClientRect();if(down?r.top<=r0.top+2:r.top>=r0.top-2)return;const dy=Math.abs(r.top-r0.top),dx=Math.abs(r.left+r.width/2-cx),d=dy*4+dx;if(d<bd){bd=d;best=i}});
+  if(best>=0){hi=best;drawHome()}}
  else if(k==="Enter"){e.preventDefault();const t=homeList[hi];if(t){t.go();if(t.stay)drawHome()}}}
 let ck={data:null,i:0};
 async function openCheck(){layer="check";show("#settings",false);show("#home",false);show("#help",false);show("#check",true);paint($("#check"),theme.color);
@@ -206,13 +228,13 @@ function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent
  const row=(good,text,sub)=>{const r=el("div","st "+(good?"good":"bad"));r.append(el("i",0,good?"✓":"!"));const d=el("div");d.append(el("span",0,text));if(sub)d.append(el("small",0,sub));r.append(d);L.append(r)};
  L.append(el("h3",0,"Is anything wrong?"));
  if(!h)row(false,"HERO TV cannot reach its own server.","Make sure the black HERO TV window is still open, then press F5.");
- else{row(h.playable>0,h.playable?`${h.playable} videos are ready to play.`:"No videos are ready to play yet.",h.playable?"":"Put videos in your media folder (Open-Media-Folder.bat), or run Get-Free-Movies.bat for free ones.");
-  row(h.ffmpeg,h.ffmpeg?"Video tools (ffmpeg) are installed.":"Video tools (ffmpeg) were not found.",h.ffmpeg?"":"Double-click Check-Setup.bat. It can install them for you.");
-  if(h.problem_count){row(false,`${h.problem_count} video(s) are being skipped:`,"");for(const p of h.problems)row(false,p.title,p.why+" "+p.fix);if(h.problem_count>h.problems.length)row(false,"...and more.","Run Why-Isnt-It-Showing.bat for the full list.")}
+ else{row(h.playable>0,h.playable?`${h.playable} videos are ready to play.`:"No videos are ready to play yet.",h.playable?"":"Drag videos onto this window, or get free ones in Settings > Tools.");
+  row(h.ffmpeg,h.ffmpeg?"Video tools (ffmpeg) are installed.":"Video tools (ffmpeg) were not found.",h.ffmpeg?"":"Settings > Tools > Install video tools.");
+  if(h.problem_count){row(false,`${h.problem_count} video(s) are being skipped:`,"");for(const p of h.problems)row(false,p.title,p.why+" "+p.fix);if(h.problem_count>h.problems.length)row(false,"...and more.","Settings > Tools lists them all, with a Fix button.")}
   else row(true,"Every video in your library can play.","");
-  if(h.hidden_channels&&h.hidden_channels.length)row(true,`${h.hidden_channels.length} channel(s) are hidden until they have something to show: ${h.hidden_channels.join(", ")}`,"Put a video in that channel's folder (or in Inbox, then run Sort-Movies.bat) and the channel appears by itself.");
-  if(h.inbox_waiting)row(false,`${h.inbox_waiting} video(s) are waiting in the Inbox folder.`,"HERO TV files them by title by itself once they have finished copying. Ones it cannot place stay there: use Add-Movies.bat to choose their channel.");
-  row(true,"Your videos are in: "+h.media_dir,"Open-Media-Folder.bat opens it.")}
+  if(h.hidden_channels&&h.hidden_channels.length)row(true,`${h.hidden_channels.length} channel(s) are hidden until they have something to show: ${h.hidden_channels.join(", ")}`,"Put a video in that channel's folder, or drop it in the Inbox, and the channel appears by itself.");
+  if(h.inbox_waiting)row(false,`${h.inbox_waiting} video(s) are waiting in the Inbox folder.`,"HERO TV files them by title by itself once they have finished copying. Ones it cannot place stay there: add a keyword for them in Settings > Channels.");
+  row(true,"Your videos are in: "+h.media_dir,"Settings > Media library > Open media folder.")}
  R.append(el("h3",0,"Keys"));const t=el("table");
  for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles: off / each language"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
  R.append(t)}
@@ -265,7 +287,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  if(!items.length){const e=el("div","empty");if(q){e.append(el("b",0,`Nothing matches "${q}".`),el("br"),document.createTextNode("Try a title, a series or a channel name."))}
   else if(view==="continue")e.append(el("b",0,"Nothing in progress."),el("br"),document.createTextNode("Videos you start from the library show up here so you can pick up where you left off."));
   else if(view==="favorites")e.append(el("b",0,"No favorites yet."),el("br"),document.createTextNode("Highlight a video and press F2 to add it."));
-  else{e.append(el("b",0,"No videos yet."),el("br"),document.createTextNode("Add movies with Add-Movies.bat or Sort-Movies.bat, then press F5."))}L.append(e);return}
+  else{e.append(el("b",0,"No videos yet."),el("br"),document.createTextNode("Drag movies or shows onto this window to add them."))}L.append(e);return}
  items.forEach((it,k)=>{const c=el("div","card"+(k===li?" sel":"")),pic=el("div","pic");pic.style.background=tile(it.title);pic.append(thumb(it.id,true));
   const resume=it.position>10&&!it.completed;if(resume&&it.runtime_s){const p=el("i");p.style.width=Math.min(100,it.position/it.runtime_s*100)+"%";pic.append(p)}
   pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));
@@ -274,7 +296,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;
   if(step>0){L.style.flex="none";L.style.height=Math.max(1,Math.floor((L.parentNode.clientHeight-L.offsetTop-$("#l-hints").offsetHeight-16)/step))*step+"px"}}   /* whole rows only */
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
-async function openLib(v0){layer="lib";show("#settings",false);show("#info",false);view=v0||"all";show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play, resumes where you left off"],["Tab","all / continue / favorites"],["F2","favorite"],["F8","details"],["F3","rename"],["F4","rename show"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
+async function openLib(v0){layer="lib";show("#settings",false);show("#info",false);view=v0||"all";show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play"],["Tab","switch list"],["F2","favorite"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
 function closeAll(){layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
@@ -293,7 +315,7 @@ let wxT;async function loadWx(){clearTimeout(wxT);wxT=setTimeout(()=>{if(chans[c
  if(chans[ci]&&chans[ci].kind==="weather")drawWx(w);if(w.alerts)applyAlerts(w.alerts)}
 function drawWx(w){const box=$("#wx");box.textContent="";paint(box,chans[ci]&&chans[ci].color);
  const head=el("div","wtop");head.append(el("h2",0,w.location||"Weather"),el("span","wclock",T(nowS())));box.append(head);
- if(!w.configured){box.append(el("div","wmsg","No town set yet. Double-click Set-Weather-Location.bat in the HERO TV folder, then press F5."));return}
+ if(!w.configured){box.append(el("div","wmsg","No town set yet. Press O for Settings > Weather and type your town."));return}
  if(!w.current){box.append(el("div","wmsg","The weather is not available right now (is the internet connected?). HERO TV will try again in a few minutes."));return}
  const u=w.units||{temp:"°",wind:""},c=w.current,[txt,ic]=wmo(c.code,c.is_day),now=el("div","wnow"),info=el("div");
  now.append(el("div","ic",ic),el("div","t",(c.temp??"–")+u.temp));info.append(el("div","c",txt));
@@ -321,15 +343,19 @@ let infoCtx=null;
 async function openInfo(){const t=renameTarget();if(!t)return;infoCtx={back:layer,t};layer="info";
  for(const id of ["#guide","#lib","#home","#help","#check","#osd"])show(id,false);placePreview(false);$("#q").blur();show("#info",true);paint($("#info"),theme.color);
  $("#in-t").textContent=t.title||"";$("#in-m").textContent=$("#in-tag").textContent=$("#in-plot").textContent=$("#in-cast").textContent=$("#in-note").textContent="";
- const pic=$("#in-pic");pic.style.backgroundImage=`url(/thumb/${t.id})`;pic.classList.add("wide");
+ $("#in-bg").style.backgroundImage=`url(${withK("/thumb/"+t.id)})`;
+ const pic=$("#in-pic");pic.textContent="";pic.style.background=`center/cover no-repeat url(${withK("/thumb/"+t.id)}), ${tile(t.title)}`;pic.classList.add("wide");pic.classList.remove("noimg");
+ {const probe=new Image();probe.onerror=()=>{if(infoCtx&&infoCtx.t===t){pic.classList.add("noimg");pic.append(el("span","pic-t",t.series||t.title||""))}};probe.src=withK("/thumb/"+t.id)}
+ const btns=$("#in-btns");btns.textContent="";
+ if(infoCtx.back==="lib")btns.append(sBtn("Play",()=>closeInfo(true),"pri"));btns.append(sBtn("Back",()=>closeInfo(false)));
  let d=null;try{d=await api("/api/info/"+t.id)}catch(e){}
  if(layer!=="info"||!d)return;
  $("#in-t").textContent=d.title||t.title;
  $("#in-m").textContent=[d.year,d.runtime_min?d.runtime_min+" min":"",d.rating?"★ "+d.rating.toFixed(1):"",(d.genres||[]).join(", ")].filter(Boolean).join("  ·  ");
  $("#in-tag").textContent=d.tagline||"";$("#in-plot").textContent=d.plot||"";
  $("#in-cast").textContent=(d.cast||[]).length?"Starring "+d.cast.join(", "):"";
- if(d.poster){pic.style.backgroundImage=`url(${withK(`/poster/${t.id}?v=${Date.now()%1e6}`)})`;pic.classList.remove("wide")}
- $("#in-note").textContent=d.plot?"":d.has_key?(d.searched?"No description was found for this title online.":"Looking this up in the background... check again in a minute."):"No description yet. Run Set-Poster-Key.bat once (free) to get posters, plots, cast and ratings.";
+ if(d.poster){$("#in-bg").style.backgroundImage=`url(${withK(`/poster/${t.id}`)})`;pic.style.background=`center/cover no-repeat url(${withK(`/poster/${t.id}?v=${Date.now()%1e6}`)}), ${tile(t.title)}`;pic.classList.remove("wide","noimg");pic.textContent=""}
+ $("#in-note").textContent=d.plot?"":d.has_key?(d.searched?"No description was found for this title online.":"Looking this up in the background... check again in a minute."):"No description yet. Add a free TMDB key in Settings > Cover art to get posters, plots, cast and ratings.";
  $("#in-cr").textContent=d.source==="TMDB"?"Cover art and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.":"";
  hints($("#in-hints"),[["Enter",infoCtx.back==="lib"?"play":"back"],["Esc","back"]])}
 function closeInfo(play){const c=infoCtx;infoCtx=null;show("#info",false);layer=c?c.back:"";
@@ -438,6 +464,10 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
   for(const c of SW){const b=el("button",c.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=c;b.style.background=c;b.title=c;b.setAttribute("aria-label","Colour "+c);b.onclick=()=>pick(c);sw.append(b)}
   main.append(sField("Station name","Shown on the home screen and the browser tab.",name),sField("Greeting","The line under the name.",tag),
    sField("Main colour","Pick one, or type a code like #ff3b3b.",sw),sField("",null,hex,true));
+  main.append(el("div","sbar")),main.lastChild.append(sBtn("Save",()=>sSave({station:{name:name.value,tagline:tag.value,color:col}},"Saved.",async()=>{await loadTheme();paint($("#settings"),theme.color);drawSettings()}),"pri"),
+   sBtn("Restore the default look",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press the button again to restore the standard name, greeting and colour.","err");return}
+    delete main.dataset.sure;sSave({reset_station:true},"Default look restored.",async()=>{await loadTheme();drawSettings()})},"warn"));main.append(msg);
+  main.append(el("h3",0,"Viewing"),sField("","These change straight away, no Save needed.",null));
   const big=el("input");big.type="checkbox";big.checked=document.body.classList.contains("big");big.onchange=()=>setBig(big.checked,true);
   const bl=el("label","lb");bl.append(big," Bigger text");bl.style.display="flex";bl.style.gap="1vw";main.append(sField("",'Makes every screen easier to read from the couch. Same as pressing T.',bl));
   const wnd=el("input");wnd.type="checkbox";wnd.checked=!!d.windowed;wnd.onchange=()=>sSave({windowed:wnd.checked},wnd.checked?"HERO TV will open in a normal window from now on.":"HERO TV will open full screen from now on.");
@@ -447,9 +477,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
      sel.onchange=()=>{st[key]=sel.value;applyCues(st);sSave({subs_style:st},"Subtitle style saved.",async()=>{await loadTheme()})};sel.dataset.k=key;return sel};
     row.append(pick([["normal","Normal size"],["large","Large"],["xl","Extra large"]],"size"),pick([["box","On a dark box"],["none","Outline only"]],"bg"),pick([["white","White"],["yellow","Yellow"]],"color"));
     row.id="cue-style";main.append(sField("Subtitles","How subtitles look on the TV and on paired phones. Press C while watching to turn them on.",row))}
-  main.append(el("div","sbar")),main.lastChild.append(sBtn("Save",()=>sSave({station:{name:name.value,tagline:tag.value,color:col}},"Saved.",async()=>{await loadTheme();paint($("#settings"),theme.color);drawSettings()}),"pri"),
-   sBtn("Restore the default look",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press the button again to restore the standard name, greeting and colour.","err");return}
-    delete main.dataset.sure;sSave({reset_station:true},"Default look restored.",async()=>{await loadTheme();drawSettings()})},"warn"));main.append(msg)}
+}
  else if(sCat==="chan"){drawChannelsCfg(main,msg)}
  else if(sCat==="tools"){drawTools(main,msg)}
  else if(sCat==="devices"){drawDevices(main,msg)}
@@ -477,7 +505,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
   const ab=el("input");ab.type="checkbox";ab.checked=d.auto_backup!==false;ab.onchange=()=>sSave({auto_backup:ab.checked},ab.checked?"Weekly backups on.":"Weekly backups off.",()=>drawSettings());
   const abl=el("label","lb");abl.append(ab," Back up automatically every week (keeps the last 8)");abl.style.display="flex";abl.style.gap="1vw";
   main.append(sField("",d.last_backup?"Last backup: "+new Date(d.last_backup.when*1e3).toLocaleString():"No backup yet.",abl));
-  const a=d.about,kv=el("div","kv");for(const[x,y]of[["HERO TV version",a.version+" (build "+a.api+")"],["Video tools (ffmpeg)",a.ffmpeg&&a.ffprobe?"installed":"MISSING - run Check-Setup.bat"],["Settings file",a.settings_file],["Log file",a.log_file],["Channel files",a.config_dir]])kv.append(el("span",0,x),el("span",0,y));
+  const a=d.about,kv=el("div","kv");for(const[x,y]of[["HERO TV version",a.version+" (build "+a.api+")"],["Video tools (ffmpeg)",a.ffmpeg&&a.ffprobe?"installed":"MISSING - Settings > Tools > Install video tools"],["Settings file",a.settings_file],["Log file",a.log_file],["Channel files",a.config_dir]])kv.append(el("span",0,x),el("span",0,y));
   main.append(el("h3",0,"About"),kv)}
  const sel=nav.querySelector(".on");if(sel&&document.activeElement===document.body)sel.focus()}
 /* ---- Tools: the jobs the .bat files used to do, run in the background ---- */

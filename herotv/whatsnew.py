@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.7.0": [
+        "A cleaner look: one matching set of icons on the Home menu, a bigger Live TV tile showing what is on now.",
+        "The details screen (D) shows the video's picture full-size with Play and Back buttons.",
+        "Tips no longer cover the menus, and on-screen help now points to Settings instead of helper files.",
+    ],
     "1.6.0": [
         "Easier phone setup: Settings > Other devices shows a QR code - open the iPhone's Camera, point it at the screen, tap the link.",
     ],
