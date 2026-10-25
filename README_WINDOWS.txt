@@ -294,6 +294,16 @@ ADDING MOVIES HANDS-FREE (Inbox)
   videos (or whole folders) from Explorer onto the TV window: they are copied into the Inbox for you. To switch this off, add
   "auto_inbox": false to settings.json in %LOCALAPPDATA%\HeroTV.
 
+INSTALLING ON A NEW PC, SUBTITLE STYLE
+  New PC: download  HERO-TV-Setup-v1.x.x.exe  from github.com/trentnick99/Hero-tv > Releases and run it. No administrator
+  rights needed; it installs into your user folder, adds HERO TV to the Start menu (and the desktop if you tick it),
+  and appears in Windows' "Installed apps" so it can be uninstalled normally. Uninstalling keeps your channel files,
+  videos, favorites and settings. Windows may warn "unknown publisher" (not code-signed): More info > Run anyway.
+  Updates still work the same way: download the release zip and run Update-HERO-TV.bat from the Start menu's
+  "HERO TV tools folder".
+  Subtitles: Settings > Appearance > Subtitles - size (normal / large / extra large), dark box or outline only, white
+  or yellow. Applies on the TV and on paired phones. TV media players (Roku Media Player) also get the subtitles.
+
 SEASONAL SPECIALS AND WEEKLY BACKUPS
   Hero Marathon runs "Halloween Horror Nights" every evening Oct 24-31 (your Thriller & Horror videos) and
   "Holiday Hero Specials" Dec 18-26 (videos tagged christmas or holiday). If you have nothing that fits, the

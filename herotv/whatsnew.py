@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.5.0": [
+        "Subtitle size and style: Settings > Appearance (bigger text, outline only, or yellow) - on the TV and on phones.",
+        "Roku Media Player and other TV media apps now get the video's subtitles too.",
+        "A proper Windows installer for new PCs (HERO-TV-Setup on the Releases page): Start menu, desktop icon, uninstall.",
+    ],
     "1.4.0": [
         "Browse your library on the TV itself: Roku Media Player (and VLC or other TV media apps) can now find HERO TV.",
         "Switch it on in Settings > Other devices. It is off until you do - while on, anyone on your WiFi can watch your videos.",
