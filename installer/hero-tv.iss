@@ -21,7 +21,6 @@ DefaultGroupName=HERO TV
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
-ArchitecturesInstallIn64ModeOnly=x64compatible
 OutputDir=..\installer-out
 OutputBaseFilename=HERO-TV-Setup-v{#AppVersion}
 SetupIconFile=..\assets\hero-tv.ico
