@@ -295,12 +295,14 @@ ADDING MOVIES HANDS-FREE (Inbox)
   "auto_inbox": false to settings.json in %LOCALAPPDATA%\HeroTV.
 
 UPDATING HERO TV
-  Download the new hero-tv-windows.zip from the chat as usual, then double-click  Update-HERO-TV.bat . It finds the newest
-  zip in your Downloads folder (or drag a zip onto the file), shows what will change and asks first. Your videos,
-  favorites, resume points and any settings file you edited are kept; a changed settings file is not overwritten - the new
-  version is saved beside it as  name.new . Replaced files are copied to  .update-backup  first. If you built the
-  application, it rebuilds HERO-TV.exe for you at the end (a few minutes, Internet needed). You can leave the old
-  folder behind: no more hunting for the newest copy.
+  New versions are published on your GitHub page: github.com/trentnick99/Hero-tv > Releases. Each one is built and
+  tested on a Windows PC first. Download  HERO-TV-v1.x.x-windows.zip  (leave it in Downloads), then double-click
+  Update-HERO-TV.bat . It shows your version and the new one and asks first. HERO TV closes, the new HERO-TV.exe swaps
+  itself in and starts again - no Python and no Build-App.bat needed. Your videos, favorites, resume points and any
+  settings file you edited are kept (a changed settings file gets the new standard version beside it as  name.new ).
+  Replaced files are copied to  .update-backup  first. After an update, the TV shows a short "What's new" once.
+  Version shown in: Settings > Backup and about.
+  New PC: unzip the release anywhere and double-click HERO-TV.exe.
 
 EPISODE NAMES (anime too)
   "Show - 012 - Title.mp4", "Show Episode 12.mp4", "Show E012.mp4" and "Show S01E12.mp4" all work. Put a show's
