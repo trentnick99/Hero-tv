@@ -1,0 +1,34 @@
+{
+ "_help": "Seasonal specials: extra programming blocks that only run between their dates each year (month-day..month-day). They are added to the channel named by \"channel\" (its id) and win over its regular blocks. If nothing matches, the channel plays as usual. Switch them all off in Settings > Channels.",
+ "blocks": [
+  {
+   "channel": "marathon",
+   "name": "Halloween Horror Nights",
+   "dates": "10-24..10-31",
+   "days": "daily",
+   "from": "19:00",
+   "to": "23:59",
+   "mode": "shuffle",
+   "match": {
+    "franchise": [
+     "Thriller & Horror"
+    ]
+   }
+  },
+  {
+   "channel": "marathon",
+   "name": "Holiday Hero Specials",
+   "dates": "12-18..12-26",
+   "days": "daily",
+   "from": "17:00",
+   "to": "21:00",
+   "mode": "shuffle",
+   "match": {
+    "tags": [
+     "christmas",
+     "holiday"
+    ]
+   }
+  }
+ ]
+}

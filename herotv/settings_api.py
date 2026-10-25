@@ -36,6 +36,15 @@ def _save(data):
     os.replace(tmp, f)
 
 
+def _seasonal_list():
+    try:
+        d = json.loads((config.ROOT / "config" / "seasonal.json").read_text(encoding="utf-8-sig"))
+        return [{"name": b.get("name", ""), "dates": b.get("dates", ""), "from": b.get("from", ""), "to": b.get("to", "")}
+                for b in d.get("blocks", []) if isinstance(b, dict)]
+    except (OSError, ValueError):
+        return []
+
+
 def _last_backup():
     from . import backup
     p = backup.latest()
@@ -58,6 +67,8 @@ def read(cfg):
         "auto_inbox": inbox.enabled(),
         "windowed": bool(d.get("windowed")),
         "auto_backup": d.get("auto_backup", True) is not False,
+        "seasonal": d.get("seasonal", True) is not False,
+        "seasonal_list": _seasonal_list(),
         "last_backup": _last_backup(),
         "media_dir": str(cfg.media_dir),
         "weather": loc.get("name") if loc else "",
@@ -100,6 +111,11 @@ def update(changes, geocode=None):
             raise ValueError("auto_inbox must be on or off")
         data["auto_inbox"] = changes["auto_inbox"]
         saved.append("auto_inbox")
+    if "seasonal" in changes:
+        if not isinstance(changes["seasonal"], bool):
+            raise ValueError("seasonal must be on or off")
+        data["seasonal"] = changes["seasonal"]
+        saved.append("seasonal")
     if "auto_backup" in changes:
         if not isinstance(changes["auto_backup"], bool):
             raise ValueError("auto_backup must be on or off")

@@ -103,3 +103,36 @@ class BlockTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SeasonalTests(unittest.TestCase):
+    def test_date_ranges(self):
+        import datetime as dt
+        b = S.parse_blocks({"name": "x", "blocks": [{"name": "Halloween", "dates": "10-24..10-31", "from": "19:00", "to": "23:59"},
+                                                     {"name": "Holidays", "dates": "12-20..01-02", "from": "22:00", "to": "02:00"}]})
+        at = lambda *a: (S.block_at(b, dt.datetime(*a)) or {}).get("name")
+        self.assertEqual(at(2026, 10, 25, 20, 0), "Halloween")
+        self.assertIsNone(at(2026, 11, 1, 20, 0))
+        self.assertIsNone(at(2026, 10, 23, 20, 0))
+        self.assertEqual(at(2026, 12, 31, 23, 0), "Holidays")            # range wraps the new year
+        self.assertEqual(at(2027, 1, 3, 1, 0), "Holidays")               # after midnight belongs to Jan 2's block
+        self.assertIsNone(at(2027, 1, 4, 1, 0))
+        with self.assertRaises(ValueError):
+            S.parse_blocks({"name": "x", "blocks": [{"name": "Bad", "dates": "13-40..1-1", "from": "1:00", "to": "2:00"}]})
+
+    def test_seasonal_file_is_added_first_and_can_be_switched_off(self):
+        import json, tempfile
+        from pathlib import Path
+        from unittest import mock
+        from herotv import config
+        d = tempfile.mkdtemp()
+        f = Path(d, "seasonal.json"); f.write_text(json.dumps({"blocks": [{"channel": "m", "name": "Spooky", "dates": "10-01..10-31",
+                                                                         "from": "19:00", "to": "23:00"}]}))
+        ch = [{"id": "m", "name": "M", "blocks": [{"name": "Movie Night", "from": "19:00", "to": "23:00"}]}, {"id": "other", "name": "O"}]
+        sf = Path(d, "settings.json")
+        with mock.patch.object(config, "settings_file", return_value=sf):
+            out = S.with_seasonal(ch, str(f))
+            self.assertEqual([b["name"] for b in out[0]["blocks"]], ["Spooky", "Movie Night"])
+            self.assertNotIn("blocks", out[1])
+            sf.write_text('{"seasonal": false}')
+            self.assertEqual(S.with_seasonal(ch, str(f)), ch)

@@ -209,6 +209,12 @@ def check_config_files(cfg):
             except (ValueError, TypeError, AttributeError) as e:
                 say(f"{BAD} channels.json: {e}")
                 problems.append("blocks")
+        try:
+            for c in _S.with_seasonal(chans):
+                _S.parse_blocks(c)
+        except (ValueError, TypeError, AttributeError) as e:
+            say(f"{BAD} seasonal.json: {e}")
+            problems.append("seasonal")
         if not problems:
             nb = sum(len(c.get("blocks") or []) for c in chans)
             say(f"{OK} Channels: {len(chans)} (config/channels.json)" + (f", {nb} scheduled block(s)" if nb else ""))

@@ -81,9 +81,27 @@ def parse_blocks(ch):
         a, z = _hhmm(b["from"], f'{where}, block "{name}": "from"'), _hhmm(b["to"], f'{where}, block "{name}": "to"')
         if a == z:
             raise ValueError(f'{where}, block "{name}": "from" and "to" are the same time')
-        out.append({"name": name, "days": sorted(days), "start": a, "end": z,
+        dates = None
+        if b.get("dates"):
+            try:
+                x, y = [p.strip() for p in str(b["dates"]).split("..")]
+                (m1, d1), (m2, d2) = [tuple(int(v) for v in q.split("-")) for q in (x, y)]
+                dt.date(2000, m1, d1), dt.date(2000, m2, d2)           # checks the month/day exist
+                dates = (m1, d1, m2, d2)
+            except (ValueError, TypeError):
+                raise ValueError(f'{where}, block "{name}": "dates" must look like "10-24..10-31" (month-day..month-day)')
+        out.append({"name": name, "days": sorted(days), "start": a, "end": z, "dates": dates,
                     "match": dict(b.get("match") or {}), "mode": b.get("mode")})
     return out
+
+
+def _in_dates(b, day):
+    """Is this calendar day inside the block's yearly "dates" range (if it has one)? Ranges may wrap the new year."""
+    r = b.get("dates")
+    if not r:
+        return True
+    a, z, d = (r[0], r[1]), (r[2], r[3]), (day.month, day.day)
+    return a <= d <= z if a <= z else (d >= a or d <= z)
 
 
 def block_at(blocks, local):
@@ -91,14 +109,45 @@ def block_at(blocks, local):
     after-midnight part belongs to the day the block started on."""
     mins = local.hour * 60 + local.minute
     wd = local.weekday()
+    today, yesterday = local.date(), local.date() - dt.timedelta(days=1)
     for b in blocks:
         if b["start"] < b["end"]:
-            if wd in b["days"] and b["start"] <= mins < b["end"]:
+            if wd in b["days"] and b["start"] <= mins < b["end"] and _in_dates(b, today):
                 return b
         else:
-            if (wd in b["days"] and mins >= b["start"]) or ((wd - 1) % 7 in b["days"] and mins < b["end"]):
+            if (wd in b["days"] and mins >= b["start"] and _in_dates(b, today)) or \
+                    ((wd - 1) % 7 in b["days"] and mins < b["end"] and _in_dates(b, yesterday)):
                 return b
     return None
+
+
+SEASONAL_FILE = None          # set by with_seasonal() callers/tests; default is config/seasonal.json
+
+
+def with_seasonal(channels, path=None):
+    """Add the seasonal specials (config/seasonal.json, e.g. Halloween week) to their channels, first in line so
+    they win over the regular blocks while their dates last. Switched off in Settings > Channels."""
+    import json as _json
+    from . import config as _config
+    try:
+        if _json.loads(_config.settings_file().read_text(encoding="utf-8-sig")).get("seasonal", True) is False:
+            return channels
+    except (OSError, ValueError, AttributeError):
+        pass
+    path = path or SEASONAL_FILE or str(_config.ROOT / "config" / "seasonal.json")
+    try:
+        with open(path, encoding="utf-8-sig") as f:
+            extra = _json.load(f).get("blocks", [])
+    except (OSError, ValueError):
+        return channels
+    out = []
+    for c in channels:
+        add = [{k: v for k, v in b.items() if k != "channel"} for b in extra
+               if isinstance(b, dict) and b.get("channel") == c.get("id")]
+        have = {str(b.get("name", "")).lower() for b in c.get("blocks") or []}
+        add = [b for b in add if str(b.get("name", "")).lower() not in have]
+        out.append(dict(c, blocks=add + list(c.get("blocks") or [])) if add else c)
+    return out
 
 
 def _block_start_within(blocks, start, end, z):
@@ -114,6 +163,7 @@ def _block_start_within(blocks, start, end, z):
 def sync_channels(conn, channels, now=None, tz="local"):
     """Make the database match channels.json exactly: edits apply, removed channels disappear (with their
     schedule), and renumbering/swapping numbers cannot trip the UNIQUE number constraint."""
+    channels = with_seasonal(channels)
     with _lock:
         ids = [c["id"] for c in channels]
         if len(set(ids)) != len(ids) or len({c["number"] for c in channels}) != len(channels):

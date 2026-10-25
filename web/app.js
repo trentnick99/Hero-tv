@@ -551,6 +551,11 @@ async function chPost(body,okText,backToList){sMsg("Saving...");try{const r=awai
 function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  if(!chList){main.append(el("div","empty","Loading channels..."));api("/api/channels-config").then(j=>{chList=j.channels;if(layer==="settings"&&sCat==="chan")drawSettings()}).catch(()=>{main.textContent="";main.append(el("div","empty","Channels could not be loaded."))});return}
  if(chSel===null){main.append(el("small",0,"Click a channel to rename it, change its colour, folder or keywords. Changes show up in the guide straight away."));
+  { const sc=el("input");sc.type="checkbox";sc.checked=sData&&sData.seasonal!==false;
+    sc.onchange=async()=>{try{await pj("/api/settings",{seasonal:sc.checked});sData=await api("/api/settings");toast(sc.checked?"Seasonal specials on":"Seasonal specials off")}catch(e){sMsg(String(e.message||e),"err")}};
+    const l=el("label","lb");l.append(sc," Seasonal specials");l.style.display="flex";l.style.gap="1vw";
+    const list=(sData&&sData.seasonal_list||[]).map(x=>`${x.name} (${x.dates.replace("..", " to ")}, ${x.from}-${x.to})`).join("; ");
+    main.append(sField("",(list?list+". ":"")+"Extra programming on Hero Marathon at certain times of year. If you have nothing that fits, the channel plays as usual.",l))}
   for(const c of chList){const b=el("button","chrow");b.type="button";const dot=el("i");dot.style.background=c.color;b.append(dot,el("b",0,String(c.number)),el("span",0,c.name),el("small",0,c.summary));b.onclick=()=>{chSel=c.id;drawSettings();$("#st-main").scrollTop=0};main.append(b)}
   const bar=el("div","sbar");bar.append(sBtn("Add a channel",()=>{chSel="new";drawSettings()},"pri"));main.append(bar,msg);return}
  const isNew=chSel==="new",c=isNew?{id:"",number:"",name:"",color:"#ffcf1f",mode:"sequential",description:"",kind:"tv",folder:"",keywords:[],shared_keywords:0,special:false,summary:""}:chList.find(x=>x.id===chSel);

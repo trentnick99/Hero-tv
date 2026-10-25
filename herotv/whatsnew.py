@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.3.0": [
+        "Seasonal specials: Halloween Horror Nights on Hero Marathon (Oct 24-31, evenings), holiday specials in December.",
+        "Weekly automatic backups (the last 8 are kept) - Settings > Backup and about.",
+        "Open-Media-Folder now opens the folder you chose in Settings.",
+        "Behind the scenes: the TV page is split into smaller files, and is never shown out of date after an update.",
+    ],
     "1.2.0": [
         "Moved, renamed or converted a video? It now keeps its favorite, resume point and history.",
         "New in your library: a Home tile and a New tab in the library show what arrived in the last 30 days.",

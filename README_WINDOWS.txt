@@ -294,6 +294,13 @@ ADDING MOVIES HANDS-FREE (Inbox)
   videos (or whole folders) from Explorer onto the TV window: they are copied into the Inbox for you. To switch this off, add
   "auto_inbox": false to settings.json in %LOCALAPPDATA%\HeroTV.
 
+SEASONAL SPECIALS AND WEEKLY BACKUPS
+  Hero Marathon runs "Halloween Horror Nights" every evening Oct 24-31 (your Thriller & Horror videos) and
+  "Holiday Hero Specials" Dec 18-26 (videos tagged christmas or holiday). If you have nothing that fits, the
+  channel plays as usual. Switch them off in Settings > Channels; the list lives in config\seasonal.json.
+  A backup is made automatically once a week (the last 8 are kept in Documents\HERO TV Backups). Turn it off in
+  Settings > Backup and about.
+
 NEW IN YOUR LIBRARY, NEXT EPISODE, WINDOW MODE
   Home > "New in your library" and the library's New tab list what arrived in the last 30 days, newest first.
   Playing a show from the library? When an episode ends, the next one starts by itself after 10 seconds

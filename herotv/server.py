@@ -854,7 +854,15 @@ def make_handler(app, remote=False):
                 return self.send_json(subtitles.tracks(m["path"]))
             if p == "settings":
                 if method == "POST":
-                    return self.send_json(settings_api.update(self.body()))
+                    body = self.body()
+                    res = settings_api.update(body)
+                    if "seasonal" in body:                   # seasonal specials on/off: re-plan the channels now
+                        with app.scan_lock, open(app.cfg.channels_file, encoding="utf-8-sig") as f:
+                            S.sync_channels(c, json.load(f)["channels"], tz=app.tz)
+                            S.extend_all(c, time.time(), app.horizon(), rebuild=True, tz=app.tz)
+                        app.lib_version += 1
+                        app.lib_note = "seasonal specials " + ("on" if body["seasonal"] else "off")
+                    return self.send_json(res)
                 return self.send_json(settings_api.read(app.cfg))
             if p == "action" and method == "POST":
                 return self.send_json(self.action(c, self.body().get("name")))
