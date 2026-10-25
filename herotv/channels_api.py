@@ -48,9 +48,39 @@ def _dump_channels(data):
     return '{' + head + '"channels": [\n ' + lines + '\n]}\n'
 
 
+FOR_YOU = {"id": "for-you", "number": 17, "name": "For You", "color": "#ff6ad5", "mode": "sequential", "kind": "foryou",
+           "description": "Picked for you: the next episode of what you are watching, films you stopped half-way, and more "
+                          "like what you watched lately."}
+
+
+def ensure_builtin(cfg):
+    """Give an existing channels.json the channels newer versions brought (once - if you delete one, it stays gone)."""
+    from . import settings_api
+    cf, _af, _ = _paths(cfg)
+    data = _read(cf, None)
+    if not isinstance(data, dict) or not isinstance(data.get("channels"), list):
+        return False
+    st = settings_api._load()
+    done = st.get("builtins") if isinstance(st.get("builtins"), list) else []
+    if FOR_YOU["id"] in done:
+        return False
+    chans = data["channels"]
+    if not any(c.get("id") == FOR_YOU["id"] or c.get("kind") == "foryou" for c in chans):
+        c = dict(FOR_YOU)
+        taken = {x.get("number") for x in chans}
+        c["number"] = next(n for n in range(17, 1000) if n not in taken) if c["number"] in taken else c["number"]
+        chans.append(c)
+        _write(cf, _dump_channels(data))
+    st["builtins"] = done + [FOR_YOU["id"]]
+    settings_api._save(st)
+    return True
+
+
 def _summary(c):
     if c.get("kind") == "weather":
         return "Local weather (set the town in Settings > Weather)"
+    if c.get("kind") == "foryou":
+        return "Picked for you from what you watch"
     m = c.get("match") or {}
     bits = []
     if m.get("franchise"):
@@ -101,7 +131,7 @@ GROUPS = (                       # how the first-start "Your channels" screen gr
     ("Superheroes", ("mcu", "marvel-tv", "marvel-animation", "spider-verse", "x-men", "dc", "classics", "action", "comedy", "invincible")),
     ("Cartoons and anime", ("dragon-ball", "south-park")),
     ("Movies", ("horror", "free")),
-    ("Extras", ("weather", "marathon")),
+    ("Extras", ("for-you", "weather", "marathon")),
 )
 
 
@@ -138,7 +168,7 @@ def read(cfg):
                     "mode": c.get("mode", "sequential"), "description": c.get("description", ""), "kind": c.get("kind", "tv"),
                     "folder": folder, "keywords": kws, "shared_keywords": shared, "summary": _summary(c), "off": bool(c.get("off")),
                     "smart": [r.get("label") or "" for r in smart if c["id"] in r["channels"]],
-                    "special": bool(c.get("also") or c.get("blocks") or c.get("smart") or (folder is None and c.get("kind") != "weather"))})
+                    "special": bool(c.get("also") or c.get("blocks") or c.get("smart") or (folder is None and c.get("kind") not in ("weather", "foryou")))})
     return {"channels": out, "media_dir": str(cfg.media_dir)}
 
 

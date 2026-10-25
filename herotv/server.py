@@ -34,6 +34,10 @@ def empty_channel_ids(c):
     media = c.execute("SELECT franchise,tags,series,year,runtime_s,episode FROM media WHERE available=1 AND verified=1 AND playable=1").fetchall()
     out = set()
     for ch in S.channels(c):
+        if (ch["kind"] or "tv") == "foryou":
+            if not media:
+                out.add(ch["id"])
+            continue
         if (ch["kind"] or "tv") != "tv":
             continue
         rules, _blocks = S._spec(ch)
@@ -149,6 +153,23 @@ class App:
     def horizon(self):
         return self.cfg.horizon_h * 3600
 
+    def refresh_for_you(self, c):
+        """Re-plan the For You channel (what has not aired yet) when you have watched something since last time."""
+        from . import insights
+        sig = insights.history_signature(c)
+        if sig == getattr(self, "_fy_sig", None):
+            return False
+        first = getattr(self, "_fy_sig", None) is None
+        if not first and time.monotonic() - getattr(self, "_fy_at", 0) < 1800:
+            return False                                 # at most every half hour, so the guide does not keep changing
+        self._fy_sig, self._fy_at = sig, time.monotonic()
+        if first:
+            return False                                 # just started: the schedule was planned moments ago
+        for ch in S.channels(c):
+            if (ch["kind"] or "tv") == "foryou":
+                S.rebuild_future(c, ch, time.time(), self.horizon(), tz=self.tz)
+        return True
+
     def maintain_forever(self, every=300):
         def loop():
             while True:
@@ -156,6 +177,7 @@ class App:
                     c = self.db()
                     try:
                         S.extend_all(c, time.time(), self.horizon(), tz=self.tz)
+                        self.refresh_for_you(c)
                         try:
                             from . import backup
                             made = backup.auto(self.cfg, c)
@@ -1114,12 +1136,14 @@ def make_handler(app, remote=False):
                 if method == "POST":
                     body = self.body()
                     res = settings_api.update(body)
-                    if "seasonal" in body:                   # seasonal specials on/off: re-plan the channels now
+                    for k, what in (("seasonal", "seasonal specials"), ("dayparts", "time-of-day programming")):
+                        if k not in body:
+                            continue                            # switched on/off: re-plan the channels now
                         with app.scan_lock, open(app.cfg.channels_file, encoding="utf-8-sig") as f:
                             S.sync_channels(c, json.load(f)["channels"], tz=app.tz)
                             S.extend_all(c, time.time(), app.horizon(), rebuild=True, tz=app.tz)
                         app.lib_version += 1
-                        app.lib_note = "seasonal specials " + ("on" if body["seasonal"] else "off")
+                        app.lib_note = what + (" on" if body[k] else " off")
                     return self.send_json(res)
                 return self.send_json(settings_api.read(app.cfg))
             if p == "action" and method == "POST":
@@ -1331,6 +1355,10 @@ def serve(cfg):
     # the operator explicitly opts in and accepts that other LAN clients can control it.
     if cfg.host not in ("127.0.0.1", "localhost", "::1") and os.environ.get("HEROTV_ALLOW_LAN", "0") != "1":
         raise SystemExit("Refusing non-local bind without authentication. Set HEROTV_HOST=127.0.0.1, or explicitly set HEROTV_ALLOW_LAN=1 only on a trusted network.")
+    try:
+        channels_api.ensure_builtin(cfg)              # e.g. For You (1.13) for people who had HERO TV before
+    except Exception:
+        traceback.print_exc()
     app = App(cfg)
     c = app.db()
     with open(cfg.channels_file, encoding="utf-8-sig") as f:

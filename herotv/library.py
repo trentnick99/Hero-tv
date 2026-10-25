@@ -227,6 +227,9 @@ def scan(conn, root, probe_fn=probe):
             meta.update({k: sc[k] for k in ("title", "year", "franchise", "series", "season", "episode") if k in sc})
             # Year first; episodes of one series then follow in season/episode order (see the ORDER BY in scheduler.py).
             ordv = sc.get("order", (meta["year"] or 9999) * 10_000_000)
+            if "order" not in sc and not meta["series"]:
+                from . import art                  # films: TMDB's release date, once it is known
+                ordv = art.release_ord(conn, meta["title"], meta["year"]) or ordv
             verified = 1 if p else 0
             playable = 1 if p and video_ok(p["vcodec"], p.get("vfmt", "")) and (not p["acodec"] or p["acodec"] in PLAY_A) else 0
             stats["unverified"] += 0 if verified else 1

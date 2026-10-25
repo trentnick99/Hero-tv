@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.13.0": [
+        "New channel 17, For You: it learns what you watch - the next episode of your shows, films you stopped half-way, and more like what you enjoyed lately.",
+        "Movies play in release order: with your TMDB key, films are sorted by their real release dates, even when the file name has no year.",
+        "Hero Marathon follows the clock like real TV: cartoons on weekend mornings, hero films in prime time, scary films late at night (switch it off in Settings > Channels).",
+    ],
     "1.12.0": [
         "Pick your channels: a new HERO TV starts by letting you tick the channels you want - handy when you share it with friends.",
         "Switch any channel off or back on in Settings > Channels (Choose your channels..., or inside a channel). Nothing is deleted.",

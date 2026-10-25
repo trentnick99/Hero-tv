@@ -73,7 +73,7 @@ class ChannelEditTests(unittest.TestCase):
     def test_add_and_delete(self):
         r = CA.update(self.cfg, {"op": "add", "name": "Anime Night", "keywords": ["naruto", "bleach"], "color": "#ff2e88"})
         new = next(c for c in r["channels"] if c["name"] == "Anime Night")
-        self.assertEqual(new["number"], 17); self.assertEqual(new["folder"], "Anime Night")
+        self.assertEqual(new["number"], 18); self.assertEqual(new["folder"], "Anime Night")   # 17 is For You
         self.assertTrue((self.media / "Anime Night").is_dir())
         self.assertEqual(self.chans()[new["id"]]["match"], {"franchise": ["Anime Night"]})
         with self.assertRaises(ValueError):

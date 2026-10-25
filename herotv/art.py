@@ -119,7 +119,8 @@ def lookup(kind, title, year, key, fj=None):
                       "genres": [g["name"] for g in d.get("genres", [])],
                       "keywords": [k["name"] for k in kw if isinstance(k, dict) and k.get("name")],
                       "collection": (d.get("belongs_to_collection") or {}).get("name") or "",
-                      "year": int((d.get("release_date") or d.get("first_air_date") or "0")[:4] or 0) or None}}
+                      "year": int((d.get("release_date") or d.get("first_air_date") or "0")[:4] or 0) or None,
+                      "released": d.get("release_date") or d.get("first_air_date") or ""}}
 
 
 def save(conn, key, data, cfg, fb=None):
@@ -142,7 +143,32 @@ def save(conn, key, data, cfg, fb=None):
                       json.dumps(data.get("facts") or {})))
     else:
         conn.execute("INSERT OR REPLACE INTO art(key,kind,fetched,miss) VALUES(?,?,?,1)", (key, "", int(time.time())))
+    if data and data.get("kind") == "movie":          # films now know their release date: play them in that order
+        for r in conn.execute("SELECT id,title,year,series,ord FROM media WHERE series=''").fetchall():
+            if key_for(r)[0] == key and int(r["ord"] or 0) % 10_000_000 == 0:
+                o = release_ord(conn, r["title"], r["year"])
+                if o:
+                    conn.execute("UPDATE media SET ord=? WHERE id=?", (o, r["id"]))
     conn.commit()
+
+
+def release_ord(conn, title, year):
+    """A film's place in its channel from TMDB's release date (Iron Man in May 2008 before The Incredible Hulk in
+    June), or its TMDB year when the file name has none. None when TMDB has not been asked yet."""
+    k = key_for({"series": "", "title": title, "year": year})[0]
+    a = conn.execute("SELECT year,facts,miss FROM art WHERE key=?", (k,)).fetchone()
+    if not a or a["miss"]:
+        return None
+    try:
+        rel = str(json.loads(a["facts"] or "{}").get("released") or "")
+    except ValueError:
+        rel = ""
+    m = re.match(r"(\d{4})-(\d{2})-(\d{2})", rel)
+    if m and (not year or int(m[1]) == int(year)):
+        return int(m[1]) * 10_000_000 + int(m[2]) * 100_000 + int(m[3]) * 1_000
+    if not year and a["year"]:
+        return int(a["year"]) * 10_000_000
+    return None
 
 
 def pending(conn):

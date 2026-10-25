@@ -1,0 +1,32 @@
+{
+ "_help": "Time-of-day programming for Hero Marathon, like real TV: cartoons on weekend mornings, big hero films in prime time, scary films late at night. Each block plays videos from the listed channel folders during its hours; if you have nothing that fits, the channel plays as usual. Seasonal specials and blocks you add to a channel yourself come first. Switch these off in Settings > Channels.",
+ "blocks": [
+  {
+   "channel": "marathon",
+   "name": "Weekend Morning Cartoons",
+   "days": "weekends",
+   "from": "07:00",
+   "to": "11:00",
+   "mode": "shuffle",
+   "match": {"franchise": ["Marvel Animation", "Dragon Ball"]}
+  },
+  {
+   "channel": "marathon",
+   "name": "Prime Time Heroes",
+   "days": "daily",
+   "from": "20:00",
+   "to": "23:00",
+   "mode": "shuffle",
+   "match": {"franchise": ["MCU", "DC", "X-Men", "Spider-Verse"], "type": "movie"}
+  },
+  {
+   "channel": "marathon",
+   "name": "Late Night Frights",
+   "days": "daily",
+   "from": "23:00",
+   "to": "02:00",
+   "mode": "shuffle",
+   "match": {"franchise": ["Thriller & Horror"]}
+  }
+ ]
+}

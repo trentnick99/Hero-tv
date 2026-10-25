@@ -311,6 +311,17 @@ FIXING WHERE A VIDEO WENT (and teaching HERO TV)
   "Put it here" button. With "Remember" ticked, HERO TV writes your choice to config\my-sorting.json, and from then on
   new episodes of that show (or other copies of that film) go there by themselves - before keywords and smart sorting.
 
+FOR YOU, RELEASE ORDER AND TIME-OF-DAY TV
+  Channel 17 "For You" picks from what you have been watching: the next episode of shows you are in the middle of,
+  films you stopped half-way, then unwatched videos most like what you watched lately (genres, studios, film series
+  from TMDB, and channel folders). With no history yet it shows what is new in your library. It re-plans itself
+  (at most every half hour) after you watch something. Switch it off like any channel.
+  Release order: with the TMDB key, films are ordered by their real release dates (Avengers: Age of Ultron before
+  Ant-Man, both 2015), also when a file name has no year.
+  Time-of-day programming (config\dayparts.json): Hero Marathon plays cartoons on weekend mornings (07:00-11:00),
+  hero films in prime time (20:00-23:00) and Thriller & Horror late at night (23:00-02:00) - only from what you have.
+  Seasonal specials and blocks you add yourself come first. On/off: Settings > Channels > Time-of-day programming.
+
 CHOOSING YOUR CHANNELS
   The first time HERO TV starts it shows "Pick your channels": every starter channel (Marvel, Spider-Verse, X-Men, DC,
   South Park, Dragon Ball, Thriller & Horror...) is on - tap the ones you do not want, then Done. Later: Settings >

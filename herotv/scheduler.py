@@ -124,29 +124,49 @@ def block_at(blocks, local):
 SEASONAL_FILE = None          # set by with_seasonal() callers/tests; default is config/seasonal.json
 
 
-def with_seasonal(channels, path=None):
-    """Add the seasonal specials (config/seasonal.json, e.g. Halloween week) to their channels, first in line so
-    they win over the regular blocks while their dates last. Switched off in Settings > Channels."""
+DAYPARTS_FILE = None          # tests may point this elsewhere; default is config/dayparts.json
+
+
+def _extra_blocks(setting, path):
+    """Blocks from a config file, unless switched off in Settings (settings.json key `setting`)."""
     import json as _json
     from . import config as _config
     try:
-        if _json.loads(_config.settings_file().read_text(encoding="utf-8-sig")).get("seasonal", True) is False:
-            return channels
+        if _json.loads(_config.settings_file().read_text(encoding="utf-8-sig")).get(setting, True) is False:
+            return []
     except (OSError, ValueError, AttributeError):
         pass
-    path = path or SEASONAL_FILE or str(_config.ROOT / "config" / "seasonal.json")
     try:
         with open(path, encoding="utf-8-sig") as f:
-            extra = _json.load(f).get("blocks", [])
+            blocks = _json.load(f).get("blocks", [])
     except (OSError, ValueError):
+        return []
+    return [b for b in blocks if isinstance(b, dict)]
+
+
+def with_seasonal(channels, path=None, dayparts_path=None):
+    """Add the seasonal specials (config/seasonal.json, e.g. Halloween week) and the time-of-day programming
+    (config/dayparts.json, e.g. late-night horror) to their channels. Order of precedence: seasonal specials, then
+    blocks you put in channels.json yourself, then the time-of-day blocks. Each is switched off in Settings > Channels."""
+    from . import config as _config
+    seasonal = _extra_blocks("seasonal", path or SEASONAL_FILE or str(_config.ROOT / "config" / "seasonal.json"))
+    dayparts = _extra_blocks("dayparts", dayparts_path or DAYPARTS_FILE or str(_config.ROOT / "config" / "dayparts.json"))
+    if not seasonal and not dayparts:
         return channels
     out = []
     for c in channels:
-        add = [{k: v for k, v in b.items() if k != "channel"} for b in extra
-               if isinstance(b, dict) and b.get("channel") == c.get("id")]
-        have = {str(b.get("name", "")).lower() for b in c.get("blocks") or []}
-        add = [b for b in add if str(b.get("name", "")).lower() not in have]
-        out.append(dict(c, blocks=add + list(c.get("blocks") or [])) if add else c)
+        own = list(c.get("blocks") or [])
+        have = {str(b.get("name", "")).lower() for b in own}
+
+        def mine(extra):
+            got = []
+            for b in extra:
+                if b.get("channel") == c.get("id") and str(b.get("name", "")).lower() not in have:
+                    have.add(str(b.get("name", "")).lower())
+                    got.append({k: v for k, v in b.items() if k != "channel"})
+            return got
+        first, last = mine(seasonal), mine(dayparts)
+        out.append(dict(c, blocks=first + own + last) if first or last else c)
     return out
 
 
@@ -256,9 +276,13 @@ def _playlist(conn, ch, plan, key, cycle, cache):
         if key:
             b = next(x for x in blocks if x["name"] == key)
             match, mode = b["match"] or rules, b["mode"] or ch["mode"]
-        rows = [r for r in conn.execute(
-            "SELECT * FROM media WHERE available=1 AND verified=1 AND playable=1 "
-            "ORDER BY ord,series,season,episode,title,id") if matches(match, r)]
+        if _kind(ch) == "foryou" and not key:          # picked from what you have been watching
+            from . import insights
+            rows, mode = insights.for_you(conn, limit=80), "sequential"
+        else:
+            rows = [r for r in conn.execute(
+                "SELECT * FROM media WHERE available=1 AND verified=1 AND playable=1 "
+                "ORDER BY ord,series,season,episode,title,id") if matches(match, r)]
         cache[("base", key)] = (rows, mode)
     rows, mode = cache[("base", key)]
     rows = list(rows)
@@ -298,7 +322,7 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
     (used when HERO TV starts) makes sequential channels go back to the first unwatched episode; `avoid` keeps
     the video that is on air from being scheduled again straight after itself."""
     now = int(now)
-    if _kind(ch) != "tv":            # e.g. the Weather channel: live data, nothing to schedule
+    if _kind(ch) not in ("tv", "foryou"):   # e.g. the Weather channel: live data, nothing to schedule
         return 0
     plan = _spec(ch)
     blocks = plan[1]

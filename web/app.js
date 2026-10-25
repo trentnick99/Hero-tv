@@ -679,6 +679,11 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
     const l=el("label","lb");l.append(sc," Seasonal specials");l.style.display="flex";l.style.gap="1vw";
     const list=(sData&&sData.seasonal_list||[]).map(x=>`${x.name} (${x.dates.replace("..", " to ")}, ${x.from}-${x.to})`).join("; ");
     main.append(sField("",(list?list+". ":"")+"Extra programming on Hero Marathon at certain times of year. If you have nothing that fits, the channel plays as usual.",l))}
+  { const dp=el("input");dp.type="checkbox";dp.checked=sData&&sData.dayparts!==false;
+    dp.onchange=async()=>{try{await pj("/api/settings",{dayparts:dp.checked});sData=await api("/api/settings");toast(dp.checked?"Time-of-day programming on":"Time-of-day programming off")}catch(e){sMsg(String(e.message||e),"err")}};
+    const l=el("label","lb");l.append(dp," Time-of-day programming");l.style.display="flex";l.style.gap="1vw";
+    const list=(sData&&sData.dayparts_list||[]).map(x=>`${x.name} (${x.days}, ${x.from}-${x.to})`).join("; ");
+    main.append(sField("",(list?list+". ":"")+"Hero Marathon follows the clock like real TV. If you have nothing that fits a time slot, it plays as usual.",l))}
   {const bar=el("div","sbar");bar.append(sBtn("Choose your channels...",()=>openLineup(false)));main.append(sField("","Switch whole channels on or off - nothing is deleted, and you can switch them back any time.",bar))}
   for(const c of chList){const b=el("button","chrow"+(c.off?" off":""));b.type="button";const dot=el("i");dot.style.background=c.color;b.append(dot,el("b",0,String(c.number)),el("span",0,c.name+(c.off?"  (off)":"")),el("small",0,c.summary));b.onclick=()=>{chSel=c.id;drawSettings();$("#st-main").scrollTop=0};main.append(b)}
   const bar=el("div","sbar");bar.append(sBtn("Add a channel",()=>{chSel="new";drawSettings()},"pri"));main.append(bar,msg);return}

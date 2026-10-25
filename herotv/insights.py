@@ -155,3 +155,115 @@ def duplicates(conn):
              "size": c["size"] or 0, "plays": bool(c["playable"] and c["verified"]), "keep": i == 0} for i, c in enumerate(cs)],
             "extra": sum(c["size"] or 0 for c in cs[1:])})
     return sorted(out, key=lambda g: -g["extra"])
+
+
+# ---------- the "For You" channel ----------
+FOR_YOU_DAYS = 30
+
+
+def for_you(conn, now=None, limit=40):
+    """What the For You channel plays, best first: the next episode of shows you are watching, films you stopped
+    half-way, then unwatched videos most like what you watched lately (TMDB genres, studios, keywords, film series,
+    and the channel folder). With no history yet: the newest videos in your library. Never more than a few in a row
+    from one channel folder, and a little day-to-day variety."""
+    import random
+    from .scheduler import seen_ids
+    now = int(now or time.time())
+    rows = conn.execute("SELECT * FROM media WHERE available=1 AND verified=1 AND playable=1").fetchall()
+    if not rows:
+        return []
+    by_id = {r["id"]: r for r in rows}
+    seen = seen_ids(conn)
+    facts = {}
+    for a in conn.execute("SELECT key,facts,genres FROM art WHERE miss=0"):
+        try:
+            f = json.loads(a["facts"] or "{}")
+        except ValueError:
+            f = {}
+        if not f.get("genres"):
+            try:
+                f["genres"] = json.loads(a["genres"] or "[]")
+            except ValueError:
+                pass
+        facts[a["key"]] = f
+
+    def features(r):
+        f = facts.get(art.key_for(r)[0], {})
+        out = [("g", x) for x in f.get("genres") or []] + [("c", x) for x in (f.get("companies") or [])[:4]]
+        out += [("k", x) for x in (f.get("keywords") or [])[:12]]
+        if f.get("collection"):
+            out.append(("col", f["collection"]))
+        if r["franchise"]:
+            out.append(("f", r["franchise"].lower()))
+        for t in json.loads(r["tags"] or "[]"):
+            out.append(("t", str(t).lower()))
+        return out
+
+    # what you watched lately, newest counting most
+    since = now - FOR_YOU_DAYS * 86400
+    history = {}
+    for q in ("SELECT media_id, last AS t FROM seen WHERE last>=? AND secs>=120",
+              "SELECT media_id, updated AS t FROM progress WHERE updated>=? AND (position>=120 OR completed=1)"):
+        for h in conn.execute(q, (since,)):
+            history[h["media_id"]] = max(history.get(h["media_id"], 0), h["t"] or 0)
+    for f in conn.execute("SELECT media_id FROM favorites"):
+        history.setdefault(f["media_id"], since)
+    weight = {"g": 3, "c": 3, "k": 2, "col": 12, "f": 4, "t": 2}
+    taste, watching = {}, {}
+    for mid, t in history.items():
+        r = by_id.get(mid)
+        if r is None:
+            continue
+        w = 1 / (1 + max(0, now - t) / (7 * 86400))
+        for feat in set(features(r)):
+            taste[feat] = taste.get(feat, 0) + w * weight[feat[0]]
+        if r["series"]:
+            s = _n(r["series"])
+            watching[s] = max(watching.get(s, 0), w)
+    progress = {p["media_id"]: p for p in conn.execute("SELECT media_id,position,completed,updated FROM progress")}
+    day = time.strftime("%Y-%m-%d", time.localtime(now))
+    first_ep = {}
+    for r in sorted(rows, key=lambda r: (r["season"] or 0, r["episode"] or 0)):
+        if r["series"] and r["id"] not in seen:
+            first_ep.setdefault(_n(r["series"]), r["id"])          # a show: only its next unwatched episode
+    scored = []
+    for r in rows:
+        p = progress.get(r["id"])
+        half = bool(p and not p["completed"] and (p["position"] or 0) >= 60 and (p["updated"] or 0) >= since)
+        if r["id"] in seen and not half:
+            continue
+        if r["series"] and first_ep.get(_n(r["series"])) != r["id"] and not half:
+            continue
+        score = sum(taste.get(f, 0) for f in set(features(r)))
+        if r["series"] and _n(r["series"]) in watching:
+            score += 100 * watching[_n(r["series"])]                 # carry on with what you are watching
+        if half:
+            score += 80
+        if (r["added"] or 0) >= now - 14 * 86400:
+            score += 3                                              # new in your library
+        if not taste:
+            score += (r["added"] or 0) / 1e9                        # no history yet: newest first
+        score += random.Random(f"{day}:{r['id']}").random() * 2     # a little variety from day to day
+        scored.append((score, r))
+    scored.sort(key=lambda x: -x[0])
+    out, per_folder = [], {}
+    for _score, r in scored:                                        # mix it up: at most 4 from one folder
+        f = (r["franchise"] or "").lower()
+        if per_folder.get(f, 0) >= 4:
+            continue
+        per_folder[f] = per_folder.get(f, 0) + 1
+        out.append(r)
+        if len(out) >= limit:
+            break
+    if len(out) < min(limit, 6):                                    # a small library: fill up rather than go quiet
+        have = {r["id"] for r in out}
+        out += [r for _s, r in scored if r["id"] not in have][:limit - len(out)]
+    return out
+
+
+def history_signature(conn):
+    """Changes whenever something is watched - the For You channel is re-planned then."""
+    a = conn.execute("SELECT COUNT(*), COALESCE(MAX(last),0), COALESCE(SUM(secs),0) FROM seen").fetchone()
+    b = conn.execute("SELECT COUNT(*), COALESCE(MAX(updated),0) FROM progress").fetchone()
+    c = conn.execute("SELECT COUNT(*) FROM media WHERE available=1").fetchone()
+    return (tuple(a), tuple(b), c[0])

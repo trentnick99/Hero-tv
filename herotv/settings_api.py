@@ -36,10 +36,11 @@ def _save(data):
     os.replace(tmp, f)
 
 
-def _seasonal_list():
+def _seasonal_list(name="seasonal.json"):
     try:
-        d = json.loads((config.ROOT / "config" / "seasonal.json").read_text(encoding="utf-8-sig"))
-        return [{"name": b.get("name", ""), "dates": b.get("dates", ""), "from": b.get("from", ""), "to": b.get("to", "")}
+        d = json.loads((config.ROOT / "config" / name).read_text(encoding="utf-8-sig"))
+        return [{"name": b.get("name", ""), "dates": b.get("dates", ""), "from": b.get("from", ""), "to": b.get("to", ""),
+                 "days": b.get("days", "daily") if isinstance(b.get("days", "daily"), str) else ", ".join(b["days"])}
                 for b in d.get("blocks", []) if isinstance(b, dict)]
     except (OSError, ValueError):
         return []
@@ -84,6 +85,8 @@ def read(cfg):
         "smart_sort": d.get("smart_sort", True) is not False,
         "auto_update": d.get("auto_update", True) is not False,
         "seasonal_list": _seasonal_list(),
+        "dayparts": d.get("dayparts", True) is not False,
+        "dayparts_list": _seasonal_list("dayparts.json"),
         "last_backup": _last_backup(),
         "media_dir": str(cfg.media_dir),
         "weather": loc.get("name") if loc else "",
@@ -136,6 +139,11 @@ def update(changes, geocode=None):
             raise ValueError("auto_update must be on or off")
         data["auto_update"] = changes["auto_update"]
         saved.append("auto_update")
+    if "dayparts" in changes:
+        if not isinstance(changes["dayparts"], bool):
+            raise ValueError("dayparts must be on or off")
+        data["dayparts"] = changes["dayparts"]
+        saved.append("dayparts")
     if "seasonal" in changes:
         if not isinstance(changes["seasonal"], bool):
             raise ValueError("seasonal must be on or off")
