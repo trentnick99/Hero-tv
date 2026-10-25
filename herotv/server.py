@@ -383,7 +383,7 @@ def make_handler(app, remote=False):
             if not addrs:
                 return None
             try:
-                return qr.svg(f"http://{addrs[0]}:{R.lan_port(app.cfg)}/", scale=5)
+                return qr.svg(f"http://{addrs[0]}:{R.lan_port(app.cfg)}/", scale=6)
             except ValueError:
                 return None
 
