@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.4.0": [
+        "Browse your library on the TV itself: Roku Media Player (and VLC or other TV media apps) can now find HERO TV.",
+        "Switch it on in Settings > Other devices. It is off until you do - while on, anyone on your WiFi can watch your videos.",
+        "On the Roku: open Roku Media Player and pick your station - folders, shows and new arrivals are all there.",
+    ],
     "1.3.0": [
         "Seasonal specials: Halloween Horror Nights on Hero Marathon (Oct 24-31, evenings), holiday specials in December.",
         "Weekly automatic backups (the last 8 are kept) - Settings > Backup and about.",

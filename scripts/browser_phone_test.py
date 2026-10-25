@@ -137,6 +137,17 @@ def main(engine):
         pcp.wait_for_timeout(2500)
         check("iPhone" in pcp.inner_text("#st-main"), "the PC lists the newly paired iPhone")
         pcp.screenshot(path=str(ROOT / f"pc-devices-{engine}.png"))
+        from herotv import dlna as D
+        from unittest import mock as _mock
+        with _mock.patch.object(D, "Announcer", side_effect=OSError("test")):
+            box = pcp.locator("#st-main >> text=Let TV media players browse my library")
+            box.click(); pcp.wait_for_timeout(600)
+            check(not D.enabled(), "the TV media player switch asks for a second tick first")
+            pcp.locator("#st-main >> text=Let TV media players browse my library").click(); pcp.wait_for_timeout(1200)
+            check(D.enabled() and app.dlna.running, "the second tick switches the TV media server on")
+            check("Roku Media Player" in pcp.inner_text("#st-main"), "it explains where to find it on the Roku")
+            pcp.locator("#st-main >> text=Let TV media players browse my library").click(); pcp.wait_for_timeout(1200)
+            check(not D.enabled() and not app.dlna.running, "unticking switches it off again")
         page.wait_for_timeout(3000)
 
         tapped = False

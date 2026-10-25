@@ -26,6 +26,9 @@ jobs:
       - name: Install the time-zone database (Windows Python has none built in)
         run: python -m pip install tzdata
 
+      - name: Install a standard UPnP client (to check the TV media server speaks proper UPnP)
+        run: python -m pip install async-upnp-client aiohttp
+
       - name: Run all tests on real Windows
         run: python scripts/ci_tests.py
 
@@ -91,6 +94,17 @@ jobs:
           if ($code -ne 403) { throw "paired device could read settings ($code)" }
           Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"disable"}' | Out-Null
           Write-Host "Other-devices test passed."
+          # --- TV media players (DLNA): off by default, then browsable over the network ---
+          $off = $false; try { Invoke-WebRequest "http://${ip}:8801/dlna/description.xml" -UseBasicParsing -TimeoutSec 5 | Out-Null } catch { $off = $true }
+          if (-not $off) { throw "the TV media server answered while switched off" }
+          Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"dlna-on"}' | Out-Null
+          $desc = Invoke-WebRequest "http://${ip}:8801/dlna/description.xml" -UseBasicParsing
+          if ($desc.Content -notmatch "MediaServer:1") { throw "no media server description" }
+          $soap = '<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1"><ObjectID>0</ObjectID><BrowseFlag>BrowseDirectChildren</BrowseFlag><Filter>*</Filter><StartingIndex>0</StartingIndex><RequestedCount>0</RequestedCount><SortCriteria></SortCriteria></u:Browse></s:Body></s:Envelope>'
+          $r = Invoke-WebRequest "http://${ip}:8801/dlna/control/cds" -Method Post -Body $soap -ContentType 'text/xml; charset="utf-8"' -Headers @{ SOAPACTION = '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"' } -UseBasicParsing
+          if ($r.Content -notmatch "TotalMatches") { throw "Browse did not answer properly" }
+          Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"dlna-off"}' | Out-Null
+          Write-Host "TV media server test passed."
           Stop-Process -Id $p.Id -Force
           Write-Host "Smoke test passed."
 
