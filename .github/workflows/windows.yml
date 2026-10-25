@@ -50,9 +50,11 @@ jobs:
       - name: Smoke test the built app (start it, ask it questions, stop it)
         shell: pwsh
         run: |
+          trap { Write-Output "::error title=Smoke test::$_"; exit 1 }
           $pkg = Resolve-Path "package\HERO TV"
           & "$pkg\HERO-TV.exe" doctor
           Write-Host "doctor exit code: $LASTEXITCODE (problems with the empty test PC are fine here)"
+          $global:LASTEXITCODE = 0
           $env:HEROTV_MEDIA = "$env:RUNNER_TEMP\media"; New-Item -ItemType Directory -Force $env:HEROTV_MEDIA | Out-Null
           $env:HEROTV_DB = "$env:RUNNER_TEMP\smoke.sqlite3"
           $env:HEROTV_PORT = "8799"
@@ -66,7 +68,9 @@ jobs:
           Write-Host "health: $($h | ConvertTo-Json -Compress)"
           if (-not $h.frozen) { throw "not running as the built exe" }
           $page = Invoke-WebRequest http://127.0.0.1:8799/ -UseBasicParsing
-          if ($page.Content -notmatch "NEED_API") { throw "the TV page was not served" }
+          if ($page.Content -notmatch "app.js") { throw "the TV page was not served" }
+          $js = Invoke-WebRequest http://127.0.0.1:8799/app.js -UseBasicParsing
+          if ($js.Content -notmatch "NEED_API") { throw "the TV page's script was not served" }
           Invoke-RestMethod http://127.0.0.1:8799/api/settings | Out-Null
           Invoke-RestMethod http://127.0.0.1:8799/api/channels-config | Out-Null
           # --- other devices on the network: off by default, then paired, then watch-only ---
@@ -93,6 +97,7 @@ jobs:
       - name: Test updating an older copy with this build (exe swaps itself)
         shell: pwsh
         run: |
+          trap { Write-Output "::error title=Update test::$_"; exit 1 }
           $new = Resolve-Path "package\HERO TV"
           Compress-Archive -Path $new -DestinationPath "$env:RUNNER_TEMP\HERO-TV-test-windows.zip"
           $old = "$env:RUNNER_TEMP\old\HERO TV"
