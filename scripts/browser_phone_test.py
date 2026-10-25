@@ -20,10 +20,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FAILS = []
+LOG = []
+PAGES = {}
 
 
 def check(ok, what):
     print(("  PASS  " if ok else "  FAIL  ") + what, flush=True)
+    LOG.append(("PASS  " if ok else "FAIL  ") + what)
     if not ok:
         FAILS.append(what)
     return ok
@@ -86,13 +89,20 @@ def main(engine):
         page.on("request", lambda r: media_urls.append(r.url) if "/media/" in r.url else None)
 
         pcp = browser.new_context(viewport={"width": 1280, "height": 720}).new_page()
+        PAGES["pc"], PAGES["phone"] = pcp, page
         pcp.on("pageerror", lambda e: errors.append("PC: " + str(e)))
         pcp.goto(f"http://127.0.0.1:{cfg.port}/"); pcp.wait_for_timeout(3500)
         if pcp.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
             pcp.click("#tapgo")             # this test browser blocks autoplay; the real PC window allows it
         check(pcp.evaluate("document.querySelector('#news').classList.contains('on')"), "the PC shows What's new once")
-        pcp.click("#nw-ok"); pcp.wait_for_timeout(300)
-        pcp.keyboard.press("o"); pcp.wait_for_timeout(600)
+        for _ in range(4):                     # dismiss the one-time pop-ups in whatever order they appear
+            if pcp.evaluate("document.querySelector('#news').classList.contains('on')"):
+                pcp.click("#nw-ok")
+            if pcp.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
+                pcp.click("#tapgo")
+            pcp.wait_for_timeout(400)
+        pcp.keyboard.press("o"); pcp.wait_for_timeout(800)
+        check(pcp.evaluate("document.querySelector('#settings').classList.contains('on')"), "O opens Settings on the PC")
         pcp.click("#st-nav >> text=Other devices"); pcp.wait_for_timeout(800)
         txt = pcp.inner_text("#st-main")
         check("Let other devices on my home WiFi watch" in txt and "Pair a device" in txt, "the PC's Settings > Other devices shows the switch and Pair")
@@ -182,9 +192,18 @@ if __name__ == "__main__":
         code = main(engine)
     except Exception:
         import traceback
-        tb = traceback.format_exc()
+        tb = traceback.format_exc().strip().splitlines()[-6:]
+        state = []
+        for name, pg in PAGES.items():
+            try:
+                state.append(f"[{name}] url={pg.url} " + pg.evaluate(
+                    "JSON.stringify({layer:typeof layer!=='undefined'?layer:'?',on:[...document.querySelectorAll('.on')].map(e=>e.id||e.className).slice(0,12),"
+                    "main:(document.querySelector('#st-main')||{}).innerText?.slice(0,300),msg:(document.querySelector('#msg')||{}).innerText})"))
+            except Exception as e:
+                state.append(f"[{name}] could not read state: {e}")
+        tb = "\n".join(LOG + ["--- crash ---"] + tb + state)
         print(tb)
         if os.environ.get("GITHUB_ACTIONS"):
-            print(f"::error title=Phone test ({engine}) crashed::" + "\n".join(tb.strip().splitlines()[-25:]).replace("%", "%25").replace("\n", "%0A"))
+            print(f"::error title=Phone test ({engine}) crashed::" + tb.replace("%", "%25").replace("\n", "%0A"))
         code = 2
     sys.exit(code)
