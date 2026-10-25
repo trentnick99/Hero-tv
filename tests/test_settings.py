@@ -97,3 +97,23 @@ class SettingsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SubtitleStyleTests(unittest.TestCase):
+    def test_style_saved_validated_and_in_theme(self):
+        d = tempfile.mkdtemp()
+        f = Path(d) / "settings.json"
+        with mock.patch.object(config, "settings_file", return_value=f):
+            self.assertEqual(SA.subs_style(), {"size": "normal", "bg": "box", "color": "white"})
+            SA.update({"subs_style": {"size": "xl", "bg": "none", "color": "yellow"}})
+            self.assertEqual(SA.subs_style()["size"], "xl")
+            for bad in ({"size": "huge", "bg": "box", "color": "white"}, "big", {"size": "xl"}):
+                with self.assertRaises(ValueError):
+                    SA.update({"subs_style": bad})
+            cfg = Config(media_dir=Path(d), db_path=os.path.join(d, "t.sqlite3"), channels_file=None)
+            connect(cfg.db_path).close()
+            srv = ThreadingHTTPServer(("127.0.0.1", 0), SV.make_handler(SV.App(cfg)))
+            threading.Thread(target=srv.serve_forever, daemon=True).start()
+            self.addCleanup(srv.server_close); self.addCleanup(srv.shutdown)
+            j = json.load(urllib.request.urlopen(f"http://127.0.0.1:{srv.server_address[1]}/api/theme"))
+            self.assertEqual(j["subs"], {"size": "xl", "bg": "none", "color": "yellow"})

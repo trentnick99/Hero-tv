@@ -923,7 +923,7 @@ def make_handler(app, remote=False):
                     return self.send_json(res)
                 return self.send_json(channels_api.read(app.cfg))
             if p == "theme":
-                return self.send_json(station())
+                return self.send_json(dict(station(), subs=settings_api.subs_style()))
             if p == "checklist":
                 from . import checklist as CL
                 path = os.path.join(os.path.dirname(app.cfg.channels_file), "checklist.json")

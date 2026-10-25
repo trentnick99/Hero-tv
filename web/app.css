@@ -203,6 +203,9 @@ body.big #in-t{font-size:4.4vh}body.big #in-plot,body.big #in-m{font-size:2.8vh}
 #help td:first-child{white-space:nowrap}#help td:first-child b{font-weight:700;padding:.1vh .7vh;border:1px solid var(--line);border-radius:.6vh;background:var(--panel)}
 #help td:last-child{color:var(--mute)}
 video::cue{font-size:calc(3.6vh*var(--tx));line-height:1.25;background:rgba(0,0,0,.72);color:#fff;font-family:var(--f)}
+body.cue-l video::cue{font-size:calc(4.8vh*var(--tx))}body.cue-xl video::cue{font-size:calc(6.2vh*var(--tx))}
+body.cue-none video::cue{background:transparent;text-shadow:0 0 .35vh #000,0 0 .35vh #000,.15vh .15vh .2vh #000}
+body.cue-yellow video::cue{color:#ffe14d}
 /* checklist */
 #ck-sub{color:var(--mute);font-size:calc(2.3vh*var(--tx))}
 #ck-body{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(2,1fr);column-gap:3vw;align-content:start;scrollbar-width:none;padding-top:1vh}

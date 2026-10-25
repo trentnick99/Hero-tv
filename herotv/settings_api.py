@@ -51,6 +51,18 @@ def _last_backup():
     return {"file": p, "when": int(os.path.getmtime(p))} if p else None
 
 
+SUB_SIZES, SUB_BGS, SUB_COLORS = ("normal", "large", "xl"), ("box", "none"), ("white", "yellow")
+
+
+def subs_style(d=None):
+    """How subtitles look on every screen: size, black box or outline only, white or yellow."""
+    d = _load() if d is None else d
+    st = d.get("subs_style") if isinstance(d.get("subs_style"), dict) else {}
+    return {"size": st.get("size") if st.get("size") in SUB_SIZES else "normal",
+            "bg": st.get("bg") if st.get("bg") in SUB_BGS else "box",
+            "color": st.get("color") if st.get("color") in SUB_COLORS else "white"}
+
+
 def mask(key):
     return ("…" + key[-4:]) if key and len(key) > 8 else ("set" if key else "")
 
@@ -66,6 +78,7 @@ def read(cfg):
         "default_station": config.DEFAULT_STATION,
         "auto_inbox": inbox.enabled(),
         "windowed": bool(d.get("windowed")),
+        "subs_style": subs_style(d),
         "auto_backup": d.get("auto_backup", True) is not False,
         "seasonal": d.get("seasonal", True) is not False,
         "seasonal_list": _seasonal_list(),
@@ -121,6 +134,12 @@ def update(changes, geocode=None):
             raise ValueError("auto_backup must be on or off")
         data["auto_backup"] = changes["auto_backup"]
         saved.append("auto_backup")
+    if "subs_style" in changes:
+        st = changes["subs_style"]
+        if not isinstance(st, dict) or st.get("size") not in SUB_SIZES or st.get("bg") not in SUB_BGS or st.get("color") not in SUB_COLORS:
+            raise ValueError("Choose a subtitle size, background and colour from the lists.")
+        data["subs_style"] = {k: st[k] for k in ("size", "bg", "color")}
+        saved.append("subs_style")
     if "windowed" in changes:
         if not isinstance(changes["windowed"], bool):
             raise ValueError("windowed must be on or off")

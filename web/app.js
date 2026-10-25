@@ -409,7 +409,8 @@ addEventListener("keydown",e=>{const k=e.key;
 /* ---- settings ---- */
 async function pj(path,body){const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});let j={};try{j=await r.json()}catch(e){}
  if(!r.ok)throw new Error(j.error||"That did not work.");return j}
-async function loadTheme(){try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;document.documentElement.style.setProperty("--brand",theme.color)}catch(e){}}
+async function loadTheme(){try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;document.documentElement.style.setProperty("--brand",theme.color);applyCues(theme.subs)}catch(e){}}
+function applyCues(st){st=st||{};const b=document.body.classList;b.toggle("cue-l",st.size==="large");b.toggle("cue-xl",st.size==="xl");b.toggle("cue-none",st.bg==="none");b.toggle("cue-yellow",st.color==="yellow")}
 const SW=["#ffcf1f","#ff3b3b","#3d6bff","#3ddc84","#b06bff","#ff8c00","#ff2e88","#1fd1b4"];
 const SCATS=[["look","Appearance"],["chan","Channels"],["lib","Media library"],["weather","Weather"],["art","Cover art"],["tools","Tools"],["devices","Other devices"],["about","Backup and about"]];
 let chList=null,chSel=null;let sCat="look",sData=null,sDirty=false,sLeave=false;
@@ -441,6 +442,11 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
   const bl=el("label","lb");bl.append(big," Bigger text");bl.style.display="flex";bl.style.gap="1vw";main.append(sField("",'Makes every screen easier to read from the couch. Same as pressing T.',bl));
   const wnd=el("input");wnd.type="checkbox";wnd.checked=!!d.windowed;wnd.onchange=()=>sSave({windowed:wnd.checked},wnd.checked?"HERO TV will open in a normal window from now on.":"HERO TV will open full screen from now on.");
   const wl=el("label","lb");wl.append(wnd," Open in a window instead of full screen");wl.style.display="flex";wl.style.gap="1vw";main.append(sField("","Takes effect the next time you start HERO TV. F still switches full screen on and off.",wl));
+  { const st=Object.assign({size:"normal",bg:"box",color:"white"},d.subs_style),row=el("div","sbar");
+    const pick=(opts,key)=>{const sel=el("select");for(const[v,t]of opts){const o=el("option",0,t);o.value=v;if(st[key]===v)o.selected=true;sel.append(o)}
+     sel.onchange=()=>{st[key]=sel.value;applyCues(st);sSave({subs_style:st},"Subtitle style saved.",async()=>{await loadTheme()})};sel.dataset.k=key;return sel};
+    row.append(pick([["normal","Normal size"],["large","Large"],["xl","Extra large"]],"size"),pick([["box","On a dark box"],["none","Outline only"]],"bg"),pick([["white","White"],["yellow","Yellow"]],"color"));
+    row.id="cue-style";main.append(sField("Subtitles","How subtitles look on the TV and on paired phones. Press C while watching to turn them on.",row))}
   main.append(el("div","sbar")),main.lastChild.append(sBtn("Save",()=>sSave({station:{name:name.value,tagline:tag.value,color:col}},"Saved.",async()=>{await loadTheme();paint($("#settings"),theme.color);drawSettings()}),"pri"),
    sBtn("Restore the default look",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press the button again to restore the standard name, greeting and colour.","err");return}
     delete main.dataset.sure;sSave({reset_station:true},"Default look restored.",async()=>{await loadTheme();drawSettings()})},"warn"));main.append(msg)}
@@ -675,7 +681,7 @@ let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();d
 (async()=>{try{const dv=await api("/api/device");REMOTE=!!dv.remote;MK=dv.mk||"";document.body.classList.toggle("remote",REMOTE)}catch(e){}
  try{await sync();setChans((await api("/api/channels")).channels)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open, then press F5.")}
  try{const h=await api("/api/health");if(h.api!==NEED_API)toast(h.frozen?"The HERO TV application is older than its files. Close it, then double-click Build-App.bat in the HERO TV folder (a few minutes) to bring it up to date.":"HERO TV is an older version than this page. Close it completely and start it again to get the newest features.")}catch(e){}
- try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color)}catch(e){}
+ try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color);applyCues(theme.subs)}catch(e){}
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
  if(typeof pf.volume==="number")v.volume=pf.volume;if("muted" in pf)v.muted=!!pf.muted;if(pf.bigtext)setBig(true,false);if(typeof pf.subs==="string")subPref=pf.subs;
  let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();
