@@ -13,3 +13,4 @@ app-build.txt
 .update-backup/
 phone-*.png
 pc-devices-*.png
+installer-out/
