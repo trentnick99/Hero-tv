@@ -69,9 +69,18 @@ def main(engine):
     S.extend_all(c, time.time(), 6 * 3600, tz="UTC")
     c.close()
     app = SV.App(cfg)
-    pc = SV._TVServer(("127.0.0.1", cfg.port), SV.make_handler(app))
+    for attempt in range(10):                 # another program may grab a just-checked port: pick again
+        try:
+            pc = SV._TVServer(("127.0.0.1", cfg.port), SV.make_handler(app))
+        except OSError:
+            cfg.port = free_port(); continue
+        try:
+            app.start_lan(); break
+        except ValueError:
+            pc.server_close(); cfg.port = free_port()
+    else:
+        raise RuntimeError("could not find two free ports")
     threading.Thread(target=pc.serve_forever, daemon=True).start()
-    app.start_lan()
     lan = f"http://127.0.0.1:{R.lan_port(cfg)}"
     print(f"HERO TV test server: PC {cfg.port}, network {R.lan_port(cfg)}; engine {engine}", flush=True)
 
