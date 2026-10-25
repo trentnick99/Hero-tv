@@ -359,7 +359,8 @@ class ReleaseUpdateTests(unittest.TestCase):
 
     def test_whatsnew_endpoint_shows_once(self):
         from herotv import whatsnew
-        self.assertEqual(whatsnew.since("1.0.0"), [])
+        self.assertEqual(whatsnew.since(whatsnew.current()), [])
+        self.assertEqual([v for v, _ in whatsnew.since("1.0.0")], [v for v in whatsnew.NOTES if v != "1.0.0"])
         self.assertTrue(whatsnew.since("0.1.0"))
         d = tempfile.mkdtemp()
         cfg = Config(media_dir=Path(d), db_path=os.path.join(d, "t.sqlite3"), channels_file=None)
