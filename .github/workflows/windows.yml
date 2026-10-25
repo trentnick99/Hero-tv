@@ -101,7 +101,7 @@ jobs:
           $desc = Invoke-WebRequest "http://${ip}:8801/dlna/description.xml" -UseBasicParsing
           if ($desc.Content -notmatch "MediaServer:1") { throw "no media server description" }
           $soap = '<?xml version="1.0"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:Browse xmlns:u="urn:schemas-upnp-org:service:ContentDirectory:1"><ObjectID>0</ObjectID><BrowseFlag>BrowseDirectChildren</BrowseFlag><Filter>*</Filter><StartingIndex>0</StartingIndex><RequestedCount>0</RequestedCount><SortCriteria></SortCriteria></u:Browse></s:Body></s:Envelope>'
-          $r = Invoke-WebRequest "http://${ip}:8801/dlna/control/cds" -Method Post -Body $soap -ContentType 'text/xml; charset="utf-8"' -Headers @{ SOAPACTION = '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"' } -UseBasicParsing
+          $r = Invoke-WebRequest "http://${ip}:8801/dlna/control/cds" -Method Post -Body $soap -ContentType 'text/xml; charset=utf-8' -Headers @{ SOAPACTION = '"urn:schemas-upnp-org:service:ContentDirectory:1#Browse"' } -UseBasicParsing
           if ($r.Content -notmatch "TotalMatches") { throw "Browse did not answer properly" }
           Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"dlna-off"}' | Out-Null
           Write-Host "TV media server test passed."

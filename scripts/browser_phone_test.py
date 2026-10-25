@@ -143,8 +143,13 @@ def main(engine):
             box = pcp.locator("#st-main >> text=Let TV media players browse my library")
             box.click(); pcp.wait_for_timeout(600)
             check(not D.enabled(), "the TV media player switch asks for a second tick first")
-            pcp.locator("#st-main >> text=Let TV media players browse my library").click(); pcp.wait_for_timeout(1200)
-            check(D.enabled() and app.dlna.running, "the second tick switches the TV media server on")
+            pcp.locator("#st-main >> text=Let TV media players browse my library").click()
+            for _ in range(20):
+                if D.enabled() and app.dlna.running:
+                    break
+                pcp.wait_for_timeout(250)
+            ok = D.enabled() and app.dlna.running
+            check(ok, "the second tick switches the TV media server on" + ("" if ok else " - screen says: " + pcp.inner_text("#st-msg")[:200]))
             check("Roku Media Player" in pcp.inner_text("#st-main"), "it explains where to find it on the Roku")
             pcp.locator("#st-main >> text=Let TV media players browse my library").click(); pcp.wait_for_timeout(1200)
             check(not D.enabled() and not app.dlna.running, "unticking switches it off again")
