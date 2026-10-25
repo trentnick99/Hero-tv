@@ -539,7 +539,10 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
    main.append(c)}
  if(d.enabled){
   { const c=tCard("On the phone, open this address",d.addresses.length?"Type it into Safari or Chrome while the phone is on the same WiFi as this PC.":"This PC does not seem to be on a home network right now.");
-    for(const a of d.addresses){const b=el("b",0,a);b.style.fontSize="calc(3vh*var(--tx))";b.style.userSelect="all";c.append(b)}main.append(c)}
+    for(const a of d.addresses){const b=el("b",0,a);b.style.fontSize="calc(3vh*var(--tx))";b.style.userSelect="all";c.append(b)}
+    if(d.qr){const q=el("div");q.id="phone-qr";q.innerHTML=d.qr;q.style.cssText="width:22vh;height:22vh;background:#fff;padding:1vh;border-radius:1vh";
+     q.firstChild.setAttribute("width","100%");q.firstChild.setAttribute("height","100%");c.append(el("small",0,"Or open the iPhone's Camera and point it at this code, then tap the link that appears:"),q)}
+    main.append(c)}
   { const c=tCard("Pair a device",d.pairing?"Type this code on the phone. It works once, for 10 minutes.":"Each phone or computer needs pairing once.");
     if(d.pairing){const code=el("b",0,d.pairing.code.replace(/(\d{3})(\d{3})/,"$1 $2"));code.style.cssText="font-size:calc(6vh*var(--tx));letter-spacing:.2em;color:var(--accent)";
      const left=el("small",0,Math.ceil(d.pairing.seconds_left/60)+" min left");left.id="pair-left";c.append(code,left);const row=el("div","sbar");row.append(sBtn("Cancel",()=>devOp({op:"cancel"})));c.append(row);devPoll()}

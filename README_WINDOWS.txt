@@ -322,7 +322,8 @@ WATCHING ON YOUR PHONE OR TV (Settings > Other devices)
   Off until you switch it on. Then:
     1. On the PC: Settings (O) > Other devices > tick "Let other devices on my home WiFi watch". If Windows asks
        whether HERO TV may use the network, choose Allow for PRIVATE networks only.
-    2. On the iPhone (same WiFi): open Safari and type the address shown, e.g.  http://192.168.1.20:8788
+    2. On the iPhone (same WiFi): open the Camera and point it at the QR code shown on the PC, then tap the link
+       (or type the address shown into Safari, e.g.  http://192.168.1.20:8788 )
     3. On the PC press "Pair a device" and type the 6-digit code on the phone. Done - only once per device.
   The phone shows the same live channels as the PC, plus the guide and library. Tap the picture for buttons
   (channel up/down, guide, library). Turn the phone sideways for the full view. Phones can only WATCH: they cannot

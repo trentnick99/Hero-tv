@@ -125,6 +125,7 @@ def main(engine):
         shown = "".join(ch for ch in pcp.inner_text("#st-main") if ch.isdigit())
         code = (R.pairing_state() or {}).get("code", "")
         check(bool(code) and code in shown, "pressing Pair shows a 6-digit code on the PC")
+        check(pcp.locator("#phone-qr svg").count() == 1, "the PC shows a QR code for the phone's camera")
 
         page.goto(lan + "/")
         check(page.url.endswith("/pair"), "an unpaired phone is sent to the pairing page")
@@ -137,6 +138,12 @@ def main(engine):
         pcp.wait_for_timeout(2500)
         check("iPhone" in pcp.inner_text("#st-main"), "the PC lists the newly paired iPhone")
         pcp.screenshot(path=str(ROOT / f"pc-devices-{engine}.png"))
+        try:
+            import cv2
+            got = cv2.QRCodeDetector().detectAndDecode(cv2.imread(str(ROOT / f"pc-devices-{engine}.png")))[0]
+            check(got.startswith("http://") and got.endswith(f":{R.lan_port(cfg)}/"), f"a QR reader can read the code on the screen ({got!r})")
+        except ImportError:
+            print("  (no QR reader installed here - skipped reading the code off the screen)")
         from herotv import dlna as D
         from unittest import mock as _mock
         with _mock.patch.object(D, "Announcer", side_effect=OSError("test")):

@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.6.0": [
+        "Easier phone setup: Settings > Other devices shows a QR code - open the iPhone's Camera, point it at the screen, tap the link.",
+    ],
     "1.5.0": [
         "Subtitle size and style: Settings > Appearance (bigger text, outline only, or yellow) - on the TV and on phones.",
         "Roku Media Player and other TV media apps now get the video's subtitles too.",

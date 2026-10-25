@@ -372,9 +372,20 @@ def make_handler(app, remote=False):
         def devices_info(self, c):
             return {"dlna": {"enabled": dlna.enabled(), "running": app.dlna.running, "name": dlna.friendly_name(),
                              "addresses": [f"http://{a}:{dlna.port(app.cfg)}/dlna/description.xml" for a in R.lan_addresses()]},
+                    "qr": self.qr_for(R.lan_addresses()),
                     "enabled": R.enabled(), "running": app.lan_srv is not None, "port": R.lan_port(app.cfg),
                     "addresses": [f"http://{a}:{R.lan_port(app.cfg)}" for a in R.lan_addresses()],
                     "pairing": R.pairing_state(), "devices": R.devices(c)}
+
+        def qr_for(self, addrs):
+            """QR code of the phone address, so the iPhone camera can open it (no typing)."""
+            from . import qr
+            if not addrs:
+                return None
+            try:
+                return qr.svg(f"http://{addrs[0]}:{R.lan_port(app.cfg)}/", scale=5)
+            except ValueError:
+                return None
 
         def devices_op(self, c, b):
             op = b.get("op")
