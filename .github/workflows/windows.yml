@@ -130,6 +130,43 @@ jobs:
           & "$old\HERO-TV.exe" doctor | Out-Null
           Write-Host "Update test passed."
 
+      - name: Test the one-press update (running HERO TV closes, swaps itself, starts again)
+        shell: pwsh
+        run: |
+          $log = "$env:LOCALAPPDATA\HeroTV\update.log"
+          trap { $t = ""; if (Test-Path $log) { $t = ((Get-Content $log | Select-Object -Last 15) -join " | ") }; Write-Output "::error title=One-press update::$_ LOG: $t"; Get-Process HERO-TV -ErrorAction SilentlyContinue | Stop-Process -Force; exit 1 }
+          if (-not (Get-Command ffprobe -ErrorAction SilentlyContinue)) {      # HERO TV only starts with its video tools
+            choco install ffmpeg -y --no-progress | Out-Null
+            $env:PATH = "$env:ProgramData\chocolatey\bin;$env:PATH"
+          }
+          $new = Resolve-Path "package\HERO TV"
+          $old = "$env:RUNNER_TEMP\old2\HERO TV"
+          New-Item -ItemType Directory -Force (Split-Path $old) | Out-Null
+          Copy-Item -Recurse $new $old
+          Set-Content "$old\app-build.txt" "old-build"
+          $env:HEROTV_MEDIA = "$env:RUNNER_TEMP\media2"; New-Item -ItemType Directory -Force $env:HEROTV_MEDIA | Out-Null
+          $env:HEROTV_DB = "$env:RUNNER_TEMP\upd.sqlite3"
+          $env:HEROTV_PORT = "8797"
+          $env:HEROTV_NO_UPDATE_CHECK = "1"
+          Start-Process -FilePath "$old\HERO-TV.exe" -ArgumentList "serve" -NoNewWindow | Out-Null
+          $ok = $false
+          for ($i = 0; $i -lt 60; $i++) { Start-Sleep -Seconds 1; try { Invoke-RestMethod http://127.0.0.1:8797/api/health | Out-Null; $ok = $true; break } catch {} }
+          if (-not $ok) { throw "the old copy did not start" }
+          $u = Invoke-RestMethod http://127.0.0.1:8797/api/update
+          Write-Host "update status: $($u | ConvertTo-Json -Compress)"
+          if (-not $u.can_install) { throw "the built app says it cannot install updates" }
+          $env:HEROTV_RESTART_NO_BROWSER = "1"
+          Start-Process -FilePath "$old\HERO-TV.exe" -ArgumentList "self-update","`"$env:RUNNER_TEMP\HERO-TV-test-windows.zip`"" | Out-Null
+          $want = Get-Content "$new\app-build.txt"
+          for ($i = 0; $i -lt 120; $i++) { Start-Sleep -Seconds 1; if ((Get-Content "$old\app-build.txt") -eq $want) { break } }
+          if ((Get-Content "$old\app-build.txt") -ne $want) { throw "the new application was not swapped in" }
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) { Start-Sleep -Seconds 1; try { $h = Invoke-RestMethod http://127.0.0.1:8797/api/health; $ok = $true; break } catch {} }
+          if (-not $ok) { throw "HERO TV did not start again after updating" }
+          if (-not $h.frozen) { throw "the restarted HERO TV is not the built app" }
+          Get-Process HERO-TV -ErrorAction SilentlyContinue | Stop-Process -Force
+          Write-Host "One-press update test passed: closed, swapped and started again by itself."
+
       - name: Build the installer (Inno Setup)
         shell: pwsh
         run: |
@@ -259,8 +296,9 @@ jobs:
             HERO-TV-v${{ steps.ver.outputs.version }}-windows.zip
             installer-out/HERO-TV-Setup-v${{ steps.ver.outputs.version }}.exe
           body: |
-            Already using HERO TV: download HERO-TV-v${{ steps.ver.outputs.version }}-windows.zip below, then double-click Update-HERO-TV.bat in your HERO TV folder
-            (it finds the zip in your Downloads folder).
+            Already using HERO TV 1.11 or newer: it offers this update by itself - Settings > Backup and about > Install now.
+            Older HERO TV: download HERO-TV-v${{ steps.ver.outputs.version }}-windows.zip below, then double-click Update-HERO-TV.bat in your HERO TV folder
+            (it finds the zip in your Downloads folder), or run the Setup below over your old install.
             New PC: download HERO-TV-Setup-v${{ steps.ver.outputs.version }}.exe and run it (no administrator rights needed; Windows may say
             "unknown publisher" because it is not code-signed: More info > Run anyway).
             Tested automatically: all unit tests and the built app on Windows, plus a phone test in Safari's engine.

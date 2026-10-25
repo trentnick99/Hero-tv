@@ -838,7 +838,18 @@ def make_handler(app, remote=False):
             if p == "hb":
                 if not self.is_remote:                 # a phone watching does not keep the PC's TV window "open"
                     app.last_hb = time.monotonic()
-                return self.send_json({"ok": True, "lib": app.lib_version, "note": app.lib_note})
+                return self.send_json({"ok": True, "lib": app.lib_version, "note": app.lib_note, "v": __version__})
+            if p == "update":                                 # one-press updates (PC only: not in the phone allowlist)
+                from . import selfupdate
+                if method == "POST":
+                    op = (self.body() or {}).get("op")
+                    if op == "check":
+                        return self.send_json(dict(selfupdate.check(force=True), last_error=""))
+                    if op == "install":
+                        return self.send_json(dict(selfupdate.install(), last_error=""))
+                    raise ValueError("unknown update request")
+                note, app.update_note = getattr(app, "update_note", ""), ""
+                return self.send_json(dict(selfupdate.status(), last_error=note))
             if p == "weather":
                 return self.send_json(weather.report())
             if p == "weather/alerts":
@@ -1341,6 +1352,10 @@ def serve(cfg):
         except ValueError as e:
             print("Other devices: " + str(e), flush=True)
     inbox.watch_forever(cfg)
+    from . import selfupdate
+    app.update_note = selfupdate.take_last_error()
+    if os.environ.get("HEROTV_NO_UPDATE_CHECK") != "1":
+        selfupdate.watch_forever()
     srv = _TVServer((cfg.host, cfg.port), make_handler(app))
     srv.daemon_threads = True
     app.stop = lambda: threading.Thread(target=srv.shutdown, daemon=True).start()

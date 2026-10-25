@@ -327,7 +327,7 @@ INSTALLING ON A NEW PC, SUBTITLE STYLE
   rights needed; it installs into your user folder, adds HERO TV to the Start menu (and the desktop if you tick it),
   and appears in Windows' "Installed apps" so it can be uninstalled normally. Uninstalling keeps your channel files,
   videos, favorites and settings. Windows may warn "unknown publisher" (not code-signed): More info > Run anyway.
-  Updates still work the same way: download the release zip and run Update-HERO-TV.bat from the Start menu's
+  Updates: HERO TV offers them by itself (see UPDATING HERO TV), or download the release zip and run Update-HERO-TV.bat from the Start menu's
   "HERO TV tools folder".
   Subtitles: Settings > Appearance > Subtitles - size (normal / large / extra large), dark box or outline only, white
   or yellow. Applies on the TV and on paired phones. TV media players (Roku Media Player) also get the subtitles.
@@ -369,14 +369,15 @@ WATCHING ON YOUR PHONE OR TV (Settings > Other devices)
   older release from GitHub and run Update-HERO-TV.bat with it (it asks before installing an older version).
 
 UPDATING HERO TV
-  New versions are published on your GitHub page: github.com/trentnick99/Hero-tv > Releases. Each one is built and
-  tested on a Windows PC first. Download  HERO-TV-v1.x.x-windows.zip  (leave it in Downloads), then double-click
-  Update-HERO-TV.bat . It shows your version and the new one and asks first. HERO TV closes, the new HERO-TV.exe swaps
-  itself in and starts again - no Python and no Build-App.bat needed. Your videos, favorites, resume points and any
-  settings file you edited are kept (a changed settings file gets the new standard version beside it as  name.new ).
-  Replaced files are copied to  .update-backup  first. After an update, the TV shows a short "What's new" once.
-  Version shown in: Settings > Backup and about.
-  New PC: unzip the release anywhere and double-click HERO-TV.exe.
+  From 1.11 on, HERO TV looks for a new version every few hours and tells you when one is ready. Open Settings (O) >
+  Backup and about and press "Install now": it downloads the update from github.com/trentnick99/Hero-tv > Releases,
+  closes for a moment, puts the new version in place and starts again by itself. Your videos, favorites, resume
+  points and any settings file you edited are kept (a changed settings file gets the new standard version beside it
+  as  name.new ). Replaced files are copied to  .update-backup  first. If an update ever fails, the version you had
+  starts again and says so. After an update, the TV shows a short "What's new" once.
+  The automatic look can be switched off in Settings > Backup and about.
+  By hand (older versions, or no Internet on the PC): download  HERO-TV-v1.x.x-windows.zip  (leave it in Downloads),
+  then double-click Update-HERO-TV.bat . Version shown in: Settings > Backup and about.
 
 EPISODE NAMES (anime too)
   "Show - 012 - Title.mp4", "Show Episode 12.mp4", "Show E012.mp4" and "Show S01E12.mp4" all work. Put a show's

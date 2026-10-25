@@ -82,6 +82,7 @@ def read(cfg):
         "auto_backup": d.get("auto_backup", True) is not False,
         "seasonal": d.get("seasonal", True) is not False,
         "smart_sort": d.get("smart_sort", True) is not False,
+        "auto_update": d.get("auto_update", True) is not False,
         "seasonal_list": _seasonal_list(),
         "last_backup": _last_backup(),
         "media_dir": str(cfg.media_dir),
@@ -130,6 +131,11 @@ def update(changes, geocode=None):
             raise ValueError("smart_sort must be on or off")
         data["smart_sort"] = changes["smart_sort"]
         saved.append("smart_sort")
+    if "auto_update" in changes:
+        if not isinstance(changes["auto_update"], bool):
+            raise ValueError("auto_update must be on or off")
+        data["auto_update"] = changes["auto_update"]
+        saved.append("auto_update")
     if "seasonal" in changes:
         if not isinstance(changes["seasonal"], bool):
             raise ValueError("seasonal must be on or off")

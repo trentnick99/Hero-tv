@@ -1601,6 +1601,37 @@ def update(zip_arg=None, assume_yes=False):
     return 0
 
 
+def self_update(zip_path):
+    """Started by HERO TV itself (Settings > Backup and about > Install now) as a separate process: install the
+    downloaded zip, then HERO TV starts again by itself. If anything goes wrong, the old HERO TV is started again
+    and the reason is shown on screen."""
+    from . import selfupdate, updater
+    log = app_data_dir() / "update.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    f = open(log, "a", encoding="utf-8", errors="replace", buffering=1)
+    sys.stdout = sys.stderr = f
+    say(f"\n=== HERO TV update {time.strftime('%Y-%m-%d %H:%M:%S')} from {zip_path} ===")
+    rc = 1
+    try:
+        rc = update(str(zip_path), assume_yes=True)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        say(f"[FAIL] {e}")
+    if rc == 0 and getattr(sys, "frozen", False) and updater.staged(ROOT):
+        return 0                                       # the new HERO-TV.exe finishes the swap and starts itself
+    if rc != 0:
+        try:
+            selfupdate.last_error_file().write_text(f"The update could not be installed - you still have the version you had. "
+                                                     f"Details are in {log}", encoding="utf-8")
+        except OSError:
+            pass
+    cmd = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "herotv"]
+    subprocess.Popen(cmd + ["launch", "--quiet", "--no-browser"], cwd=str(ROOT), close_fds=True,
+                     creationflags=0x00000008 if IS_WIN else 0)
+    return rc
+
+
 def finish_update(root, pid=None, start=True):
     """Run by the NEW exe from the staging folder after the old one has closed: swap it in, then start HERO TV."""
     from . import updater
@@ -1612,7 +1643,8 @@ def finish_update(root, pid=None, start=True):
         return 1
     say(f"{OK} Installed {n} application file(s).")
     if start and os.environ.get("HEROTV_UPDATE_NO_START") != "1" and (root / "HERO-TV.exe").is_file():
-        subprocess.Popen([str(root / "HERO-TV.exe"), "launch", "--quiet"], cwd=str(root), close_fds=True,
+        extra = ["--no-browser"] if os.environ.get("HEROTV_RESTART_NO_BROWSER") == "1" else []   # the TV window is still open
+        subprocess.Popen([str(root / "HERO-TV.exe"), "launch", "--quiet"] + extra, cwd=str(root), close_fds=True,
                          creationflags=0x00000008 if IS_WIN else 0)
     return 0
 

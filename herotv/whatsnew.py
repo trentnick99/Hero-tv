@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.11.0": [
+        "Updates with one press: when a new HERO TV is out it tells you, and Settings > Backup and about > Install now does the rest.",
+        "It closes for a moment, puts the new version in place and starts again by itself - your videos, favorites and settings stay.",
+        "It looks every few hours; switch that off in Settings > Backup and about if you like.",
+    ],
     "1.10.0": [
         "New channels from the Inbox: a show or pack nobody planned for (say an old PBS Kids show) can get its own channel - pick '+ New channel', name it, done.",
         "A show or a folder of episodes dropped in the Inbox is listed once and moves together.",

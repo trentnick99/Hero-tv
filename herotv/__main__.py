@@ -68,6 +68,8 @@ def main(argv=None):
     fu.add_argument("--root", required=True)
     fu.add_argument("--pid", type=int)
     fu.add_argument("--no-start", action="store_true")
+    su = sub.add_parser("self-update", help=argparse.SUPPRESS)
+    su.add_argument("zip")
     up = sub.add_parser("update", help="install a newer HERO TV from the downloaded zip")
     up.add_argument("zip", nargs="?")
     up.add_argument("--yes", action="store_true")
@@ -81,7 +83,7 @@ def main(argv=None):
     fr.add_argument("--yes", action="store_true")
     sub.add_parser("samples", help="create demo clips in HEROTV_MEDIA (needs ffmpeg)")
     a = ap.parse_args(argv)
-    if a.cmd in ("doctor", "launch", "samples", "convert", "add", "library", "sort", "shortcut", "shrink", "cleanup", "setmedia", "weather", "free", "audio", "folders", "import", "checklist", "personalize", "backup", "restore", "posterkey", "update", "finish-update"):
+    if a.cmd in ("doctor", "launch", "samples", "convert", "add", "library", "sort", "shortcut", "shrink", "cleanup", "setmedia", "weather", "free", "audio", "folders", "import", "checklist", "personalize", "backup", "restore", "posterkey", "update", "finish-update", "self-update"):
         from . import launcher
         if a.cmd == "doctor":
             return 1 if launcher.doctor() else 0
@@ -93,6 +95,8 @@ def main(argv=None):
             return launcher.finish_update(a.root, a.pid, start=not a.no_start)
         if a.cmd == "update":
             return launcher.update(a.zip, a.yes)
+        if a.cmd == "self-update":
+            return launcher.self_update(a.zip)
         if a.cmd == "posterkey":
             return launcher.set_poster_key(a.key)
         if a.cmd == "backup":

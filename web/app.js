@@ -117,7 +117,8 @@ function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clea
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
   if(layer==="guide"){await loadGuide();drawGuide()}else if(layer==="lib"){const keep=li;await search();li=Math.min(keep,items.length-1);drawList()}
   toast("Library updated"+(note&&note!=="updated"?": "+note:""))}catch(e){}}
-const beat=()=>fetch("/api/hb").then(r=>r.json()).then(j=>{if(libV===null)libV=j.lib;else if(j.lib!==libV){libV=j.lib;libChanged(j.note)}}).catch(()=>{});beat();setInterval(beat,1e4);
+let bootV=null;const beat=()=>fetch("/api/hb").then(r=>r.json()).then(j=>{if(j.v){if(bootV===null)bootV=j.v;else if(j.v!==bootV){bootV=j.v;return location.reload()}}
+ if(libV===null)libV=j.lib;else if(j.lib!==libV){libV=j.lib;libChanged(j.note)}}).catch(()=>{});beat();setInterval(beat,1e4);
 /* what you actually watch live is remembered (30 s at a time): channels then pass over finished shows, and pick up where you left off */
 setInterval(()=>{if(slot&&!vod&&!v.paused&&v.readyState>=3&&document.visibilityState==="visible")post("/api/seen",{media_id:slot.media_id,secs:30})},3e4);
 let prT;const savePrefs=()=>{if(!chans[ci])return;clearTimeout(prT);prT=setTimeout(()=>post("/api/prefs",{channel:chans[ci].number,volume:v.volume,muted:v.muted}),1500)};
@@ -525,7 +526,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
   const bar=el("div","sbar");bar.append(sBtn("Save key",()=>sSave({tmdb_key:k.value},"Key saved. Pictures fill in over the next few minutes.",()=>drawSettings()),"pri"));
   if(d.art.has_key)bar.append(sBtn("Remove key",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press again to remove the key. Posters already downloaded stay.","err");return}delete main.dataset.sure;sSave({tmdb_key:""},"Key removed.",()=>drawSettings())},"warn"));
   main.append(bar,msg,el("small",0,"This product uses the TMDB API but is not endorsed or certified by TMDB."))}
- else{main.append(el("h3",0,"Backup and about"));
+ else{main.append(el("h3",0,"Updates"));const ub=el("div","tcard");ub.id="upd";main.append(ub);drawUpdate(ub,d);
+  main.append(el("h3",0,"Backup"));
   const bar=el("div","sbar"),b1=sBtn("Back up my settings now",()=>sAct("backup",b1),"pri"),b2=sBtn("Open backups folder",()=>sAct("open-backups",b2)),b3=sBtn("Open log folder",()=>sAct("open-logs",b3));bar.append(b1,b2,b3);
   main.append(sField("","A backup keeps your favorites, resume points, channel settings and look - not the videos themselves.",null),bar,msg);
   const ab=el("input");ab.type="checkbox";ab.checked=d.auto_backup!==false;ab.onchange=()=>sSave({auto_backup:ab.checked},ab.checked?"Weekly backups on.":"Weekly backups off.",()=>drawSettings());
@@ -534,6 +536,29 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
   const a=d.about,kv=el("div","kv");for(const[x,y]of[["HERO TV version",a.version+" (build "+a.api+")"],["Video tools (ffmpeg)",a.ffmpeg&&a.ffprobe?"installed":"MISSING - Settings > Tools > Install video tools"],["Settings file",a.settings_file],["Log file",a.log_file],["Channel files",a.config_dir]])kv.append(el("span",0,x),el("span",0,y));
   main.append(el("h3",0,"About"),kv)}
  const sel=nav.querySelector(".on");if(sel&&document.activeElement===document.body)sel.focus()}
+/* ---- one-press updates ---- */
+let updT=null;
+async function drawUpdate(box,d,u){box.textContent="";if(!u){box.append(el("small",0,"Checking..."));try{u=await api("/api/update")}catch(e){box.textContent="";box.append(el("small",0,"Could not ask about updates."));return}}
+ if(!box.isConnected)return;box.textContent="";
+ const busy=u.phase==="downloading"||u.phase==="installing";
+ if(u.available){box.append(el("h4",0,`HERO TV ${u.latest} is ready to install`),el("small",0,`You have ${u.current}. Your videos, favorites, resume points and settings stay as they are.`));
+  if(u.notes.length){const ul=el("ul","unotes");for(const n of u.notes)ul.append(el("li",0,n));box.append(ul)}}
+ else box.append(el("h4",0,`You have the newest HERO TV (${u.current})`),el("small",0,u.checked?"Last checked "+new Date(u.checked*1e3).toLocaleString()+".":"Not checked yet."));
+ if(u.error)box.append(el("small","err",u.error));
+ const bar=el("div","sbar");
+ if(busy){const pct=u.total?Math.min(100,Math.round(u.done*100/u.total)):0;box.append(el("b",0,u.phase==="downloading"?`Downloading... ${pct}%`:"Installing - HERO TV closes for a moment and starts again by itself. This screen comes back on its own."));
+  clearTimeout(updT);updT=setTimeout(()=>{if(layer==="settings"&&sCat==="about")api("/api/update").then(x=>drawUpdate(box,d,x)).catch(()=>{})},1000)}
+ else{if(u.available&&u.can_install){const b=sBtn("Install now",async()=>{b.disabled=true;try{drawUpdate(box,d,await pj("/api/update",{op:"install"}))}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");b.disabled=false}},"pri");bar.append(b)}
+  if(u.available&&!u.can_install)box.append(el("small",0,"This copy runs from Python source: update it with Update-HERO-TV.bat."));
+  const c=sBtn("Check now",async()=>{c.disabled=true;box.append(el("small",0,"Asking GitHub..."));try{drawUpdate(box,d,await pj("/api/update",{op:"check"}))}catch(e){c.disabled=false}});bar.append(c);
+  if(u.page){const g=sBtn("Release page",()=>window.open(u.page,"_blank"));bar.append(g)}}
+ box.append(bar);
+ const au=el("input");au.type="checkbox";au.checked=u.auto!==false;au.onchange=()=>sSave({auto_update:au.checked},au.checked?"HERO TV will look for updates by itself.":"Automatic update checks are off.");
+ const l=el("label","lb");l.append(au," Look for updates by itself (every few hours) and tell me when one is ready");l.style.display="flex";l.style.gap="1vw";box.append(l)}
+async function updateNudge(){if(REMOTE)return;try{const u=await api("/api/update");if(u.last_error)toast(u.last_error);else if(u.available&&u.can_install){let seen="";try{seen=localStorage.getItem("updSeen")||""}catch(e){}
+ if(seen!==u.latest){toast(`HERO TV ${u.latest} is ready - Settings (O) > Backup and about > Install now`);try{localStorage.setItem("updSeen",u.latest)}catch(e){}}}}catch(e){}}
+setTimeout(updateNudge,30e3);setInterval(updateNudge,3*3600e3);
+
 /* ---- Tools: the jobs the .bat files used to do, run in the background ---- */
 let tData=null,jobT=null,jobSeen=0;
 function jobPoll(){clearTimeout(jobT);if(layer!=="settings")return;api("/api/job").then(j=>{drawJob(j.job);if(j.job&&j.job.state==="running")jobT=setTimeout(jobPoll,1500);
