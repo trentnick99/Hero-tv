@@ -136,8 +136,8 @@ jobs:
           trap { Write-Output "::error title=Installer build::$_"; exit 1 }
           choco install innosetup -y --no-progress | Out-Null
           $v = python -c "import herotv; print(herotv.__version__)"
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\hero-tv.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
+          $out = & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$v" installer\hero-tv.iss 2>&1
+          if ($LASTEXITCODE -ne 0) { throw ("ISCC failed ($LASTEXITCODE): " + (($out | Select-Object -Last 12) -join " | ")) }
           Get-ChildItem installer-out
 
       - name: Test the installer (install, upgrade keeping your channels, uninstall)
