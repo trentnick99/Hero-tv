@@ -116,6 +116,7 @@ jobs:
           python -m pip install playwright
           python -m playwright install chromium
           python scripts/browser_phone_test.py chromium
+          python scripts/browser_pc_test.py chromium
 
       - name: Upload the finished app
         uses: actions/upload-artifact@v5
@@ -140,6 +141,8 @@ jobs:
           python -m playwright install webkit
       - name: Phone test (pair, watch, touch, watch-only) in Safari's engine
         run: python scripts/browser_phone_test.py webkit
+      - name: Everyday features test (welcome, New, next episode, settings) in Safari's engine
+        run: python scripts/browser_pc_test.py webkit
       - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v5

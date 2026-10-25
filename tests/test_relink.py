@@ -95,3 +95,63 @@ class RelinkTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NewNextWelcomeTests(unittest.TestCase):
+    def setUp(self):
+        import json as _j, threading
+        from http.server import ThreadingHTTPServer
+        from pathlib import Path
+        from herotv import server as SV
+        from herotv.config import Config
+        from herotv.db import connect
+        self.j = _j
+        self.root = tempfile.mkdtemp()
+        cfg = Config(media_dir=Path(self.root), db_path=os.path.join(self.root, "t.sqlite3"), channels_file=None)
+        self.c = connect(cfg.db_path)
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), SV.make_handler(SV.App(cfg)))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close); self.addCleanup(srv.shutdown)
+        self.base = f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def get(self, path, body=None):
+        import urllib.request
+        r = urllib.request.Request(self.base + path, None if body is None else self.j.dumps(body).encode(),
+                                   {"Content-Type": "application/json"}, method="POST" if body is not None else "GET")
+        return self.j.load(urllib.request.urlopen(r))
+
+    def add(self, title, series="", season=0, episode=0, added=0):
+        self.c.execute("INSERT INTO media(path,title,series,season,episode,verified,playable,available,runtime_s,added) "
+                       "VALUES(?,?,?,?,?,1,1,1,1200,?)", (f"/x/{title}.mp4", title, series, season, episode, added))
+        self.c.commit()
+        return self.c.execute("SELECT id FROM media WHERE title=?", (title,)).fetchone()[0]
+
+    def test_recent_view_newest_first(self):
+        now = int(time.time())
+        self.add("Old one", added=0); self.add("Last month", added=now - 40 * 86400)
+        self.add("Yesterday", added=now - 86400); self.add("Today", added=now)
+        j = self.get("/api/library?view=recent")
+        self.assertEqual([i["title"] for i in j["items"]], ["Today", "Yesterday"])
+        self.assertEqual(j["counts"]["recent"], 2)
+
+    def test_next_episode(self):
+        e1 = self.add("Ep 1", "Invincible", 1, 1); e8 = self.add("Ep 8", "Invincible", 1, 8)
+        self.add("S2 Ep 1", "Invincible", 2, 1); self.add("Other", "South Park", 1, 2)
+        film = self.add("A Film")
+        self.assertEqual(self.get(f"/api/next/{e1}")["next"]["title"], "Ep 8")
+        self.assertEqual(self.get(f"/api/next/{e8}")["next"]["title"], "S2 Ep 1")       # on to the next season
+        last = self.c.execute("SELECT id FROM media WHERE title='S2 Ep 1'").fetchone()[0]
+        self.assertIsNone(self.get(f"/api/next/{last}")["next"])
+        self.assertIsNone(self.get(f"/api/next/{film}")["next"])
+
+    def test_welcome_only_for_new_users(self):
+        self.assertTrue(self.get("/api/welcome")["show"])
+        self.get("/api/welcome", {})
+        self.assertFalse(self.get("/api/welcome")["show"])
+        self.assertEqual(self.get("/api/whatsnew")["notes"], [])                       # a new user is not shown old news
+
+    def test_existing_users_never_see_welcome(self):
+        mid = self.add("Film")
+        self.c.execute("INSERT INTO progress(media_id,position,completed,updated) VALUES(?,50,0,1)", (mid,)); self.c.commit()
+        self.assertFalse(self.get("/api/welcome")["show"])
+        self.assertTrue(self.get("/api/whatsnew")["notes"])                            # ...but they do get What's new

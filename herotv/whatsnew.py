@@ -2,6 +2,13 @@
 from . import __version__
 
 NOTES = {
+    "1.2.0": [
+        "Moved, renamed or converted a video? It now keeps its favorite, resume point and history.",
+        "New in your library: a Home tile and a New tab in the library show what arrived in the last 30 days.",
+        "Watching a show on demand? The next episode starts by itself (Enter = now, Esc = back to live TV).",
+        "Settings > Appearance: open HERO TV in a window instead of full screen.",
+        "A short welcome on a brand-new install.",
+    ],
     "1.1.0": [
         "Watch on your iPhone (or another computer) over your home WiFi: Settings > Other devices. Off until you switch it on.",
         "Each device is paired once with a 6-digit code, and can only watch - never change settings, channels or files.",

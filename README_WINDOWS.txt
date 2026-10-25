@@ -294,6 +294,13 @@ ADDING MOVIES HANDS-FREE (Inbox)
   videos (or whole folders) from Explorer onto the TV window: they are copied into the Inbox for you. To switch this off, add
   "auto_inbox": false to settings.json in %LOCALAPPDATA%\HeroTV.
 
+NEW IN YOUR LIBRARY, NEXT EPISODE, WINDOW MODE
+  Home > "New in your library" and the library's New tab list what arrived in the last 30 days, newest first.
+  Playing a show from the library? When an episode ends, the next one starts by itself after 10 seconds
+  (Enter = start now, Esc = back to live TV). Settings > Appearance > "Open in a window instead of full screen".
+  Moving or renaming videos in Windows, or converting them with HERO TV, keeps their favorite, resume point and
+  watch history (as long as it is clearly the same video).
+
 WATCHING ON YOUR PHONE OR TV (Settings > Other devices)
   Off until you switch it on. Then:
     1. On the PC: Settings (O) > Other devices > tick "Let other devices on my home WiFi watch". If Windows asks

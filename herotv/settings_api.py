@@ -50,6 +50,7 @@ def read(cfg):
         "station": config.station(),
         "default_station": config.DEFAULT_STATION,
         "auto_inbox": inbox.enabled(),
+        "windowed": bool(d.get("windowed")),
         "media_dir": str(cfg.media_dir),
         "weather": loc.get("name") if loc else "",
         "art": {"has_key": bool(key.strip()), "key_hint": mask(key.strip())},
@@ -91,6 +92,11 @@ def update(changes, geocode=None):
             raise ValueError("auto_inbox must be on or off")
         data["auto_inbox"] = changes["auto_inbox"]
         saved.append("auto_inbox")
+    if "windowed" in changes:
+        if not isinstance(changes["windowed"], bool):
+            raise ValueError("windowed must be on or off")
+        data["windowed"] = changes["windowed"]
+        saved.append("windowed")
     if "tmdb_key" in changes:
         k = str(changes["tmdb_key"]).strip().strip('"')
         if k and not re.fullmatch(r"[A-Za-z0-9._\-]{16,}", k):

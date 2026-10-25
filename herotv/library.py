@@ -1,6 +1,7 @@
 """Library scanner: ffprobe-verified runtimes + sidecar/filename metadata."""
 import json
 import os
+import time
 import shutil
 import re
 import subprocess
@@ -231,10 +232,11 @@ def scan(conn, root, probe_fn=probe):
             stats["unverified"] += 0 if verified else 1
             vals = (path, meta["title"], meta["year"], meta["franchise"], meta["series"], meta["season"], meta["episode"],
                     json.dumps(sc.get("tags", [])), sc.get("plot", ""), p["runtime_s"] if p else 0, verified, playable,
-                    p["vcodec"] if p else "", p["acodec"] if p else "", ordv, mt, st.st_size, p.get("vfmt", "") if p else "")
+                    p["vcodec"] if p else "", p["acodec"] if p else "", ordv, mt, st.st_size, p.get("vfmt", "") if p else "",
+                    int(time.time()))
             conn.execute(
                 "INSERT INTO media(path,title,year,franchise,series,season,episode,tags,plot,runtime_s,verified,playable,"
-                "vcodec,acodec,ord,mtime,size,vfmt,available) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1) "
+                "vcodec,acodec,ord,mtime,size,vfmt,available,added) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?) "
                 "ON CONFLICT(path) DO UPDATE SET title=excluded.title,year=excluded.year,franchise=excluded.franchise,"
                 "series=excluded.series,season=excluded.season,episode=excluded.episode,tags=excluded.tags,"
                 "plot=excluded.plot,runtime_s=excluded.runtime_s,verified=excluded.verified,playable=excluded.playable,"
@@ -298,6 +300,7 @@ def relink(conn, added_paths):
             conn.execute(f"INSERT OR IGNORE INTO {table}({cols}) SELECT ?,{rest} FROM {table} WHERE media_id=?", (new["id"], old["id"]))
             conn.execute(f"DELETE FROM {table} WHERE media_id=?", (old["id"],))
         conn.execute("UPDATE slots SET media_id=? WHERE media_id=?", (new["id"], old["id"]))
+        conn.execute("UPDATE media SET added=(SELECT added FROM media WHERE id=?) WHERE id=?", (old["id"], new["id"]))
         old_side = os.path.splitext(old["path"])[0] + ".hero.json"           # your renames/tags follow the file
         new_side = os.path.splitext(new["path"])[0] + ".hero.json"
         if os.path.isfile(old_side) and not os.path.exists(new_side):

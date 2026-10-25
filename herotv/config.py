@@ -19,7 +19,7 @@ IS_WIN = os.name == "nt"
 
 # Bumped whenever the browser page needs something new from the server. A TV page talking to an older server (one that
 # was still running from before an update) is detected and the old server is restarted. index.html carries the same number.
-API_LEVEL = 14
+API_LEVEL = 15
 
 
 def system_tz() -> str:

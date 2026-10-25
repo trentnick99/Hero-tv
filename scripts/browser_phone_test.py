@@ -103,7 +103,7 @@ def main(engine):
         pcp.goto(f"http://127.0.0.1:{cfg.port}/"); pcp.wait_for_timeout(3500)
         if pcp.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
             pcp.click("#tapgo")             # this test browser blocks autoplay; the real PC window allows it
-        check(pcp.evaluate("document.querySelector('#news').classList.contains('on')"), "the PC shows What's new once")
+        check(pcp.evaluate("document.querySelector('#news').classList.contains('on')"), "the PC shows its one-time card (welcome)")
         for _ in range(4):                     # dismiss the one-time pop-ups in whatever order they appear
             if pcp.evaluate("document.querySelector('#news').classList.contains('on')"):
                 pcp.click("#nw-ok")

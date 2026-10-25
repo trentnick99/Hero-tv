@@ -85,6 +85,9 @@ body.coarse.inlayer #xclose{display:block}
 body.coarse .hints{display:none}     /* keyboard hints mean nothing on a touch screen */
 #rotate{display:none}
 @media (orientation:portrait){body.coarse.inlayer #rotate{display:block;position:fixed;left:0;right:0;bottom:0;z-index:93;text-align:center;padding:1.2vh 4vw calc(1.2vh + env(safe-area-inset-bottom));background:var(--panel);color:var(--mute);font-size:1.8vh}}
+#nextep{position:fixed;right:3vw;bottom:6vh;z-index:92;display:none}#nextep.on{display:block}
+#nextep .card{background:var(--night);border:1px solid var(--accent,#ffcf1f);border-radius:1.4vh;padding:2vh 1.8vw;display:flex;flex-direction:column;gap:1vh;min-width:30vw;box-shadow:0 1vh 4vh #000a}
+#nextep small{color:var(--mute);font-size:calc(1.8vh*var(--tx))}#nextep h3{margin:0;font-size:calc(2.6vh*var(--tx))}#ne-c{font-size:calc(2vh*var(--tx));color:var(--mute)}
 #dropz{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:#000c;color:#fff;font-size:4vh;font-weight:800;text-align:center;border:.6vh dashed var(--accent,#ffcf1f);margin:2vh;border-radius:2vh}#dropz.on{display:flex}#dropz small{display:block;font-size:2vh;font-weight:400;opacity:.8;margin-top:1vh}
 #settings{background:var(--night);padding:3.5vh 3vw 3vh;flex-direction:column;gap:1.6vh}#settings.on{display:flex}
 body.alerting #settings{padding-top:9.1vh}
@@ -244,6 +247,7 @@ video::cue{font-size:calc(3.6vh*var(--tx));line-height:1.25;background:rgba(0,0,
 <div id="rotate">Tip: turn your phone sideways for the full TV view</div>
 <div id="mbar"></div><div id="ctx" role="menu"></div>
 <div id="news" role="dialog" aria-labelledby="nw-h"><div class="card"><h3 id="nw-h"></h3><ul id="nw-l"></ul><button type="button" class="sbtn pri" id="nw-ok">OK</button></div></div>
+<div id="nextep" role="dialog"><div class="card"><small>Next episode</small><h3 id="ne-t"></h3><div id="ne-c"></div><div class="sbar"><button type="button" class="sbtn pri" id="ne-go">Play now</button><button type="button" class="sbtn" id="ne-no">Back to live TV</button></div></div></div>
 <div id="dropz"><div>Drop videos here to add them<small>They go into your Inbox and HERO TV puts them on the right channel</small></div></div>
 <div id="info" class="layer"><div id="in-pic"></div><div id="in-txt"><div id="in-t"></div><div id="in-m"></div><div id="in-tag"></div><div id="in-plot"></div><div id="in-cast"></div><div id="in-note"></div><div class="hints" id="in-hints"></div><div id="in-cr"></div></div></div>
 <div id="check" class="layer"><div class="top"><h2>Checklist</h2><span id="ck-sub"></span></div><div class="tabs" id="ck-tabs"></div><div id="ck-sum"></div><div id="ck-body"></div><div class="hints" id="ck-hints"></div></div>
@@ -323,7 +327,7 @@ async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);docume
  it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series))}catch(e){}if(vod!==it)return}
  play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
   const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0});loadSubs(it.id);osd()}
-v.addEventListener("ended",()=>{if(vod){post("/api/progress",{media_id:vod.id,position:0,completed:true});if(sleepAfter)return goToSleep();return tune(ci)}
+v.addEventListener("ended",()=>{if(vod){post("/api/progress",{media_id:vod.id,position:0,completed:true});if(sleepAfter)return goToSleep();if(vod.series)return nextEpisode(vod);return tune(ci)}
  setTimeout(()=>tune(ci),Math.max(0,(slot?slot.end-nowS():0)*1e3)+80)});
 v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(!id)return;
  if(REMOTE)return msg("This video can't play on this device yet","Usually a .mkv file. On the PC: Settings > Tools > Make iPhone-friendly copies. Change channel to keep watching.");
@@ -344,7 +348,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
 setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.95})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
-const NEED_API=14;   /* must match API_LEVEL in herotv/config.py */
+const NEED_API=15;   /* must match API_LEVEL in herotv/config.py */
 let libV=null,toastT;
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),5000)}
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
@@ -386,6 +390,7 @@ async function loadHome(){const d={};
  try{const j=await api("/api/library?view=continue&limit=1");d.cont=j.items[0]||null;d.counts=j.counts||{}}catch(e){}
  try{const n=Math.floor(nowS()),j=await api(`/api/guide?from=${n}&hours=24`);let best=null;
   for(const c of j.channels)for(const s of c.slots)if(s.block&&s.block!=="Filler"&&s.end>n&&(!best||s.start<best.s.start))best={c,s};d.special=best}catch(e){}
+ try{const j=await api("/api/library?view=recent&limit=1");d.recent=j.items[0]||null;d.recentN=j.counts&&j.counts.recent||0}catch(e){}
  try{d.help=await api("/api/help")}catch(e){}
  try{d.check=(await api("/api/checklist")).lists}catch(e){}
  homeData=d}
@@ -395,6 +400,7 @@ function homeTiles(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="
  list.push({ic:"📺",t:"Live TV",s:c?`${c.number} ${c.name}${slot?": "+label(slot):""}`:"",img:slot&&slot.media_id,go:()=>closeAll()});
  list.push(d.cont?{ic:"⏯️",t:"Continue watching",s:`${label(d.cont)}, ${hms(d.cont.position)} in`,img:d.cont.id,go:()=>startVod(d.cont)}
   :{ic:"⏯️",t:"Continue watching",s:"Nothing started yet. Pick something from the library.",dim:1,go:()=>{closeAll();openLib()}});
+ if(d.recent)list.push({ic:"🆕",t:"New in your library",s:`${d.recentN} new: ${label(d.recent)}${d.recentN>1?" and more":""}`,img:d.recent.id,go:()=>{closeAll();openLib("recent")}});
  if(d.special){const x=d.special,on=x.s.start<=nowS();list.push({ic:"🍿",t:x.s.block,s:`${on?"On now":"Starts "+dayWord(x.s.start)} · ${x.c.number} ${x.c.name}`,img:x.s.media_id,go:()=>tuneTo(chans.findIndex(k=>k.id===x.c.id))})}
  list.push({ic:"🗓️",t:"TV guide",s:"See what is on every channel",go:()=>{closeAll();openGuide()}});
  list.push({ic:"🔍",t:"Library and search",s:"Find any movie or show and play it now",go:()=>{closeAll();openLib()}});
@@ -503,7 +509,7 @@ async function guideKey(k){const c=g.data[g.row],s=inSlot(c,g.t);
  drawGuide()}
 
 /* ---- library: grid of screengrabs ---- */
-let items=[],li=0,qT,cols=4,view="all",counts={continue:0,favorites:0};const VIEWS=[["all","All"],["continue","Continue watching"],["favorites","Favorites"]];
+let items=[],li=0,qT,cols=4,view="all",counts={continue:0,favorites:0,recent:0};const VIEWS=[["all","All"],["recent","New"],["continue","Continue watching"],["favorites","Favorites"]];
 const colCount=()=>innerWidth>1700?6:innerWidth>1400?5:innerWidth>1150?4:innerWidth>700?3:2;
 async function search(){const j=await api("/api/library?view="+view+"&q="+encodeURIComponent($("#q").value));items=j.items;counts=j.counts||counts;li=0;drawList()}
 function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.height="";cols=colCount();L.style.setProperty("--cols",cols);paint(L.parentNode,chans[ci]&&chans[ci].color);
@@ -611,6 +617,7 @@ $("#ren-in").addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Ente
 addEventListener("keydown",e=>{const k=e.key;
  if(layer==="rename"||e.ctrlKey||e.metaKey||e.altKey)return;
  if(sleeping){e.preventDefault();return wake()}
+ if(neOpen()){if(k==="Enter"||k===" "){e.preventDefault();nePlay()}else if(k==="Escape"||k==="Backspace"){e.preventDefault();neStop()}return}
  if(newsOpen()){if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
  if(ctxIsOpen())return ctxKey(e);
  if(layer==="settings")return settingsKey(e);
@@ -685,6 +692,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
    sField("Main colour","Pick one, or type a code like #ff3b3b.",sw),sField("",null,hex,true));
   const big=el("input");big.type="checkbox";big.checked=document.body.classList.contains("big");big.onchange=()=>setBig(big.checked,true);
   const bl=el("label","lb");bl.append(big," Bigger text");bl.style.display="flex";bl.style.gap="1vw";main.append(sField("",'Makes every screen easier to read from the couch. Same as pressing T.',bl));
+  const wnd=el("input");wnd.type="checkbox";wnd.checked=!!d.windowed;wnd.onchange=()=>sSave({windowed:wnd.checked},wnd.checked?"HERO TV will open in a normal window from now on.":"HERO TV will open full screen from now on.");
+  const wl=el("label","lb");wl.append(wnd," Open in a window instead of full screen");wl.style.display="flex";wl.style.gap="1vw";main.append(sField("","Takes effect the next time you start HERO TV. F still switches full screen on and off.",wl));
   main.append(el("div","sbar")),main.lastChild.append(sBtn("Save",()=>sSave({station:{name:name.value,tagline:tag.value,color:col}},"Saved.",async()=>{await loadTheme();paint($("#settings"),theme.color);drawSettings()}),"pri"),
    sBtn("Restore the default look",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press the button again to restore the standard name, greeting and colour.","err");return}
     delete main.dataset.sure;sSave({reset_station:true},"Default look restored.",async()=>{await loadTheme();drawSettings()})},"warn"));main.append(msg)}
@@ -845,11 +854,29 @@ addEventListener("contextmenu",e=>{
  if(layer===""&&!e.target.closest("input,textarea")){e.preventDefault();const t=renameTarget();
   ctxOpen(e.clientX,e.clientY,[{t:"Home menu",fn:()=>openHome()},{t:"TV guide",fn:()=>openGuide()},{t:"Library and search",fn:()=>openLib()},t?{t:"Details about this video",fn:()=>openInfo()}:null,{t:"Settings",fn:()=>openSettings()}].filter(Boolean))}});
 addEventListener("mousedown",e=>{if(ctxIsOpen()&&!e.target.closest("#ctx"))ctxClose()});
+/* ---- on demand: the next episode starts by itself after a short countdown ---- */
+let neT=null,neItem=null;
+async function nextEpisode(cur){let n=null;try{n=(await api("/api/next/"+cur.id)).next}catch(e){}
+ if(!n||vod!==cur)return tune(ci);
+ neItem=n;let left=10;paint($("#nextep"),theme.color);$("#ne-t").textContent=label(n);const tick=()=>{$("#ne-c").textContent=`Starts in ${left} s`;if(left--<=0)nePlay()};
+ show("#nextep",true);tick();clearInterval(neT);neT=setInterval(tick,1e3)}
+function neClose(){clearInterval(neT);neT=null;show("#nextep",false)}
+function nePlay(){const n=neItem;neClose();if(n)startVod(n)}
+function neStop(){neClose();neItem=null;tune(ci)}
+$("#ne-go").onclick=nePlay;$("#ne-no").onclick=neStop;
+const neOpen=()=>$("#nextep").classList.contains("on");
 /* ---- what's new after an update (shown once) ---- */
-async function showNews(){if(REMOTE)return;try{const j=await api("/api/whatsnew");if(!j.notes||!j.notes.length)return;paint($("#news"),theme.color);
- $("#nw-h").textContent="What's new in "+theme.name+" "+j.version;const ul=$("#nw-l");ul.textContent="";for(const n of j.notes)for(const l of n.lines)ul.append(el("li",0,l));
+async function showNews(){if(REMOTE)return;
+ try{const w=await api("/api/welcome");if(w.show)return showWelcome(w)}catch(e){}try{const j=await api("/api/whatsnew");if(!j.notes||!j.notes.length)return;paint($("#news"),theme.color);
+ $("#nw-ok").textContent="OK";$("#news").dataset.kind="news";$("#nw-h").textContent="What's new in "+theme.name+" "+j.version;const ul=$("#nw-l");ul.textContent="";for(const n of j.notes)for(const l of n.lines)ul.append(el("li",0,l));
  show("#news",true);$("#nw-ok").focus()}catch(e){}}
-function closeNews(){show("#news",false);post("/api/whatsnew",{})}
+function closeNews(){show("#news",false);if($("#news").dataset.kind==="welcome")post("/api/welcome",{});else post("/api/whatsnew",{});$("#news").dataset.kind=""}
+function showWelcome(w){const nw=$("#news");nw.dataset.kind="welcome";paint(nw,theme.color);$("#nw-h").textContent="Welcome to "+theme.name;const ul=$("#nw-l");ul.textContent="";
+ for(const l of[w.media?`${w.media} video(s) found so far - they are already on your channels.`:"No videos yet: drag movies or shows onto this window, or put them in the Inbox folder.",
+  "Press H (or Esc) for the Home menu, G for the TV guide, L for the library.",
+  "Press O for Settings: name your station, pick its colour, add free movies, posters and more.",
+  "Want it on your phone too? Settings > Other devices."])ul.append(el("li",0,l));
+ $("#nw-ok").textContent="Let's watch";show("#news",true);$("#nw-ok").focus()}
 $("#nw-ok").onclick=closeNews;
 setTimeout(showNews,2500);   /* once, after the theme has loaded */
 const newsOpen=()=>$("#news").classList.contains("on");

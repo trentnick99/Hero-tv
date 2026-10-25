@@ -70,7 +70,7 @@ class FavoritesTests(unittest.TestCase):
         self.assertEqual(get("/api/library?view=favorites")["items"], [])
         post("/api/favorite", {"media_id": a, "on": True})
         self.assertEqual([i["title"] for i in get("/api/library?view=favorites")["items"]], ["A"])
-        self.assertEqual(get("/api/library")["counts"], {"continue": 1, "favorites": 1})
+        self.assertEqual(get("/api/library")["counts"], {"continue": 1, "favorites": 1, "recent": 0})
         post("/api/favorite", {"media_id": a, "on": False})
         self.assertEqual(get("/api/library?view=favorites")["items"], [])
         with self.assertRaises(Exception):

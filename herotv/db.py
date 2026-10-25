@@ -42,6 +42,8 @@ def connect(path: str) -> sqlite3.Connection:
         conn.execute("ALTER TABLE channels ADD COLUMN kind TEXT DEFAULT 'tv'")
     if "pl" not in [r[1] for r in conn.execute("PRAGMA table_info(slots)")]:
         conn.execute("ALTER TABLE slots ADD COLUMN pl TEXT DEFAULT ''")      # which programming block made the slot
+    if "added" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:
+        conn.execute("ALTER TABLE media ADD COLUMN added INTEGER DEFAULT 0")   # when HERO TV first found the file (0 = before 1.2)
     if "vfmt" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:
         conn.execute("ALTER TABLE media ADD COLUMN vfmt TEXT DEFAULT ''")
     if conn.execute("PRAGMA user_version").fetchone()[0] < 4:

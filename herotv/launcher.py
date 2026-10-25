@@ -340,6 +340,11 @@ def _go_quiet():
 def launch(no_browser=False, windowed=False, quiet=False):
     log = _go_quiet() if quiet else None
     try:
+        from . import settings_api
+        windowed = windowed or bool(settings_api._load().get("windowed"))   # Settings > Appearance > open in a window
+    except Exception:
+        pass
+    try:
         from . import updater
         updater.clean_stage(ROOT)           # leftovers of a finished update
         updater.apply_deferred(ROOT)
