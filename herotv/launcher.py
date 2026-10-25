@@ -339,6 +339,12 @@ def _go_quiet():
 
 def launch(no_browser=False, windowed=False, quiet=False):
     log = _go_quiet() if quiet else None
+    try:
+        from . import updater
+        updater.clean_stage(ROOT)           # leftovers of a finished update
+        updater.apply_deferred(ROOT)
+    except Exception:
+        pass
     cfg = Config()
     say("HERO TV - starting checks")
     say("-" * 64)
@@ -1409,14 +1415,25 @@ def update(zip_arg=None, assume_yes=False):
         say("       Download the new  hero-tv-windows.zip  (it lands in your Downloads folder), then run this again -")
         say("       or drag the zip file onto  Update-HERO-TV.bat.")
         return 1
+    from . import __version__
     try:
+        info = updater.zip_info(z)
         items = updater.plan(z, ROOT)
-    except (ValueError, OSError, zipfile.BadZipFile) as e:
+    except (ValueError, OSError, KeyError, zipfile.BadZipFile) as e:
         say(f"[FAIL] {z.name}: {e}")
         return 1
+    newv = info["version"] or "?"
+    say(f"You have HERO TV {__version__}. This zip is HERO TV {newv}" + (" (with the ready-made application)." if info["app"] else "."))
+    if info["version"] and updater.version_tuple(info["version"]) < updater.version_tuple(__version__):
+        say(f"{WARN} That is an OLDER version than the one you have.")
+        if not ask("Install the older version anyway?", False):
+            say("Nothing changed.")
+            return 0
     n_new = sum(1 for _, _, a in items if a == "new")
     n_rep = sum(1 for _, _, a in items if a == "replace")
     n_mine = sum(1 for _, _, a in items if a == "keep-mine")
+    n_app = sum(1 for _, _, a in items if a == "app")
+    n_rep += n_app + sum(1 for _, _, a in items if a == "deferred")
     say(f"Update file:  {z}")
     say(f"  {n_rep} program file(s) will be replaced, {n_new} added, {n_mine} of your settings files differ (kept as they are).")
     if not (n_new or n_rep or n_mine):
@@ -1437,8 +1454,37 @@ def update(zip_arg=None, assume_yes=False):
     for name in res["kept"]:
         say(f"{WARN} config\\{name} was changed by you, so it was left alone. The new standard version is next to it as {name}.new")
         say("       (open both if you want the new channels/keywords; delete the .new file if you do not)")
+    if res["staged"]:
+        if getattr(sys, "frozen", False):
+            helper = ROOT / updater.STAGE / "HERO-TV.exe"
+            say("\nFinishing: this window closes, the new HERO-TV.exe is put in place, and HERO TV starts again by itself.")
+            subprocess.Popen([str(helper), "finish-update", "--root", str(ROOT), "--pid", str(os.getpid())],
+                             cwd=str(ROOT / updater.STAGE), close_fds=True,
+                             creationflags=(0x00000008 | 0x00000200) if IS_WIN else 0)      # detached, own process group
+            return 0
+        n = updater.finish_swap(ROOT)
+        updater.clean_stage(ROOT)
+        say(f"{OK} The ready-made application was installed ({n} files). No rebuilding needed.")
+        say("Start HERO TV as usual.")
+        return 0
     if (ROOT / "HERO-TV.exe").exists():
         say("\nThe application (HERO-TV.exe) still has the OLD program inside. Rebuilding it now...")
         return 2          # Update-HERO-TV.bat sees this and runs Build-App.bat
     say("Start HERO TV as usual.")
+    return 0
+
+
+def finish_update(root, pid=None, start=True):
+    """Run by the NEW exe from the staging folder after the old one has closed: swap it in, then start HERO TV."""
+    from . import updater
+    root = Path(root)
+    try:
+        n = updater.finish_swap(root, wait_pid=pid)
+    except OSError as e:
+        _popup(f"HERO TV could not finish updating: {e}")
+        return 1
+    say(f"{OK} Installed {n} application file(s).")
+    if start and os.environ.get("HEROTV_UPDATE_NO_START") != "1" and (root / "HERO-TV.exe").is_file():
+        subprocess.Popen([str(root / "HERO-TV.exe"), "launch", "--quiet"], cwd=str(root), close_fds=True,
+                         creationflags=0x00000008 if IS_WIN else 0)
     return 0

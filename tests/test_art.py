@@ -303,3 +303,71 @@ class StaleAppTests(unittest.TestCase):
         self.assertTrue(updater.app_is_stale(r))
         updater.write_stamp(r)
         self.assertFalse(updater.app_is_stale(r))
+
+
+class ReleaseUpdateTests(unittest.TestCase):
+    def make_root(self, d, exe=b"OLD-EXE", dll=b"old-dll"):
+        root = Path(d, "app"); (root / "herotv").mkdir(parents=True); (root / "_internal").mkdir()
+        (root / "herotv" / "__init__.py").write_text('__version__ = "1.0.0"\n')
+        (root / "HERO-TV.exe").write_bytes(exe); (root / "_internal" / "python.dll").write_bytes(dll)
+        (root / "_internal" / "same.pyd").write_bytes(b"same")
+        (root / "Update-HERO-TV.bat").write_text("old bat")
+        return root
+
+    def release_zip(self, d, version="1.1.0", exe=b"NEW-EXE"):
+        z = os.path.join(d, f"HERO-TV-v{version}-windows.zip")
+        _zip(z, {"HERO TV/herotv/__init__.py": f'__version__ = "{version}"\n', "HERO TV/HERO-TV.exe": exe,
+                 "HERO TV/_internal/python.dll": "new-dll", "HERO TV/_internal/same.pyd": "same",
+                 "HERO TV/app-build.txt": "stamp", "HERO TV/Update-HERO-TV.bat": "new bat"})
+        return z
+
+    def test_release_zip_is_found_and_read(self):
+        from herotv import updater
+        d = tempfile.mkdtemp()
+        z = self.release_zip(d)
+        self.assertEqual(updater.find_zip(None, d).name, "HERO-TV-v1.1.0-windows.zip")
+        self.assertEqual(updater.zip_info(z), {"version": "1.1.0", "app": True})
+        self.assertLess(updater.version_tuple("1.0.9"), updater.version_tuple("1.1.0"))
+
+    def test_app_files_are_staged_whole_then_swapped(self):
+        from herotv import updater
+        d = tempfile.mkdtemp()
+        root = self.make_root(d)
+        res = updater.apply(self.release_zip(d), root)
+        self.assertEqual((root / "HERO-TV.exe").read_bytes(), b"OLD-EXE")              # running exe untouched
+        self.assertTrue((root / ".update-stage" / "_internal" / "same.pyd").exists())   # full set staged, even unchanged files
+        self.assertEqual(res["staged"], 4)
+        self.assertEqual((root / "Update-HERO-TV.bat").read_text(), "old bat")          # the running bat is not overwritten
+        self.assertEqual((root / "Update-HERO-TV.bat.new").read_text(), "new bat")
+        self.assertEqual(updater.finish_swap(root), 4)
+        self.assertEqual((root / "HERO-TV.exe").read_bytes(), b"NEW-EXE")
+        self.assertEqual((root / "_internal" / "python.dll").read_bytes(), b"new-dll")
+        self.assertEqual((root / "app-build.txt").read_text(), "stamp")
+        self.assertTrue(list((root / ".update-backup").glob("*-app/HERO-TV.exe")))
+        updater.clean_stage(root); updater.apply_deferred(root)
+        self.assertFalse((root / ".update-stage").exists())
+        self.assertEqual((root / "Update-HERO-TV.bat").read_text(), "new bat")
+
+    def test_source_zip_never_touches_the_exe(self):
+        from herotv import updater
+        d = tempfile.mkdtemp()
+        root = self.make_root(d)
+        z = os.path.join(d, "hero-tv-windows.zip")
+        _zip(z, {"hero-tv/herotv/__init__.py": '__version__ = "1.1.0"\n', "hero-tv/_internal/python.dll": "evil"})
+        self.assertEqual(updater.apply(z, root)["staged"], 0)
+        self.assertEqual((root / "_internal" / "python.dll").read_bytes(), b"old-dll")
+
+    def test_whatsnew_endpoint_shows_once(self):
+        from herotv import whatsnew
+        self.assertEqual(whatsnew.since("1.0.0"), [])
+        self.assertTrue(whatsnew.since("0.1.0"))
+        d = tempfile.mkdtemp()
+        cfg = Config(media_dir=Path(d), db_path=os.path.join(d, "t.sqlite3"), channels_file=None)
+        connect(cfg.db_path).close()
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), SV.make_handler(SV.App(cfg)))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close); self.addCleanup(srv.shutdown)
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        self.assertTrue(json.load(urllib.request.urlopen(base + "/api/whatsnew"))["notes"])
+        urllib.request.urlopen(urllib.request.Request(base + "/api/whatsnew", b"{}", {"Content-Type": "application/json"}, method="POST"))
+        self.assertEqual(json.load(urllib.request.urlopen(base + "/api/whatsnew"))["notes"], [])

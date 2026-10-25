@@ -75,7 +75,10 @@ body.alerting #guide,body.alerting #lib,body.alerting #home,body.alerting #help,
 /* guide + library share a page frame */
 #guide,#lib,#home,#help,#check,#info{background:var(--night);padding:3.5vh 3vw 3vh;flex-direction:column;gap:1.6vh}
 #guide.on,#lib.on,#home.on,#help.on,#check.on,#info.on{display:flex}
-#info{flex-direction:row;gap:3vw;align-items:flex-start}#dropz{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:#000c;color:#fff;font-size:4vh;font-weight:800;text-align:center;border:.6vh dashed var(--accent,#ffcf1f);margin:2vh;border-radius:2vh}#dropz.on{display:flex}#dropz small{display:block;font-size:2vh;font-weight:400;opacity:.8;margin-top:1vh}
+#info{flex-direction:row;gap:3vw;align-items:flex-start}#news{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;background:#000a}#news.on{display:flex}
+#news .card{background:var(--night);border:1px solid var(--accent,#ffcf1f);border-radius:1.6vh;padding:3vh 2.6vw;max-width:64vw;display:flex;flex-direction:column;gap:1.6vh}
+#news h3{margin:0;font-size:calc(3vh*var(--tx))}#news ul{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:.9vh;font-size:calc(2.1vh*var(--tx));line-height:1.4}#news button{align-self:flex-start}
+#dropz{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:#000c;color:#fff;font-size:4vh;font-weight:800;text-align:center;border:.6vh dashed var(--accent,#ffcf1f);margin:2vh;border-radius:2vh}#dropz.on{display:flex}#dropz small{display:block;font-size:2vh;font-weight:400;opacity:.8;margin-top:1vh}
 #settings{background:var(--night);padding:3.5vh 3vw 3vh;flex-direction:column;gap:1.6vh}#settings.on{display:flex}
 body.alerting #settings{padding-top:9.1vh}
 #st-body{flex:1;min-height:0;display:grid;grid-template-columns:22vw 1fr;gap:2.4vw}
@@ -231,6 +234,7 @@ video::cue{font-size:calc(3.6vh*var(--tx));line-height:1.25;background:rgba(0,0,
 <div id="help" class="layer"><div class="top"><h2>Help</h2><span>Plain-English answers</span></div><div class="cols"><div id="hp-l"></div><div id="hp-r"></div></div><div class="hints" id="hp-hints"></div></div>
 <div id="settings" class="layer"><div class="top"><h2>Settings</h2><span id="st-sub">Changes are saved when you press Save</span></div><div id="st-body"><div id="st-nav" role="tablist"></div><div id="st-main"></div></div><div class="hints" id="st-hints"></div></div>
 <div id="mbar"></div><div id="ctx" role="menu"></div>
+<div id="news" role="dialog" aria-labelledby="nw-h"><div class="card"><h3 id="nw-h"></h3><ul id="nw-l"></ul><button type="button" class="sbtn pri" id="nw-ok">OK</button></div></div>
 <div id="dropz"><div>Drop videos here to add them<small>They go into your Inbox and HERO TV puts them on the right channel</small></div></div>
 <div id="info" class="layer"><div id="in-pic"></div><div id="in-txt"><div id="in-t"></div><div id="in-m"></div><div id="in-tag"></div><div id="in-plot"></div><div id="in-cast"></div><div id="in-note"></div><div class="hints" id="in-hints"></div><div id="in-cr"></div></div></div>
 <div id="check" class="layer"><div class="top"><h2>Checklist</h2><span id="ck-sub"></span></div><div class="tabs" id="ck-tabs"></div><div id="ck-sum"></div><div id="ck-body"></div><div class="hints" id="ck-hints"></div></div>
@@ -593,6 +597,7 @@ $("#ren-in").addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Ente
 addEventListener("keydown",e=>{const k=e.key;
  if(layer==="rename"||e.ctrlKey||e.metaKey||e.altKey)return;
  if(sleeping){e.preventDefault();return wake()}
+ if(newsOpen()){if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
  if(ctxIsOpen())return ctxKey(e);
  if(layer==="settings")return settingsKey(e);
  if(layer==="info"){if(k==="Escape"||k==="Backspace"||k==="d"||k==="D"){e.preventDefault();closeInfo(false)}else if(k==="Enter"){e.preventDefault();closeInfo(true)}return}
@@ -793,6 +798,13 @@ addEventListener("contextmenu",e=>{
  if(layer===""&&!e.target.closest("input,textarea")){e.preventDefault();const t=renameTarget();
   ctxOpen(e.clientX,e.clientY,[{t:"Home menu",fn:()=>openHome()},{t:"TV guide",fn:()=>openGuide()},{t:"Library and search",fn:()=>openLib()},t?{t:"Details about this video",fn:()=>openInfo()}:null,{t:"Settings",fn:()=>openSettings()}].filter(Boolean))}});
 addEventListener("mousedown",e=>{if(ctxIsOpen()&&!e.target.closest("#ctx"))ctxClose()});
+/* ---- what's new after an update (shown once) ---- */
+async function showNews(){try{const j=await api("/api/whatsnew");if(!j.notes||!j.notes.length)return;paint($("#news"),theme.color);
+ $("#nw-h").textContent="What's new in "+theme.name+" "+j.version;const ul=$("#nw-l");ul.textContent="";for(const n of j.notes)for(const l of n.lines)ul.append(el("li",0,l));
+ show("#news",true);$("#nw-ok").focus()}catch(e){}}
+function closeNews(){show("#news",false);post("/api/whatsnew",{})}
+$("#nw-ok").onclick=closeNews;
+const newsOpen=()=>$("#news").classList.contains("on");
 /* ---- drag videos onto the window to add them (they land in the Inbox folder) ---- */
 const VEXT=/\.(mp4|m4v|mkv|webm|mov|avi|wmv|flv|ts|m2ts|mts|mpg|mpeg|divx|ogv|3gp|srt|vtt)$/i;let dragN=0,upBusy=false;
 const hasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes("Files");
@@ -825,4 +837,5 @@ let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();d
  let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();
  try{if(!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");setTimeout(()=>toast("Tip: press H for the home menu, or ? for help"),6000)}}catch(e){}})();
 })();
+setTimeout(showNews,2500);   /* after the theme has loaded */
 </script></body></html>

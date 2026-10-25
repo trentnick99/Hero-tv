@@ -687,6 +687,17 @@ def make_handler(app):
                 return self.send_json(settings_api.read(app.cfg))
             if p == "action" and method == "POST":
                 return self.send_json(self.action(c, self.body().get("name")))
+            if p == "whatsnew":
+                from . import whatsnew as W
+                row = c.execute("SELECT value FROM prefs WHERE key='seen_version'").fetchone()
+                seen = json.loads(row[0]) if row else None
+                if method == "POST":
+                    c.execute("INSERT INTO prefs(key,value) VALUES('seen_version',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                              (json.dumps(W.current()),))
+                    c.commit()
+                    return self.send_json({"ok": True})
+                notes = W.since(seen) if seen != W.current() else []
+                return self.send_json({"version": W.current(), "notes": [{"version": v, "lines": l} for v, l in notes[:3]]})
             if p == "job":
                 if method == "POST":
                     return self.send_json(self.start_job(c, self.body()))

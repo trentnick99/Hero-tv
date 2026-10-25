@@ -63,6 +63,10 @@ def main(argv=None):
     rs = sub.add_parser("restore", help="restore a backup made by the backup command")
     rs.add_argument("file", nargs="?", help="the backup .zip (default: the newest one)")
     rs.add_argument("--yes", action="store_true")
+    fu = sub.add_parser("finish-update", help=argparse.SUPPRESS)
+    fu.add_argument("--root", required=True)
+    fu.add_argument("--pid", type=int)
+    fu.add_argument("--no-start", action="store_true")
     up = sub.add_parser("update", help="install a newer HERO TV from the downloaded zip")
     up.add_argument("zip", nargs="?")
     up.add_argument("--yes", action="store_true")
@@ -75,7 +79,7 @@ def main(argv=None):
     fr.add_argument("--yes", action="store_true")
     sub.add_parser("samples", help="create demo clips in HEROTV_MEDIA (needs ffmpeg)")
     a = ap.parse_args(argv)
-    if a.cmd in ("doctor", "launch", "samples", "convert", "add", "library", "sort", "shortcut", "shrink", "cleanup", "setmedia", "weather", "free", "audio", "folders", "import", "checklist", "personalize", "backup", "restore", "posterkey", "update"):
+    if a.cmd in ("doctor", "launch", "samples", "convert", "add", "library", "sort", "shortcut", "shrink", "cleanup", "setmedia", "weather", "free", "audio", "folders", "import", "checklist", "personalize", "backup", "restore", "posterkey", "update", "finish-update"):
         from . import launcher
         if a.cmd == "doctor":
             return 1 if launcher.doctor() else 0
@@ -83,6 +87,8 @@ def main(argv=None):
             return launcher.launch(no_browser=a.no_browser, windowed=a.window, quiet=a.quiet)
         if a.cmd == "shrink":
             return launcher.shrink(a.paths or [str(Config().media_dir)], a.delete_originals, a.fast, a.yes, a.keep_resolution)
+        if a.cmd == "finish-update":
+            return launcher.finish_update(a.root, a.pid, start=not a.no_start)
         if a.cmd == "update":
             return launcher.update(a.zip, a.yes)
         if a.cmd == "posterkey":

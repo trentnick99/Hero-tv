@@ -24,6 +24,13 @@ jobs:
       - name: Install ffmpeg (used by the tests and by HERO TV)
         run: choco install ffmpeg -y --no-progress
 
+      - name: Check the version tag matches the program
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $v = python -c "import herotv; print(herotv.__version__)"
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match herotv/__init__.py version $v" }
+
       - name: Install the time-zone database (Windows Python has none built in)
         run: python -m pip install tzdata
 
@@ -73,8 +80,29 @@ jobs:
           Stop-Process -Id $p.Id -Force
           Write-Host "Smoke test passed."
 
+      - name: Test updating an older copy with this build (exe swaps itself)
+        shell: pwsh
+        run: |
+          $new = Resolve-Path "package\HERO TV"
+          Compress-Archive -Path $new -DestinationPath "$env:RUNNER_TEMP\HERO-TV-test-windows.zip"
+          $old = "$env:RUNNER_TEMP\old\HERO TV"
+          New-Item -ItemType Directory -Force (Split-Path $old) | Out-Null
+          Copy-Item -Recurse $new $old
+          Set-Content "$old\app-build.txt" "old-build"
+          $env:HEROTV_UPDATE_NO_START = "1"
+          & "$old\HERO-TV.exe" update "$env:RUNNER_TEMP\HERO-TV-test-windows.zip" --yes
+          $want = Get-Content "$new\app-build.txt"
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 1
+            if ((Get-Content "$old\app-build.txt") -eq $want) { break }
+          }
+          if ((Get-Content "$old\app-build.txt") -ne $want) { throw "the update did not swap in the new application" }
+          if ((Get-FileHash "$old\HERO-TV.exe").Hash -ne (Get-FileHash "$new\HERO-TV.exe").Hash) { throw "exe differs after update" }
+          & "$old\HERO-TV.exe" doctor | Out-Null
+          Write-Host "Update test passed."
+
       - name: Upload the finished app
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: HERO-TV-windows
           path: package
