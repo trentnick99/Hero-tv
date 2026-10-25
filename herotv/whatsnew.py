@@ -2,6 +2,13 @@
 from . import __version__
 
 NOTES = {
+    "1.1.0": [
+        "Watch on your iPhone (or another computer) over your home WiFi: Settings > Other devices. Off until you switch it on.",
+        "Each device is paired once with a 6-digit code, and can only watch - never change settings, channels or files.",
+        "From the iPhone, AirPlay a video to your Roku TV (turn on AirPlay in the TV's settings first).",
+        "Settings > Tools > Make iPhone-friendly copies: .mkv files become .mp4 so phones can play them.",
+        "Fixed: 'What's new' did not appear after an update.",
+    ],
     "1.0.0": [
         "Settings > Tools does what the helper .bat files did, in the background while you watch.",
         "Settings > Channels: rename, renumber, recolour, change folders and keywords, add or delete channels.",

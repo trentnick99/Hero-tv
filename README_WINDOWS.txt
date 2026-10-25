@@ -294,6 +294,22 @@ ADDING MOVIES HANDS-FREE (Inbox)
   videos (or whole folders) from Explorer onto the TV window: they are copied into the Inbox for you. To switch this off, add
   "auto_inbox": false to settings.json in %LOCALAPPDATA%\HeroTV.
 
+WATCHING ON YOUR PHONE OR TV (Settings > Other devices)
+  Off until you switch it on. Then:
+    1. On the PC: Settings (O) > Other devices > tick "Let other devices on my home WiFi watch". If Windows asks
+       whether HERO TV may use the network, choose Allow for PRIVATE networks only.
+    2. On the iPhone (same WiFi): open Safari and type the address shown, e.g.  http://192.168.1.20:8788
+    3. On the PC press "Pair a device" and type the 6-digit code on the phone. Done - only once per device.
+  The phone shows the same live channels as the PC, plus the guide and library. Tap the picture for buttons
+  (channel up/down, guide, library). Turn the phone sideways for the full view. Phones can only WATCH: they cannot
+  open Settings, Tools, the channel editor, rename or add files. Remove a device in Settings at any time.
+  To the Roku TV: start a video on the iPhone, tap the AirPlay icon and pick the TV (on the TV first turn on
+  Settings > Apple AirPlay and HomeKit). Or mirror the whole PC: Windows key + K, pick the TV.
+  iPhones cannot play .mkv files: Settings > Tools > "Make iPhone-friendly copies" makes .mp4 copies (quick).
+  Note: on your WiFi the video is not encrypted - fine at home, do not switch this on on a public network.
+  Something wrong? Untick the switch (everything stops at once), or go back to the previous version: download the
+  older release from GitHub and run Update-HERO-TV.bat with it (it asks before installing an older version).
+
 UPDATING HERO TV
   New versions are published on your GitHub page: github.com/trentnick99/Hero-tv > Releases. Each one is built and
   tested on a Windows PC first. Download  HERO-TV-v1.x.x-windows.zip  (leave it in Downloads), then double-click
