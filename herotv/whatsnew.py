@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.12.0": [
+        "Pick your channels: a new HERO TV starts by letting you tick the channels you want - handy when you share it with friends.",
+        "Switch any channel off or back on in Settings > Channels (Choose your channels..., or inside a channel). Nothing is deleted.",
+        "A switched-off channel leaves the guide and gets no new videos until you switch it back on.",
+    ],
     "1.11.0": [
         "Updates with one press: when a new HERO TV is out it tells you, and Settings > Backup and about > Install now does the rest.",
         "It closes for a moment, puts the new version in place and starts again by itself - your videos, favorites and settings stay.",

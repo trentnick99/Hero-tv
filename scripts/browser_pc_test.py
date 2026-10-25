@@ -10,6 +10,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -34,7 +35,8 @@ def main(engine):
     media = Path(home) / "media" / "Invincible"; media.mkdir(parents=True)
     fixture = "sample.webm" if engine == "chromium" else "sample.mp4"
     codecs = ("vp9", "opus") if engine == "chromium" else ("h264", "aac")
-    cfg = Config(media_dir=media.parent, db_path=os.path.join(home, "t.sqlite3"), channels_file=str(ROOT / "config" / "channels.json"))
+    shutil.copytree(ROOT / "config", Path(home) / "config")      # the test changes the lineup: never touch the real files
+    cfg = Config(media_dir=media.parent, db_path=os.path.join(home, "t.sqlite3"), channels_file=str(Path(home) / "config" / "channels.json"))
     cfg.tz = "UTC"
     c = connect(cfg.db_path)
     now = int(time.time())
@@ -61,7 +63,20 @@ def main(engine):
             pg.click("#tapgo")
         check(pg.evaluate("document.querySelector('#news').classList.contains('on')") and "Welcome" in pg.inner_text("#nw-h"),
               "a first start shows the Welcome card")
-        pg.click("#nw-ok"); pg.wait_for_timeout(400)
+        pg.click("#nw-ok"); pg.wait_for_timeout(1200)
+        check(pg.evaluate("document.querySelector('#news').dataset.kind") == "lineup" and "Pick your channels" in pg.inner_text("#nw-h"),
+              "after the Welcome, 'Pick your channels' opens")
+        btns = pg.locator("#nw-l .picks button")
+        check(btns.count() >= 10 and pg.locator("#nw-l .picks button.on").count() == btns.count(),
+              f"every starter channel is listed and on ({btns.count()})")
+        pg.locator("#nw-l .picks button", has_text="South Park").click(); pg.wait_for_timeout(200)
+        check(pg.locator("#nw-l .picks button.on").count() == btns.count() - 1, "tapping a channel switches it off")
+        pg.click("#nw-ok"); pg.wait_for_timeout(1500)
+        chj = json.loads(Path(cfg.channels_file).read_text(encoding="utf-8"))["channels"]
+        check([c["id"] for c in chj if c.get("off")] == ["south-park"] and not pg.evaluate("document.querySelector('#news').classList.contains('on')"),
+              "Done saves it: South Park is switched off (not deleted) and the card closes")
+        tv = [c["id"] for c in json.loads(urllib.request.urlopen(base + "/api/channels").read())["channels"]]
+        check("south-park" not in tv and "invincible" in tv, "a switched-off channel is gone from the TV's channel list")
         pg.keyboard.press("h"); pg.wait_for_timeout(1500)
         tiles = pg.inner_text("#tiles")
         check("New in your library" in tiles and "3 new" in tiles, "Home shows 'New in your library'")

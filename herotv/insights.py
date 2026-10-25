@@ -23,8 +23,8 @@ def series_channels(conn, channels, stem):
             folders.add(r["franchise"].lower())
     if not folders:
         return []
-    return [c for c in sorted(channels, key=lambda x: x.get("number", 0))
-            if any(f.lower() in folders for f in (c.get("match") or {}).get("franchise", []))]
+    return [c for c in sorted(channels, key=lambda x: x.get("number", 0)) if not c.get("off") and
+            any(f.lower() in folders for f in (c.get("match") or {}).get("franchise", []))]
 
 
 def _n(s):

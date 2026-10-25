@@ -414,7 +414,10 @@ addEventListener("keydown",e=>{const k=e.key;
  if(layer==="rename"||e.ctrlKey||e.metaKey||e.altKey)return;
  if(sleeping){e.preventDefault();return wake()}
  if(neOpen()){if(k==="Enter"||k===" "){e.preventDefault();nePlay()}else if(k==="Escape"||k==="Backspace"){e.preventDefault();neStop()}return}
- if(newsOpen()){if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
+ if(newsOpen()){const a=document.activeElement,inPick=$("#news").dataset.kind==="lineup"&&a&&a.closest&&a.closest("#nw-l");
+  if(inPick&&k.startsWith("Arrow")){e.preventDefault();const all=[...$("#news").querySelectorAll("button")];const i=all.indexOf(a);const n=all[(i+(k==="ArrowRight"||k==="ArrowDown"?1:-1)+all.length)%all.length];if(n)n.focus();return}
+  if(inPick&&(k==="Enter"||k===" "))return;                       /* the focused channel button toggles itself */
+  if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
  if(ctxIsOpen())return ctxKey(e);
  if(layer==="settings")return settingsKey(e);
  if(layer==="info"){const a=document.activeElement,inside=!!(a&&a.closest&&a.closest("#info")&&/^(BUTTON|INPUT|SELECT)$/.test(a.tagName));
@@ -676,7 +679,8 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
     const l=el("label","lb");l.append(sc," Seasonal specials");l.style.display="flex";l.style.gap="1vw";
     const list=(sData&&sData.seasonal_list||[]).map(x=>`${x.name} (${x.dates.replace("..", " to ")}, ${x.from}-${x.to})`).join("; ");
     main.append(sField("",(list?list+". ":"")+"Extra programming on Hero Marathon at certain times of year. If you have nothing that fits, the channel plays as usual.",l))}
-  for(const c of chList){const b=el("button","chrow");b.type="button";const dot=el("i");dot.style.background=c.color;b.append(dot,el("b",0,String(c.number)),el("span",0,c.name),el("small",0,c.summary));b.onclick=()=>{chSel=c.id;drawSettings();$("#st-main").scrollTop=0};main.append(b)}
+  {const bar=el("div","sbar");bar.append(sBtn("Choose your channels...",()=>openLineup(false)));main.append(sField("","Switch whole channels on or off - nothing is deleted, and you can switch them back any time.",bar))}
+  for(const c of chList){const b=el("button","chrow"+(c.off?" off":""));b.type="button";const dot=el("i");dot.style.background=c.color;b.append(dot,el("b",0,String(c.number)),el("span",0,c.name+(c.off?"  (off)":"")),el("small",0,c.summary));b.onclick=()=>{chSel=c.id;drawSettings();$("#st-main").scrollTop=0};main.append(b)}
   const bar=el("div","sbar");bar.append(sBtn("Add a channel",()=>{chSel="new";drawSettings()},"pri"));main.append(bar,msg);return}
  const isNew=chSel==="new",c=isNew?{id:"",number:"",name:"",color:"#ffcf1f",mode:"sequential",description:"",kind:"tv",folder:"",keywords:[],shared_keywords:0,special:false,summary:""}:chList.find(x=>x.id===chSel);
  if(!c){chSel=null;return drawChannelsCfg(main,msg)}
@@ -690,6 +694,8 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  let mode=null;if(c.kind!=="weather"){mode=el("select");for(const[v,t]of[["sequential","In order (episodes and movies one after another)"],["shuffle","Shuffled (a different order each time)"]]){const o=el("option",0,t);o.value=v;if(v===c.mode)o.selected=true;mode.append(o)}mode.onchange=()=>{sDirty=true;sLeave=false};main.append(sField("Play order",null,mode))}
  let folder=null,words=null,desc=null;
  if(c.kind!=="weather"){
+  if(!isNew)main.append(sField(c.off?"This channel is off":"On or off",c.off?"It is hidden from the guide and nothing new is filed onto it. Your videos are untouched.":"Switching it off hides it from the guide and stops new videos being filed onto it. Nothing is deleted.",
+   sBtn(c.off?"Switch it back on":"Switch this channel off",()=>chPost({op:"switch",id:c.id,off:!c.off},c.off?"Switched back on.":"Switched off.",true))));
   if(isNew||c.folder){folder=sInput(isNew?"":c.folder,"text",isNew?"same as the name":"");folder.style.width="30vw";main.append(sField("Folder","Videos in this folder (inside your media folder) play on this channel."+(isNew?" It is created for you.":" Renaming it does not move videos already in the old folder."),folder))}
   else main.append(sField("What it shows",c.summary+" - these special rules are kept as they are. They can be changed in config\\channels.json.",null));
   words=el("textarea");words.value=c.keywords.join("\n");words.placeholder="one per line, for example:\niron man\navengers";words.addEventListener("input",()=>{sDirty=true;sLeave=false});
@@ -746,7 +752,23 @@ async function showNews(){if(REMOTE)return;
  try{const w=await api("/api/welcome");if(w.show)return showWelcome(w)}catch(e){}try{const j=await api("/api/whatsnew");if(!j.notes||!j.notes.length)return;paint($("#news"),theme.color);
  $("#nw-ok").textContent="OK";$("#news").dataset.kind="news";$("#nw-h").textContent="What's new in "+theme.name+" "+j.version;const ul=$("#nw-l");ul.textContent="";for(const n of j.notes)for(const l of n.lines)ul.append(el("li",0,l));
  show("#news",true);$("#nw-ok").focus()}catch(e){}}
-function closeNews(){show("#news",false);if($("#news").dataset.kind==="welcome")post("/api/welcome",{});else post("/api/whatsnew",{});$("#news").dataset.kind=""}
+function closeNews(){const k=$("#news").dataset.kind;if(k==="lineup")return saveLineup();
+ if(k==="welcome"){post("/api/welcome",{});$("#news").dataset.kind="";return openLineup(true)}
+ show("#news",false);post("/api/whatsnew",{});$("#news").dataset.kind=""}
+/* ---- "Your channels": pick the lineup (first start, and Settings > Channels) ---- */
+let lineupOff=null,lineupWas="";
+async function openLineup(first){let j;try{j=await api("/api/lineup")}catch(e){show("#news",false);return}
+ const nw=$("#news");nw.dataset.kind="lineup";nw.dataset.first=first?"1":"";paint(nw,theme.color);$("#nw-h").textContent="Pick your channels";
+ const ul=$("#nw-l");ul.textContent="";lineupOff=new Set();
+ ul.append(el("li","lnote",(first?"Everything is on. ":"")+"Tap a channel to switch it off or on. Channels only show once you have videos for them, and nothing is ever deleted - change this any time in Settings > Channels."));
+ for(const g of j.groups){const li=el("li","lgrp");li.append(el("b",0,g.name));const row=el("div","picks");
+  for(const c of g.channels){if(!c.on)lineupOff.add(c.id);const b=sBtn(c.name,()=>{lineupOff.has(c.id)?lineupOff.delete(c.id):lineupOff.add(c.id);mark()});b.title=c.description||"";
+   const mark=()=>{const on=!lineupOff.has(c.id);b.classList.toggle("on",on);b.setAttribute("aria-pressed",on)};mark();row.append(b)}
+  li.append(row);ul.append(li)}
+ lineupWas=[...lineupOff].sort().join();$("#nw-ok").textContent="Done";show("#news",true);const f=ul.querySelector("button");(f||$("#nw-ok")).focus()}
+async function saveLineup(){const nw=$("#news");if([...lineupOff].sort().join()===lineupWas){show("#news",false);nw.dataset.kind="";return}try{const r=await pj("/api/channels-config",{op:"lineup",off:[...lineupOff]});chList=null;
+  toast(r.note||"Saved.");show("#news",false);nw.dataset.kind="";libChanged("channels updated");if(layer==="settings")drawSettings()}
+ catch(e){toast(String(e.message||e).replace(/^Error: /,""))}}
 function showWelcome(w){const nw=$("#news");nw.dataset.kind="welcome";paint(nw,theme.color);$("#nw-h").textContent="Welcome to "+theme.name;const ul=$("#nw-l");ul.textContent="";
  for(const l of[w.media?`${w.media} video(s) found so far - they are already on your channels.`:"No videos yet: drag movies or shows onto this window, or put them in the Inbox folder.",
   "Press H (or Esc) for the Home menu, G for the TV guide, L for the library.",

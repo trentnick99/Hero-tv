@@ -311,6 +311,12 @@ FIXING WHERE A VIDEO WENT (and teaching HERO TV)
   "Put it here" button. With "Remember" ticked, HERO TV writes your choice to config\my-sorting.json, and from then on
   new episodes of that show (or other copies of that film) go there by themselves - before keywords and smart sorting.
 
+CHOOSING YOUR CHANNELS
+  The first time HERO TV starts it shows "Pick your channels": every starter channel (Marvel, Spider-Verse, X-Men, DC,
+  South Park, Dragon Ball, Thriller & Horror...) is on - tap the ones you do not want, then Done. Later: Settings >
+  Channels > "Choose your channels...", or open one channel and press "Switch this channel off". A channel that is off
+  disappears from the guide and gets no new videos, but nothing is deleted - switch it back on any time.
+
 A NEW CHANNEL FOR A NEW KIND OF SHOW
   Drop a show (or a folder of episodes) into the Inbox. If no channel fits, Settings > Tools > Inbox lists it once,
   with how many videos it has. Choose "+ New channel for these..." in its list, check the name, and press "Make the

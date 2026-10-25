@@ -462,7 +462,7 @@ def make_handler(app, remote=False):
             from . import sortrules
             _rules, chans = sortrules.load(app.cfg, write=False)
             return [{"id": ch["id"], "name": ch["name"]} for ch in sorted(chans, key=lambda x: x.get("number", 0))
-                    if (ch.get("match") or {}).get("franchise") or (ch.get("match") or {}).get("tags")]
+                    if not ch.get("off") and ((ch.get("match") or {}).get("franchise") or (ch.get("match") or {}).get("tags"))]
 
         def inbox_files(self, c, limit=15):
             """Videos waiting in the Inbox, with what TMDB already knows about each (no lookups here)."""
@@ -1090,7 +1090,7 @@ def make_handler(app, remote=False):
                 try:
                     from . import sortrules
                     _r, chans = sortrules.load(app.cfg, write=False)
-                    on = [ch for ch in sorted(chans, key=lambda x: x.get("number", 0)) if ch.get("match") and S.matches(S.config_rules(ch), m)]
+                    on = [ch for ch in sorted(chans, key=lambda x: x.get("number", 0)) if ch.get("match") and not ch.get("off") and S.matches(S.config_rules(ch), m)]
                     out["on"], out["on_ids"] = [ch["name"] for ch in on], [ch["id"] for ch in on]
                     out["channels"] = self.move_channels()
                 except Exception:                            # extra: never let it break the Details screen
@@ -1147,6 +1147,8 @@ def make_handler(app, remote=False):
                     return self.send_json({"error": "unknown media"}, 404)
                 tr = L.audio_tracks(m["path"])
                 return self.send_json({"tracks": tr, "playing": L.playing_track(tr)})
+            if p == "lineup":
+                return self.send_json({"groups": channels_api.lineup(app.cfg)})
             if p == "channels-config":
                 if method == "POST":
                     return self.send_json(self.change_channels(c, self.body()))

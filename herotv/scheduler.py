@@ -163,7 +163,7 @@ def _block_start_within(blocks, start, end, z):
 def sync_channels(conn, channels, now=None, tz="local"):
     """Make the database match channels.json exactly: edits apply, removed channels disappear (with their
     schedule), and renumbering/swapping numbers cannot trip the UNIQUE number constraint."""
-    channels = with_seasonal(channels)
+    channels = [c for c in with_seasonal(channels) if not c.get("off")]     # switched off in "Your channels"
     with _lock:
         ids = [c["id"] for c in channels]
         if len(set(ids)) != len(ids) or len({c["number"] for c in channels}) != len(channels):

@@ -97,6 +97,33 @@ def _rules(cfg, channels):
     return rules
 
 
+GROUPS = (                       # how the first-start "Your channels" screen groups the starter channels
+    ("Superheroes", ("mcu", "marvel-tv", "marvel-animation", "spider-verse", "x-men", "dc", "classics", "action", "comedy", "invincible")),
+    ("Cartoons and anime", ("dragon-ball", "south-park")),
+    ("Movies", ("horror", "free")),
+    ("Extras", ("weather", "marathon")),
+)
+
+
+def lineup(cfg):
+    """The channels as groups of {id, name, on} for the "Your channels" picker; channels you made are listed too."""
+    cf, _af, _ = _paths(cfg)
+    chans = sorted(_read(cf, {"channels": []}).get("channels", []), key=lambda x: x.get("number", 0))
+    by = {c["id"]: c for c in chans}
+    out, used = [], set()
+    for name, ids in GROUPS:
+        items = [by[i] for i in ids if i in by]
+        used.update(c["id"] for c in items)
+        if items:
+            out.append({"name": name, "channels": items})
+    rest = [c for c in chans if c["id"] not in used]
+    if rest:
+        out.append({"name": "Your own channels", "channels": rest})
+    return [{"name": g["name"], "channels": [{"id": c["id"], "number": c.get("number"), "name": c.get("name", ""),
+                                               "description": c.get("description", ""), "on": not c.get("off")} for c in g["channels"]]}
+            for g in out]
+
+
 def read(cfg):
     cf, af, _ = _paths(cfg)
     data = _read(cf, {"channels": []})
@@ -109,7 +136,7 @@ def read(cfg):
         folder = _folder_of(c)
         out.append({"id": c["id"], "number": c.get("number"), "name": c.get("name", ""), "color": c.get("color", "#ffcf1f"),
                     "mode": c.get("mode", "sequential"), "description": c.get("description", ""), "kind": c.get("kind", "tv"),
-                    "folder": folder, "keywords": kws, "shared_keywords": shared, "summary": _summary(c),
+                    "folder": folder, "keywords": kws, "shared_keywords": shared, "summary": _summary(c), "off": bool(c.get("off")),
                     "smart": [r.get("label") or "" for r in smart if c["id"] in r["channels"]],
                     "special": bool(c.get("also") or c.get("blocks") or c.get("smart") or (folder is None and c.get("kind") != "weather"))})
     return {"channels": out, "media_dir": str(cfg.media_dir)}
@@ -255,6 +282,28 @@ def update(cfg, body):
         if body.get("keywords"):
             _set_keywords(rules, c["id"], _clean_keywords(body["keywords"]))
         note = f"Put its videos in the '{folder}' folder inside your media folder - the channel appears in the guide as soon as it has one."
+    elif op in ("lineup", "switch"):
+        if op == "switch":                                 # one channel on or off (Settings > Channels)
+            off = {c["id"] for c in chans if c.get("off")}
+            cid = body.get("id")
+            if cid not in {c["id"] for c in chans}:
+                raise ValueError("That channel no longer exists.")
+            (off.add if body.get("off") else off.discard)(cid)
+        else:                                              # the whole lineup at once (first start)
+            off = body.get("off")
+            if not isinstance(off, list):
+                raise ValueError("off must be a list of channel ids")
+            off = {str(x) for x in off}
+        if all(c["id"] in off for c in chans):
+            raise ValueError("Keep at least one channel on.")
+        for c in chans:
+            if c["id"] in off:
+                c["off"] = True
+            else:
+                c.pop("off", None)
+        n = sum(1 for c in chans if c.get("off"))
+        note = (f"{n} channel(s) switched off - nothing was deleted; switch them back on in Settings > Channels any time." if n
+                else "Every channel is on.")
     elif op == "delete":
         c = next((x for x in chans if x["id"] == body.get("id")), None)
         if c is None:

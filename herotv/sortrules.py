@@ -121,8 +121,8 @@ def targets(stem, rules, channels, facts=None, smart=None, fixes=None):
     if not mine and facts and smart:
         governed = {c for r in smart for c in r["channels"]}
         keys = {k for k in keys if k not in governed} | set(smart_channels(facts, smart))
-    by_id = {c["id"]: c for c in channels if c.get("match")}
-    by_num = {c.get("number"): c for c in channels if c.get("match")}
+    by_id = {c["id"]: c for c in channels if c.get("match") and not c.get("off")}       # nothing is filed onto a switched-off channel
+    by_num = {c.get("number"): c for c in channels if c.get("match") and not c.get("off")}
     out = []
     for k in keys:
         c = by_id.get(k) if isinstance(k, str) and not k.isdigit() else by_num.get(int(k))
