@@ -303,6 +303,14 @@ SMART SORTING (needs the free TMDB key from Settings > Cover art)
   Settings > Channels shows which smart rules feed each channel and has the on/off switch; the rules themselves are in
   config\smart-sort.json.
 
+FIXING WHERE A VIDEO WENT (and teaching HERO TV)
+  On a video that is on the wrong channel: open its Details (D, or right-click > Details) and press M (or "Move to
+  another channel"). Tick the channels it belongs on and press Save - the file (for a show: every episode, with its
+  season folders, subtitles and poster) is moved into that channel's folder, and resume points and favorites stay.
+  Videos HERO TV could not place wait in the Inbox: Settings > Tools > Inbox lists them with a channel picker and a
+  "Put it here" button. With "Remember" ticked, HERO TV writes your choice to config\my-sorting.json, and from then on
+  new episodes of that show (or other copies of that film) go there by themselves - before keywords and smart sorting.
+
 INSTALLING ON A NEW PC, SUBTITLE STYLE
   New PC: download  HERO-TV-Setup-v1.x.x.exe  from github.com/trentnick99/Hero-tv > Releases and run it. No administrator
   rights needed; it installs into your user folder, adds HERO TV to the Start menu (and the desktop if you tick it),

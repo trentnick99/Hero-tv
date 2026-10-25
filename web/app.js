@@ -356,8 +356,28 @@ async function openInfo(){const t=renameTarget();if(!t)return;infoCtx={back:laye
  $("#in-cast").textContent=(d.cast||[]).length?"Starring "+d.cast.join(", "):"";
  if(d.poster){$("#in-bg").style.backgroundImage=`url(${withK(`/poster/${t.id}`)})`;pic.style.background=`center/cover no-repeat url(${withK(`/poster/${t.id}?v=${Date.now()%1e6}`)}), ${tile(t.title)}`;pic.classList.remove("wide","noimg");pic.textContent=""}
  $("#in-note").textContent=d.plot?"":d.has_key?(d.searched?"No description was found for this title online.":"Looking this up in the background... check again in a minute."):"No description yet. Add a free TMDB key in Settings > Cover art to get posters, plots, cast and ratings.";
+ moveUI(t,d);
  $("#in-cr").textContent=d.source==="TMDB"?"Cover art and descriptions: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB.":"";
- hints($("#in-hints"),[["Enter",infoCtx.back==="lib"?"play":"back"],["Esc","back"]])}
+ hints($("#in-hints"),[["Enter",infoCtx.back==="lib"?"play":"back"],...(REMOTE?[]:[["M","move to another channel"]]),["Esc","back"]])}
+/* ---- wrong channel? move a film (or a whole show) and remember it ---- */
+function moveUI(t,d){const old=$("#in-on");if(old)old.remove();const old2=$("#in-move");if(old2)old2.remove();
+ const on=el("div");on.id="in-on";on.textContent=(d.on||[]).length?"On: "+d.on.join(", "):"Not on a channel yet";$("#in-m").after(on);
+ if(REMOTE||!(d.channels||[]).length)return;
+ $("#in-btns").append(sBtn("Move to another channel",()=>openMove()));infoCtx.move={t,d}}
+function openMove(){if(!infoCtx||!infoCtx.move||$("#in-move"))return;const {t,d}=infoCtx.move;
+ const box=el("div","tcard");box.id="in-move";const show=t.series&&d.episodes>1;
+ box.append(el("h4",0,"Where does it belong?"),el("small",0,(show?`Moves all ${d.episodes} episodes of ${t.series}. `:"")+"Pick one or more channels, then Save. It leaves the channels you untick."));
+ const pick=new Set(d.on_ids||[]),row=el("div","picks");
+ for(const c of d.channels){const b=sBtn(c.name,()=>{pick.has(c.id)?pick.delete(c.id):pick.add(c.id);b.classList.toggle("on",pick.has(c.id));b.setAttribute("aria-pressed",pick.has(c.id))});b.classList.toggle("on",pick.has(c.id));b.setAttribute("aria-pressed",pick.has(c.id));row.append(b)}
+ const rl=el("label","lb"),rc=el("input");rc.type="checkbox";rc.checked=true;rl.append(rc,show?" Remember: new episodes of this show go here too":" Remember: other copies of this title go here too");
+ const bar=el("div","sbar"),note=el("small");
+ const save=sBtn("Save",async()=>{if(!pick.size){note.textContent="Pick at least one channel.";return}save.disabled=true;note.textContent="Moving...";
+  try{await pj("/api/job",{name:"move",media_id:t.id,channels:[...pick],remember:rc.checked});await waitJob(note);if(infoCtx&&infoCtx.t===t){box.remove();const dd=await api("/api/info/"+t.id);moveUI(t,dd)}}
+  catch(e){note.textContent=String(e.message||e).replace(/^Error: /,"");save.disabled=false}},"pri");
+ bar.append(save,sBtn("Cancel",()=>{box.remove();const b=$("#in-btns button:last-child");if(b)b.focus()}));box.append(row,rl,bar,note);
+ $("#in-btns").after(box);const f=row.querySelector("button.on")||row.querySelector("button");if(f)f.focus()}
+async function waitJob(note){for(let i=0;i<400;i++){await new Promise(r=>setTimeout(r,700));const j=(await api("/api/job")).job;if(!j||j.state!=="running"){
+ const ok=j&&j.state==="done";const t=ok?(j.lines.filter(x=>x.includes("[ OK ]")).pop()||"Done.").replace("[ OK ]","").trim():"That did not work: "+((j&&j.lines.slice(-1)[0])||"");if(note)note.textContent=t;toast(t);if(!ok)throw new Error(t);return j}}}
 function closeInfo(play){const c=infoCtx;infoCtx=null;show("#info",false);layer=c?c.back:"";
  if(layer==="lib"){show("#lib",true);$("#q").focus();if(play&&items[li])return startVod(items[li])}
  else if(layer==="guide"){show("#guide",true);drawGuide();placePreview(true)}else{layer="";show("#osd",false)}}
@@ -394,7 +414,11 @@ addEventListener("keydown",e=>{const k=e.key;
  if(newsOpen()){if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
  if(ctxIsOpen())return ctxKey(e);
  if(layer==="settings")return settingsKey(e);
- if(layer==="info"){if(k==="Escape"||k==="Backspace"||k==="d"||k==="D"){e.preventDefault();closeInfo(false)}else if(k==="Enter"){e.preventDefault();closeInfo(true)}return}
+ if(layer==="info"){const a=document.activeElement,inside=!!(a&&a.closest&&a.closest("#info")&&/^(BUTTON|INPUT|SELECT)$/.test(a.tagName));
+  if(k==="Escape"||(k==="Backspace"&&!inside)||((k==="d"||k==="D")&&!inside)){e.preventDefault();const mv=$("#in-move");if(mv){mv.remove();const b=$("#in-btns button:last-child");if(b)b.focus()}else closeInfo(false)}
+  else if((k==="m"||k==="M")&&!REMOTE){e.preventDefault();openMove()}
+  else if(inside&&k.startsWith("Arrow")){e.preventDefault();const all=[...$("#info").querySelectorAll("button:not([disabled]),input")].filter(x=>x.offsetParent);const i=all.indexOf(a);const n=all[(i+(k==="ArrowRight"||k==="ArrowDown"?1:-1)+all.length)%all.length];if(n)n.focus()}
+  else if(k==="Enter"&&!inside){e.preventDefault();closeInfo(true)}return}
  if((k==="d"||k==="D")&&(layer==="guide"||layer===""||vod)&&!(layer==="lib")){e.preventDefault();return openInfo()}
  if(layer==="home")return homeKey(e);
  if(layer==="check")return checkKey(e);
@@ -530,8 +554,15 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
  { const c=tCard("Bring in a folder or USB drive","Copies every video from it into your Inbox (your originals stay where they are) and files them onto channels.");
    const p=sInput("","text","For example  E:\\  or  D:\\Movies");p.style.width="34vw";const b=sBtn("Bring them in",()=>runJob({name:"import",path:p.value},b),"pri");
    const row=el("div","sbar");row.append(p,b);c.append(row);main.append(c)}
- { const c=tCard("Inbox",t.inbox_waiting?`${t.inbox_waiting} video(s) waiting in the Inbox.`:"The Inbox is empty.");const b=sBtn("Sort the Inbox now",()=>runJob({name:"sort"},b));
-   const row=el("div","sbar");row.append(b);c.append(row);main.append(c)}
+ { const c=tCard("Inbox",t.inbox_waiting?`${t.inbox_waiting} video(s) waiting in the Inbox. HERO TV could not tell where these belong - pick a channel for each and it is filed right away.`:"The Inbox is empty.");const b=sBtn("Sort the Inbox now",()=>runJob({name:"sort"},b));
+   const row=el("div","sbar");row.append(b);c.append(row);
+   for(const f of (t.inbox_files||[])){const r=el("div","ibx"),txt=el("div");txt.append(el("b",0,f.title));if(f.about)txt.append(el("small",0,f.about));
+    const sel=el("select");sel.append(el("option",0,"Choose a channel..."));sel.options[0].value="";for(const ch of t.move_channels||[]){const o=el("option",0,ch.name);o.value=ch.id;sel.append(o)}
+    const rl=el("label","lb"),rc=el("input");rc.type="checkbox";rc.checked=true;rl.append(rc," Remember");rl.title="Next time a video with this title (or a new episode of this show) arrives, it goes here by itself.";
+    const go=sBtn("Put it here",()=>{if(!sel.value)return sMsg("Choose a channel for "+f.title+" first.","err");runJob({name:"place",file:f.file,channels:[sel.value],remember:rc.checked},go)},"pri");
+    const ctl=el("div","sbar");ctl.append(sel,rl,go);r.append(txt,ctl);c.append(r)}
+   if(t.inbox_waiting>(t.inbox_files||[]).length&&(t.inbox_files||[]).length)c.append(el("small",0,`...and ${t.inbox_waiting-t.inbox_files.length} more - they appear here as these are filed.`));
+   const first=main.querySelector(".tcard");if((t.inbox_files||[]).length&&first)main.insertBefore(c,first);else main.append(c)}
  { const c=tCard("Videos that are skipped",t.skipped.length?"These cannot play in the TV yet. Fixing makes a copy that plays (keeps the original); a picture problem can take 15-40 minutes for a movie.":"Every video can play.");
    for(const v of t.skipped.slice(0,12)){const row=el("div","sbar"),b=sBtn("Fix",()=>runJob({name:"fix",media_id:v.id},b));row.append(b,el("span",0,v.title+" - "+v.why));c.append(row)}
    if(t.skipped.length>12)c.append(el("small",0,`...and ${t.skipped.length-12} more. Fix these first, then come back.`));main.append(c)}

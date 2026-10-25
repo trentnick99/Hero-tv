@@ -96,10 +96,12 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
     rules, channels = sortrules.load(cfg)
     smart = sortrules.smart_rules(cfg)
     facts = facts or (facts_lookup(cfg) if smart else None)
+    from . import fixes as F
+    mine = F.load(cfg)
     media = os.path.abspath(str(cfg.media_dir))
     for src in ready:
         stem = os.path.splitext(os.path.basename(src))[0]
-        picked = sortrules.targets(stem, rules, channels, facts(stem) if facts else None, smart)
+        picked = sortrules.targets(stem, rules, channels, None if F.lookup(mine, stem) else (facts(stem) if facts else None), smart, mine)
         if not picked:
             out["left"] += 1
             continue

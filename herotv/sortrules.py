@@ -110,12 +110,15 @@ def smart_channels(facts, smart):
     return out
 
 
-def targets(stem, rules, channels, facts=None, smart=None):
-    """Channels (with their own match rules) that a file name belongs on, lowest number first. When TMDB facts are
-    known, channels that have smart rules are decided by those facts only; the rest still use file-name keywords."""
+def targets(stem, rules, channels, facts=None, smart=None, fixes=None):
+    """Channels (with their own match rules) that a file name belongs on, lowest number first. Your own corrections
+    (fixes.py) win outright. When TMDB facts are known, channels that have smart rules are decided by those facts
+    only; the rest still use file-name keywords."""
     from .launcher import plan_sort
-    keys = plan_sort(stem, rules)
-    if facts and smart:
+    from . import fixes as F
+    mine = F.lookup(fixes, stem)
+    keys = set(mine) if mine else plan_sort(stem, rules)
+    if not mine and facts and smart:
         governed = {c for r in smart for c in r["channels"]}
         keys = {k for k in keys if k not in governed} | set(smart_channels(facts, smart))
     by_id = {c["id"]: c for c in channels if c.get("match")}

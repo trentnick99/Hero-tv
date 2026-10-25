@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import config, library
 
-CONFIG_FILES = ("channels.json", "auto-sort.json", "checklist.json", "free-sources.json")
+CONFIG_FILES = ("channels.json", "auto-sort.json", "checklist.json", "free-sources.json", "my-sorting.json")
 MAX_JSON = 20 * 1024 * 1024
 
 

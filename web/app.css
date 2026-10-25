@@ -234,3 +234,10 @@ body.cue-yellow video::cue{color:#ffe14d}
 #in-bg{position:absolute;inset:-6%;background:center/cover no-repeat;filter:blur(6vh) saturate(1.25);opacity:.3;z-index:0;pointer-events:none}
 #info>*:not(#in-bg){position:relative;z-index:1}
 @media (prefers-reduced-motion:no-preference){#info.on #in-pic{animation:inpic .35s ease-out}@keyframes inpic{from{opacity:0;transform:translateY(1.5vh)}to{opacity:1;transform:none}}}
+
+#in-on{font-size:1.9vh;opacity:.8}
+#in-move{max-width:none;background:rgba(0,0,0,.35)}#in-move .picks{display:flex;flex-wrap:wrap;gap:.8vh .6vw}
+#in-move .picks .sbtn.on{background:var(--accent);color:var(--on);border-color:var(--accent);font-weight:700}
+#in-move .picks .sbtn.on::before{content:"\2713  "}#in-move .lb{display:flex;gap:.6vw;align-items:center;font-size:1.9vh}
+.ibx{display:flex;flex-direction:column;gap:.6vh;border-top:1px solid var(--line);padding-top:1vh}.ibx b{font-size:calc(2vh*var(--tx))}
+.ibx .lb{display:flex;gap:.4vw;align-items:center;font-size:calc(1.9vh*var(--tx))}

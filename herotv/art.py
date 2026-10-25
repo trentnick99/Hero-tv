@@ -256,7 +256,7 @@ def stats(conn):
 
 
 # ---------- facts for sorting new videos onto channels ----------
-def facts_for(conn, cfg, stem, key=None, fj=None, fb=None):
+def facts_for(conn, cfg, stem, key=None, fj=None, fb=None, cached_only=False):
     """What TMDB knows about a video file name (studio, genres, keywords) - or None without a key, when offline, or
     when TMDB does not know the title. Remembered, so each title is looked up once (the poster comes along too)."""
     from . import library
@@ -268,6 +268,8 @@ def facts_for(conn, cfg, stem, key=None, fj=None, fb=None):
         return None
     if a and a["facts"] and a["facts"] != "{}":
         return json.loads(a["facts"])
+    if cached_only:
+        return None
     key = key or api_key()
     if not key:
         return None
@@ -277,3 +279,11 @@ def facts_for(conn, cfg, stem, key=None, fj=None, fb=None):
         return None                               # offline or refused: fall back to keywords this time
     save(conn, k, data, cfg, fb)
     return (data or {}).get("facts")
+
+
+def describe(facts):
+    """'Movie, 2016 - Action, Comedy - Marvel Studios' for the Inbox helper."""
+    if not facts:
+        return ""
+    head = ("TV show" if facts.get("type") == "tv" else "Movie") + (f", {facts['year']}" if facts.get("year") else "")
+    return "  -  ".join(x for x in (head, ", ".join((facts.get("genres") or [])[:3]), ", ".join((facts.get("companies") or [])[:2])) if x)

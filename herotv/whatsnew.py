@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.9.0": [
+        "Wrong channel? Open a video's Details (D) and press M: tick where it belongs and Save. A show moves with all its episodes.",
+        "Details now say which channels a video is on.",
+        "Settings > Tools > Inbox lists videos HERO TV could not place - choose a channel and press Put it here.",
+        "Tick Remember and HERO TV learns: new episodes or copies of that title go there by themselves from now on.",
+    ],
     "1.8.0": [
         "Smart sorting: with your TMDB key, new videos are filed by what they really are - studio, genre and film series.",
         "Marvel channels only get Marvel shows and films, horror gets horror and dark thrillers, DC gets DC - same-name titles stay out.",

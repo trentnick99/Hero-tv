@@ -812,6 +812,107 @@ def _place(src, picked, media, force_move=False):
     return True
 
 
+FOLDER_PICS = ("poster.jpg", "poster.png", "folder.jpg", "folder.png", "fanart.jpg")
+
+
+def _companions(path):
+    """The video plus what belongs to it in the same folder: .hero.json, subtitles, its own poster."""
+    folder, name = os.path.split(path)
+    stem = os.path.splitext(name)[0]
+    out = [path]
+    for f in sorted(os.listdir(folder)):
+        p = os.path.join(folder, f)
+        if p != path and os.path.isfile(p) and (f.startswith(stem + ".") or f.startswith(stem + "-poster.")) \
+                and os.path.splitext(f)[1].lower() not in library.EXTS | CONVERTIBLE:
+            out.append(p)
+    return out
+
+
+def move_to(cfg, paths, picked, all_channels):
+    """Move videos (one film, or every episode of a show) onto other channels and off the ones they were on.
+    Folder channels: the files go into that channel's folder (sub-folders like 'Daredevil/Season 1' are kept);
+    tag channels: the tag is set and old channel tags are removed. History, favorites and resume points follow the
+    files (library.relink). Returns an exit code."""
+    media = os.path.abspath(str(cfg.media_dir))
+    chan_tags = {t.lower() for c in all_channels for t in (c.get("match") or {}).get("tags", [])}
+    chan_folders = {f.lower() for c in all_channels for f in (c.get("match") or {}).get("franchise", [])}
+    new_tags = [c["match"]["tags"][0] for c in picked if c["match"].get("tags")]
+    new_folder = next((c["match"]["franchise"][0] for c in picked if c["match"].get("franchise")), None)
+    moved, bad, left_dirs = 0, 0, {}
+    for src in paths:
+        rel = os.path.relpath(os.path.dirname(src), media) if _under(src, media) else ""
+        parts = [] if rel in ("", ".") else rel.split(os.sep)
+        on_channel_folder = bool(parts) and parts[0].lower() in chan_folders
+        if new_folder:
+            target_top = new_folder
+        elif on_channel_folder:
+            target_top = picked[0]["name"]                     # leave the old folder channel
+        else:
+            target_top = None
+        dest_dir = os.path.dirname(src)
+        if target_top is not None:
+            rest = parts[1:] if on_channel_folder else parts
+            if parts and parts[0].lower() == "inbox":
+                rest = []
+            dest_dir = os.path.join(media, target_top, *rest)
+        stem = os.path.splitext(os.path.basename(src))[0]
+        if os.path.normcase(dest_dir) != os.path.normcase(os.path.dirname(src)):
+            dest = os.path.join(dest_dir, os.path.basename(src))
+            if os.path.exists(dest):
+                say(f"  [skip] {os.path.basename(src)}: a file with this name is already in {os.path.relpath(dest_dir, media)}")
+                bad += 1
+                continue
+            os.makedirs(dest_dir, exist_ok=True)
+            for f in _companions(src):
+                shutil.move(f, os.path.join(dest_dir, os.path.basename(f)))
+            left_dirs[os.path.dirname(src)] = dest_dir
+            say(f"  {os.path.basename(src)}  ->  {os.path.relpath(dest_dir, media)}")
+        side = os.path.join(dest_dir, stem + ".hero.json")
+        try:
+            with open(side, encoding="utf-8-sig") as fh:
+                data = json.load(fh)
+            data = data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            data = {}
+        had = [t for t in data.get("tags", []) if isinstance(t, str)]
+        tags = [t for t in had if t.lower() not in chan_tags] + new_tags
+        if tags != had:
+            if tags:
+                data["tags"] = tags
+            else:
+                data.pop("tags", None)
+            if data:
+                library.write_sidecar(os.path.join(dest_dir, os.path.basename(src)), {"tags": data.get("tags")})
+            elif os.path.isfile(side):
+                os.remove(side)
+        moved += 1
+    vids = library.EXTS | CONVERTIBLE
+    for d in sorted(left_dirs, key=len, reverse=True):          # tidy up folders the move emptied
+        nd = left_dirs[d]
+        try:
+            while os.path.isdir(d) and _under(d, media) and os.path.normcase(os.path.dirname(d)) != os.path.normcase(media):
+                rest = os.listdir(d)                             # never a top folder (Inbox, a channel's folder)
+                if any(os.path.isdir(os.path.join(d, f)) or os.path.splitext(f)[1].lower() in vids for f in rest):
+                    break                                        # other videos still live here
+                for f in rest:                                   # a show's poster.jpg goes along with it
+                    if f.lower() in FOLDER_PICS and os.path.isdir(nd) and not os.path.exists(os.path.join(nd, f)):
+                        shutil.move(os.path.join(d, f), os.path.join(nd, f))
+                if os.listdir(d):
+                    break
+                os.rmdir(d)
+                if os.path.basename(d).lower() != os.path.basename(nd).lower():
+                    break
+                d, nd = os.path.dirname(d), os.path.dirname(nd)
+        except OSError:
+            pass
+    if not moved:
+        say("\n[FAIL] nothing was moved")
+        return 1
+    say(f"\n[ OK ] {moved} video(s) now on: " + ", ".join(c["name"] for c in picked))
+    rescan_running(cfg)
+    return 0
+
+
 def _after_change(cfg, bad):
     if health(cfg) is not None:
         if rescan_running(cfg) is not None:
@@ -858,6 +959,8 @@ def sort_movies(assume_yes=False, cfg=None):
     smart = sortrules.smart_rules(cfg)
     from . import inbox as _inbox
     lookup = _inbox.facts_lookup(cfg) if smart else None
+    from . import fixes as _fixes
+    mine = _fixes.load(cfg)
     todo = []
     for dp, dn, fn in os.walk(media):
         if os.path.abspath(dp) != media and not _under(dp, inbox):
@@ -873,7 +976,7 @@ def sort_movies(assume_yes=False, cfg=None):
     plan, left = [], []
     for src in todo:
         stem = os.path.splitext(os.path.basename(src))[0]
-        picked = sortrules.targets(stem, rules, channels, lookup(stem) if lookup else None, smart)
+        picked = sortrules.targets(stem, rules, channels, None if _fixes.lookup(mine, stem) else (lookup(stem) if lookup else None), smart, mine)
         (plan if picked else left).append((src, picked))
     say(f"Found {len(todo)} movie(s) to sort:\n")
     for src, picked in plan:
