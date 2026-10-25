@@ -1,0 +1,3 @@
+# Nothing is required: HERO TV uses only Python's built-in libraries.
+# Only if you set HEROTV_TZ to a named zone (e.g. America/Chicago) on Windows:
+tzdata

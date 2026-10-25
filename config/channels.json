@@ -1,0 +1,20 @@
+{"channels": [
+ {"id":"mcu","number":1,"name":"Marvel Movies","color":"#ff3b3b","mode":"sequential","match":{"franchise":["MCU"]},"description":"Every Marvel movie, in release order. (Folder: MCU)"},
+ {"id":"marvel-tv","number":2,"name":"Marvel Television","color":"#1fd1b4","mode":"sequential","match":{"franchise":["Marvel Television"]},"also":[{"tags":["spider-verse"],"type":"episode"},{"tags":["spider-verse"],"max_minutes":50}],"description":"Live-action series."},
+ {"id":"marvel-animation","number":3,"name":"Marvel Animation","color":"#b06bff","mode":"sequential","match":{"franchise":["Marvel Animation"]},"description":"Animated Marvel."},
+ {"id":"spider-verse","number":4,"name":"Spider-Verse","color":"#ff2e88","mode":"sequential","match":{"tags":["spider-verse"],"type":"movie","min_minutes":50},"description":"Every web-slinger, in the movies."},
+ {"id":"x-men","number":5,"name":"X-Men","color":"#ffc61a","mode":"sequential","match":{"franchise":["X-Men"]},"description":"Mutants, all eras."},
+ {"id":"dc","number":6,"name":"DC Movies","color":"#3d6bff","mode":"sequential","match":{"franchise":["DC"]},"description":"Gotham, Metropolis and beyond. (Folder: DC)"},
+ {"id":"classics","number":7,"name":"Superhero Classics","color":"#d8c9a0","mode":"sequential","match":{"tags":["classic"]},"description":"Vintage heroes."},
+ {"id":"action","number":8,"name":"Superhero Action","color":"#00c2ff","mode":"shuffle","match":{"tags":["action"]},"description":"Non-stop action."},
+ {"id":"comedy","number":9,"name":"Superhero Comedy","color":"#8ee06b","mode":"shuffle","match":{"tags":["comedy"]},"description":"Capes with a laugh track."},
+ {"id":"dragon-ball","number":11,"name":"Dragon Ball","color":"#ff8c00","mode":"sequential","match":{"franchise":["Dragon Ball"]},"description":"Z Fighters, Saiyans and every Super Saiyan form."},
+ {"id":"south-park","number":12,"name":"South Park","color":"#7fd3ff","mode":"sequential","match":{"franchise":["South Park"]},"description":"Every season, in order."},
+ {"id":"invincible","number":15,"name":"Invincible","color":"#f5c400","mode":"sequential","match":{"franchise":["Invincible"]},"description":"Mark Grayson, season by season."},
+ {"id":"horror","number":16,"name":"Thriller & Horror","color":"#c0182f","mode":"shuffle","match":{"franchise":["Thriller & Horror"]},"also":{"tags":["thriller","horror"]},"description":"Lights off. Folder: Thriller & Horror."},
+ {"id":"free","number":14,"name":"Free Movies","color":"#5ee38b","mode":"shuffle","match":{"franchise":["Free Movies"]},"description":"Free public-domain movies and cartoons. Run Get-Free-Movies.bat to add more."},
+ {"id":"weather","number":13,"name":"Weather","kind":"weather","color":"#2fa4ff","description":"Local forecast and live alerts."},
+ {"id":"marathon","number":10,"name":"Hero Marathon","color":"#f2f0ea","mode":"shuffle","match":{},"description":"Everything, shuffled, all day. Friday and Saturday evenings are Movie Night, Saturday mornings are cartoons.",
+  "blocks":[{"name":"Movie Night","days":["fri","sat"],"from":"19:00","to":"23:00","mode":"shuffle","match":{"min_minutes":75}},
+   {"name":"Saturday Morning Cartoons","days":["sat"],"from":"07:00","to":"12:00","mode":"shuffle","match":{"franchise":["Marvel Animation","Dragon Ball","South Park"]}}]}
+]}

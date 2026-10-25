@@ -1,0 +1,11 @@
+{
+ "_help": "The lists offered by Get-Free-Movies.bat. Each needs a name and a query (Internet Archive search words). Only items the Internet Archive marks as public domain are ever downloaded, whatever you put here. tags decide extra channels, e.g. add \"classic\" to also appear on Superhero Classics.",
+ "sources": [
+  {"name": "Classic cartoons", "query": "collection:classic_cartoons", "tags": ["cartoon", "free"]},
+  {"name": "Superhero-era cartoons (Superman, Popeye, Mighty Mouse...)", "query": "title:(superman OR popeye OR \"mighty mouse\" OR \"captain marvel\" OR batman) AND collection:classic_cartoons", "tags": ["cartoon", "classic", "free"]},
+  {"name": "Old sci-fi and horror movies", "query": "collection:SciFi_Horror", "tags": ["scifi", "free"]},
+  {"name": "Silent films", "query": "collection:silent_films", "tags": ["silent", "classic", "free"]},
+  {"name": "Classic feature films", "query": "collection:feature_films", "tags": ["classic", "free"]},
+  {"name": "Classic TV", "query": "collection:classic_tv", "tags": ["tv", "free"]}
+ ]
+}

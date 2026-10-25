@@ -1,0 +1,572 @@
+{
+ "_help": "What the Checklist (Checklist.bat, or Checklist on the home menu) compares your library against. Edit freely in Notepad: add a title with {\"title\":\"Name\",\"year\":2020}. 'aka' = other names it may be filed under. 'date' = not out yet, so it is shown as coming soon instead of missing. 'ideas' lists are suggestions, not a complete set. Matching uses the video's title (rename with F3 if one is not recognised) and year.",
+ "lists": [
+  {
+   "name": "Marvel Movies",
+   "channel": "1 Marvel Movies",
+   "kind": "movies",
+   "items": [
+    {
+     "title": "Iron Man",
+     "year": 2008
+    },
+    {
+     "title": "The Incredible Hulk",
+     "year": 2008
+    },
+    {
+     "title": "Iron Man 2",
+     "year": 2010
+    },
+    {
+     "title": "Thor",
+     "year": 2011
+    },
+    {
+     "title": "Captain America: The First Avenger",
+     "year": 2011
+    },
+    {
+     "title": "The Avengers",
+     "year": 2012,
+     "aka": [
+      "Marvel's The Avengers"
+     ]
+    },
+    {
+     "title": "Iron Man 3",
+     "year": 2013
+    },
+    {
+     "title": "Thor: The Dark World",
+     "year": 2013
+    },
+    {
+     "title": "Captain America: The Winter Soldier",
+     "year": 2014
+    },
+    {
+     "title": "Guardians of the Galaxy",
+     "year": 2014
+    },
+    {
+     "title": "Avengers: Age of Ultron",
+     "year": 2015
+    },
+    {
+     "title": "Ant-Man",
+     "year": 2015
+    },
+    {
+     "title": "Captain America: Civil War",
+     "year": 2016
+    },
+    {
+     "title": "Doctor Strange",
+     "year": 2016
+    },
+    {
+     "title": "Guardians of the Galaxy Vol. 2",
+     "year": 2017
+    },
+    {
+     "title": "Spider-Man: Homecoming",
+     "year": 2017
+    },
+    {
+     "title": "Thor: Ragnarok",
+     "year": 2017
+    },
+    {
+     "title": "Black Panther",
+     "year": 2018
+    },
+    {
+     "title": "Avengers: Infinity War",
+     "year": 2018
+    },
+    {
+     "title": "Ant-Man and the Wasp",
+     "year": 2018
+    },
+    {
+     "title": "Captain Marvel",
+     "year": 2019
+    },
+    {
+     "title": "Avengers: Endgame",
+     "year": 2019
+    },
+    {
+     "title": "Spider-Man: Far From Home",
+     "year": 2019
+    },
+    {
+     "title": "Black Widow",
+     "year": 2021
+    },
+    {
+     "title": "Shang-Chi and the Legend of the Ten Rings",
+     "year": 2021,
+     "aka": [
+      "Shang-Chi"
+     ]
+    },
+    {
+     "title": "Eternals",
+     "year": 2021
+    },
+    {
+     "title": "Spider-Man: No Way Home",
+     "year": 2021
+    },
+    {
+     "title": "Doctor Strange in the Multiverse of Madness",
+     "year": 2022
+    },
+    {
+     "title": "Thor: Love and Thunder",
+     "year": 2022
+    },
+    {
+     "title": "Black Panther: Wakanda Forever",
+     "year": 2022
+    },
+    {
+     "title": "Ant-Man and the Wasp: Quantumania",
+     "year": 2023
+    },
+    {
+     "title": "Guardians of the Galaxy Vol. 3",
+     "year": 2023
+    },
+    {
+     "title": "The Marvels",
+     "year": 2023
+    },
+    {
+     "title": "Deadpool & Wolverine",
+     "year": 2024,
+     "aka": [
+      "Deadpool and Wolverine"
+     ]
+    },
+    {
+     "title": "Captain America: Brave New World",
+     "year": 2025
+    },
+    {
+     "title": "Thunderbolts*",
+     "year": 2025,
+     "aka": [
+      "Thunderbolts"
+     ]
+    },
+    {
+     "title": "The Fantastic Four: First Steps",
+     "year": 2025,
+     "aka": [
+      "Fantastic Four First Steps"
+     ]
+    },
+    {
+     "title": "Spider-Man: Brand New Day",
+     "year": 2026,
+     "date": "2026-07-31"
+    },
+    {
+     "title": "Avengers: Doomsday",
+     "year": 2026,
+     "date": "2026-12-18"
+    }
+   ]
+  },
+  {
+   "name": "Spider-Man",
+   "channel": "4 Spider-Verse",
+   "kind": "movies",
+   "items": [
+    {
+     "title": "Spider-Man",
+     "year": 2002
+    },
+    {
+     "title": "Spider-Man 2",
+     "year": 2004
+    },
+    {
+     "title": "Spider-Man 3",
+     "year": 2007
+    },
+    {
+     "title": "The Amazing Spider-Man",
+     "year": 2012
+    },
+    {
+     "title": "The Amazing Spider-Man 2",
+     "year": 2014
+    },
+    {
+     "title": "Spider-Man: Homecoming",
+     "year": 2017
+    },
+    {
+     "title": "Spider-Man: Into the Spider-Verse",
+     "year": 2018,
+     "aka": [
+      "Into the Spider-Verse"
+     ]
+    },
+    {
+     "title": "Spider-Man: Far From Home",
+     "year": 2019
+    },
+    {
+     "title": "Spider-Man: No Way Home",
+     "year": 2021
+    },
+    {
+     "title": "Spider-Man: Across the Spider-Verse",
+     "year": 2023,
+     "aka": [
+      "Across the Spider-Verse"
+     ]
+    },
+    {
+     "title": "Spider-Man: Brand New Day",
+     "year": 2026,
+     "date": "2026-07-31"
+    },
+    {
+     "title": "Spider-Man: Beyond the Spider-Verse",
+     "year": 2027,
+     "aka": [
+      "Beyond the Spider-Verse"
+     ],
+     "date": "2027-06-18"
+    }
+   ]
+  },
+  {
+   "name": "X-Men and Deadpool",
+   "channel": "5 X-Men",
+   "kind": "movies",
+   "items": [
+    {
+     "title": "X-Men",
+     "year": 2000
+    },
+    {
+     "title": "X2",
+     "year": 2003,
+     "aka": [
+      "X2: X-Men United",
+      "X-Men 2"
+     ]
+    },
+    {
+     "title": "X-Men: The Last Stand",
+     "year": 2006
+    },
+    {
+     "title": "X-Men Origins: Wolverine",
+     "year": 2009
+    },
+    {
+     "title": "X-Men: First Class",
+     "year": 2011
+    },
+    {
+     "title": "The Wolverine",
+     "year": 2013
+    },
+    {
+     "title": "X-Men: Days of Future Past",
+     "year": 2014
+    },
+    {
+     "title": "Deadpool",
+     "year": 2016
+    },
+    {
+     "title": "X-Men: Apocalypse",
+     "year": 2016
+    },
+    {
+     "title": "Logan",
+     "year": 2017
+    },
+    {
+     "title": "Deadpool 2",
+     "year": 2018
+    },
+    {
+     "title": "Dark Phoenix",
+     "year": 2019,
+     "aka": [
+      "X-Men: Dark Phoenix"
+     ]
+    },
+    {
+     "title": "The New Mutants",
+     "year": 2020
+    }
+   ]
+  },
+  {
+   "name": "DC Movies",
+   "channel": "6 DC Movies",
+   "kind": "movies",
+   "items": [
+    {
+     "title": "Batman Begins",
+     "year": 2005
+    },
+    {
+     "title": "The Dark Knight",
+     "year": 2008
+    },
+    {
+     "title": "The Dark Knight Rises",
+     "year": 2012
+    },
+    {
+     "title": "Man of Steel",
+     "year": 2013
+    },
+    {
+     "title": "Batman v Superman: Dawn of Justice",
+     "year": 2016,
+     "aka": [
+      "Batman v. Superman"
+     ]
+    },
+    {
+     "title": "Suicide Squad",
+     "year": 2016
+    },
+    {
+     "title": "Wonder Woman",
+     "year": 2017
+    },
+    {
+     "title": "Justice League",
+     "year": 2017
+    },
+    {
+     "title": "Aquaman",
+     "year": 2018
+    },
+    {
+     "title": "Shazam!",
+     "year": 2019
+    },
+    {
+     "title": "Joker",
+     "year": 2019
+    },
+    {
+     "title": "Birds of Prey",
+     "year": 2020,
+     "aka": [
+      "Birds of Prey and the Fantabulous Emancipation of One Harley Quinn"
+     ]
+    },
+    {
+     "title": "Wonder Woman 1984",
+     "year": 2020
+    },
+    {
+     "title": "Zack Snyder's Justice League",
+     "year": 2021
+    },
+    {
+     "title": "The Suicide Squad",
+     "year": 2021
+    },
+    {
+     "title": "The Batman",
+     "year": 2022
+    },
+    {
+     "title": "Black Adam",
+     "year": 2022
+    },
+    {
+     "title": "Shazam! Fury of the Gods",
+     "year": 2023
+    },
+    {
+     "title": "The Flash",
+     "year": 2023
+    },
+    {
+     "title": "Blue Beetle",
+     "year": 2023
+    },
+    {
+     "title": "Aquaman and the Lost Kingdom",
+     "year": 2023
+    },
+    {
+     "title": "Joker: Folie à Deux",
+     "year": 2024,
+     "aka": [
+      "Joker Folie a Deux"
+     ]
+    },
+    {
+     "title": "Superman",
+     "year": 2025
+    },
+    {
+     "title": "Supergirl",
+     "year": 2026,
+     "aka": [
+      "Supergirl: Woman of Tomorrow"
+     ],
+     "date": "2026-06-26"
+    },
+    {
+     "title": "Clayface",
+     "year": 2026,
+     "date": "2026-09-11"
+    }
+   ]
+  },
+  {
+   "name": "Invincible",
+   "channel": "15 Invincible",
+   "kind": "series",
+   "series": "Invincible",
+   "seasons": {
+    "1": 8,
+    "2": 8,
+    "3": 8,
+    "4": 8
+   }
+  },
+  {
+   "name": "South Park",
+   "channel": "12 South Park",
+   "kind": "series",
+   "series": "South Park",
+   "seasons": {}
+  },
+  {
+   "name": "Thriller and Horror ideas",
+   "channel": "16 Thriller & Horror",
+   "kind": "movies",
+   "ideas": true,
+   "items": [
+    {
+     "title": "Rosemary's Baby",
+     "year": 1968
+    },
+    {
+     "title": "Psycho",
+     "year": 1960
+    },
+    {
+     "title": "The Exorcist",
+     "year": 1973
+    },
+    {
+     "title": "Jaws",
+     "year": 1975
+    },
+    {
+     "title": "Halloween",
+     "year": 1978
+    },
+    {
+     "title": "Alien",
+     "year": 1979
+    },
+    {
+     "title": "The Shining",
+     "year": 1980
+    },
+    {
+     "title": "Friday the 13th",
+     "year": 1980
+    },
+    {
+     "title": "The Thing",
+     "year": 1982
+    },
+    {
+     "title": "A Nightmare on Elm Street",
+     "year": 1984
+    },
+    {
+     "title": "The Silence of the Lambs",
+     "year": 1991
+    },
+    {
+     "title": "Se7en",
+     "year": 1995,
+     "aka": [
+      "Seven"
+     ]
+    },
+    {
+     "title": "Scream",
+     "year": 1996
+    },
+    {
+     "title": "The Sixth Sense",
+     "year": 1999
+    },
+    {
+     "title": "The Ring",
+     "year": 2002
+    },
+    {
+     "title": "Zodiac",
+     "year": 2007
+    },
+    {
+     "title": "Shutter Island",
+     "year": 2010
+    },
+    {
+     "title": "Prisoners",
+     "year": 2013
+    },
+    {
+     "title": "Gone Girl",
+     "year": 2014
+    },
+    {
+     "title": "Nightcrawler",
+     "year": 2014
+    },
+    {
+     "title": "Get Out",
+     "year": 2017
+    },
+    {
+     "title": "It",
+     "year": 2017
+    },
+    {
+     "title": "Hereditary",
+     "year": 2018
+    },
+    {
+     "title": "A Quiet Place",
+     "year": 2018
+    },
+    {
+     "title": "Midsommar",
+     "year": 2019
+    },
+    {
+     "title": "Us",
+     "year": 2019
+    }
+   ]
+  }
+ ]
+}

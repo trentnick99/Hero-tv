@@ -1,0 +1,195 @@
+{
+ "_help": "Keywords are matched against the file name as whole words/phrases, ignoring capitals and - . _ : ' . 'channels' are channel ids from channels.json (\"mcu\", \"south-park\"...; Settings > Channels edits keywords for you). A movie matching several rules goes on all of them. Edit freely.",
+ "rules": [
+  {
+   "keywords": [
+    "iron man",
+    "avengers",
+    "thor",
+    "captain america",
+    "black panther",
+    "ant man",
+    "doctor strange",
+    "guardians of the galaxy",
+    "captain marvel",
+    "the marvels",
+    "shang chi",
+    "eternals",
+    "black widow",
+    "incredible hulk",
+    "spider man homecoming",
+    "spider man far from home",
+    "spider man no way home"
+   ],
+   "channels": [
+    "mcu"
+   ]
+  },
+  {
+   "keywords": [
+    "spider man",
+    "spiderman",
+    "spider verse",
+    "spider gwen",
+    "miles morales"
+   ],
+   "channels": [
+    "spider-verse"
+   ]
+  },
+  {
+   "keywords": [
+    "daredevil",
+    "jessica jones",
+    "luke cage",
+    "iron fist",
+    "the punisher",
+    "the defenders",
+    "agents of s h i e l d",
+    "agent carter",
+    "wandavision",
+    "hawkeye",
+    "moon knight"
+   ],
+   "channels": [
+    "marvel-tv"
+   ]
+  },
+  {
+   "keywords": [
+    "what if",
+    "x men 97",
+    "marvel animation",
+    "eyes of wakanda"
+   ],
+   "channels": [
+    "marvel-animation"
+   ]
+  },
+  {
+   "keywords": [
+    "x men",
+    "xmen",
+    "wolverine",
+    "logan",
+    "deadpool",
+    "days of future past",
+    "first class",
+    "dark phoenix",
+    "new mutants"
+   ],
+   "channels": [
+    "x-men"
+   ]
+  },
+  {
+   "keywords": [
+    "deadpool",
+    "ant man",
+    "thor ragnarok",
+    "guardians of the galaxy"
+   ],
+   "channels": [
+    "comedy"
+   ]
+  },
+  {
+   "keywords": [
+    "invincible"
+   ],
+   "channels": [
+    "invincible"
+   ]
+  },
+  {
+   "keywords": [
+    "psycho",
+    "jaws",
+    "halloween",
+    "alien",
+    "the shining",
+    "friday the 13th",
+    "the thing",
+    "nightmare on elm street",
+    "silence of the lambs",
+    "se7en",
+    "scream",
+    "the sixth sense",
+    "the ring",
+    "zodiac",
+    "shutter island",
+    "prisoners",
+    "gone girl",
+    "nightcrawler",
+    "get out",
+    "hereditary",
+    "a quiet place",
+    "midsommar",
+    "the exorcist",
+    "rosemary s baby",
+    "horror",
+    "thriller"
+   ],
+   "channels": [
+    "horror"
+   ]
+  },
+  {
+   "keywords": [
+    "dragon ball",
+    "dragonball",
+    "dbz",
+    "dragon ball z",
+    "dragon ball gt",
+    "dragon ball super",
+    "dragon ball kai",
+    "dragon ball daima"
+   ],
+   "channels": [
+    "dragon-ball"
+   ]
+  },
+  {
+   "keywords": [
+    "south park",
+    "southpark"
+   ],
+   "channels": [
+    "south-park"
+   ]
+  },
+  {
+   "keywords": [
+    "batman",
+    "superman",
+    "wonder woman",
+    "aquaman",
+    "justice league",
+    "the flash",
+    "green lantern",
+    "shazam",
+    "suicide squad",
+    "joker",
+    "man of steel",
+    "dark knight",
+    "black adam",
+    "blue beetle",
+    "teen titans",
+    "birds of prey",
+    "catwoman",
+    "peacemaker"
+   ],
+   "channels": [
+    "dc"
+   ]
+  }
+ ],
+ "year_rules": [
+  {
+   "year_max": 1979,
+   "channels": [
+    "classics"
+   ]
+  }
+ ]
+}

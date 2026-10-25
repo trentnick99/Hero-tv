@@ -1,0 +1,90 @@
+name: Windows test and build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to publish a Release when a version tag is pushed
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ffmpeg (used by the tests and by HERO TV)
+        run: choco install ffmpeg -y --no-progress
+
+      - name: Run all tests on real Windows
+        run: python -m unittest discover -s tests -v
+
+      - name: Build HERO-TV.exe
+        run: |
+          python -m pip install --upgrade pyinstaller
+          python -m PyInstaller --noconfirm --clean --onedir --name HERO-TV --icon assets\hero-tv.ico --collect-submodules herotv app_entry.py
+
+      - name: Put the app together (exe + program files, ready to unzip)
+        shell: pwsh
+        run: |
+          $pkg = "package\HERO TV"
+          New-Item -ItemType Directory -Force $pkg | Out-Null
+          Copy-Item -Recurse dist\HERO-TV\* $pkg
+          foreach ($item in "herotv","web","config","assets","scripts","app_entry.py","README.md","README_WINDOWS.txt","requirements-optional.txt") {
+            Copy-Item -Recurse $item $pkg
+          }
+          Copy-Item *.bat $pkg
+          New-Item -ItemType Directory -Force "$pkg\data" | Out-Null
+          python -c "from herotv import updater; print(updater.write_stamp(r'$pkg'))"
+
+      - name: Smoke test the built app (start it, ask it questions, stop it)
+        shell: pwsh
+        run: |
+          $pkg = Resolve-Path "package\HERO TV"
+          & "$pkg\HERO-TV.exe" doctor
+          Write-Host "doctor exit code: $LASTEXITCODE (problems with the empty test PC are fine here)"
+          $env:HEROTV_MEDIA = "$env:RUNNER_TEMP\media"; New-Item -ItemType Directory -Force $env:HEROTV_MEDIA | Out-Null
+          $env:HEROTV_DB = "$env:RUNNER_TEMP\smoke.sqlite3"
+          $env:HEROTV_PORT = "8799"
+          $p = Start-Process -FilePath "$pkg\HERO-TV.exe" -ArgumentList "serve","--scan" -PassThru -NoNewWindow
+          $ok = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 1
+            try { $h = Invoke-RestMethod http://127.0.0.1:8799/api/health; $ok = $true; break } catch {}
+          }
+          if (-not $ok) { Stop-Process -Id $p.Id -Force; throw "the built app did not answer" }
+          Write-Host "health: $($h | ConvertTo-Json -Compress)"
+          if (-not $h.frozen) { throw "not running as the built exe" }
+          $page = Invoke-WebRequest http://127.0.0.1:8799/ -UseBasicParsing
+          if ($page.Content -notmatch "NEED_API") { throw "the TV page was not served" }
+          Invoke-RestMethod http://127.0.0.1:8799/api/settings | Out-Null
+          Invoke-RestMethod http://127.0.0.1:8799/api/channels-config | Out-Null
+          Stop-Process -Id $p.Id -Force
+          Write-Host "Smoke test passed."
+
+      - name: Upload the finished app
+        uses: actions/upload-artifact@v4
+        with:
+          name: HERO-TV-windows
+          path: package
+          retention-days: 30
+
+      - name: Zip for a release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: Compress-Archive -Path "package\HERO TV" -DestinationPath "HERO-TV-${{ github.ref_name }}-windows.zip"
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: HERO-TV-${{ github.ref_name }}-windows.zip
+          generate_release_notes: true
