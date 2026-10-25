@@ -1,6 +1,7 @@
 """Library scanner: ffprobe-verified runtimes + sidecar/filename metadata."""
 import json
 import os
+import shutil
 import re
 import subprocess
 
@@ -193,6 +194,7 @@ def scan(conn, root, probe_fn=probe):
     """Scan root -> dict(added, updated, missing, unverified). Safe to re-run; unchanged files are not re-probed."""
     root = os.path.abspath(str(root))
     seen, stats = set(), dict(added=0, updated=0, missing=0, unverified=0)
+    added_paths = []
     for dp, dn, fn in os.walk(root):
         dn[:] = sorted(d for d in dn if not d.startswith("."))
         for f in sorted(fn):
@@ -239,6 +241,8 @@ def scan(conn, root, probe_fn=probe):
                 "vcodec=excluded.vcodec,acodec=excluded.acodec,vfmt=excluded.vfmt,ord=excluded.ord,mtime=excluded.mtime,"
                 "size=excluded.size,available=1", vals)
             stats["updated" if row else "added"] += 1
+            if not row:
+                added_paths.append(path)
     if not seen and conn.execute("SELECT 1 FROM media WHERE available=1 LIMIT 1").fetchone():
         # Folder missing or empty (USB/NAS not mounted yet?): keep the library instead of wiping every channel.
         conn.commit()
@@ -248,5 +252,60 @@ def scan(conn, root, probe_fn=probe):
         if r["path"] not in seen:
             conn.execute("UPDATE media SET available=0 WHERE id=?", (r["id"],))
             stats["missing"] += 1
+    stats["relinked"] = relink(conn, added_paths)
     conn.commit()
     return stats
+
+
+def _same_video(old, new):
+    """Is the new library entry the old one that was moved, renamed or converted?"""
+    op, np_ = old["path"], new["path"]
+    if old["size"] and old["size"] == new["size"] and abs((old["runtime_s"] or 0) - (new["runtime_s"] or 0)) < 1.5:
+        return True                                     # moved or renamed: same bytes, same length
+    # converted by HERO TV (Fix / iPhone-friendly / sound track): the old file now sits in .originals next to the new one
+    od, of = os.path.split(op)
+    nd = os.path.dirname(np_)
+    if (os.path.normcase(od) == os.path.normcase(nd) and os.path.splitext(of)[0] == os.path.splitext(os.path.basename(np_))[0]
+            and os.path.isfile(os.path.join(nd, ".originals", of))
+            and abs((old["runtime_s"] or 0) - (new["runtime_s"] or 0)) < 3):
+        return True
+    return False
+
+
+def relink(conn, added_paths):
+    """Give newly found files the favorites, resume point, watch history and schedule of the missing file they
+    replace (a file moved to another folder, renamed in Windows, or converted by HERO TV). Only when exactly one
+    missing file matches - otherwise nothing is touched. Returns how many were relinked."""
+    if not added_paths:
+        return 0
+    gone = conn.execute("SELECT id,path,size,runtime_s FROM media WHERE available=0").fetchall()
+    if not gone:
+        return 0
+    n = 0
+    used = set()
+    for path in added_paths:
+        new = conn.execute("SELECT id,path,size,runtime_s FROM media WHERE path=?", (path,)).fetchone()
+        if new is None:
+            continue
+        cands = [g for g in gone if g["id"] not in used and _same_video(g, new)]
+        if len(cands) != 1:
+            continue
+        old = cands[0]
+        used.add(old["id"])
+        for table, cols in (("favorites", "media_id,added"), ("seen", "media_id,secs,last"),
+                            ("progress", "media_id,position,completed,updated")):
+            rest = cols.split(",", 1)[1]
+            conn.execute(f"INSERT OR IGNORE INTO {table}({cols}) SELECT ?,{rest} FROM {table} WHERE media_id=?", (new["id"], old["id"]))
+            conn.execute(f"DELETE FROM {table} WHERE media_id=?", (old["id"],))
+        conn.execute("UPDATE slots SET media_id=? WHERE media_id=?", (new["id"], old["id"]))
+        old_side = os.path.splitext(old["path"])[0] + ".hero.json"           # your renames/tags follow the file
+        new_side = os.path.splitext(new["path"])[0] + ".hero.json"
+        if os.path.isfile(old_side) and not os.path.exists(new_side):
+            try:
+                shutil.move(old_side, new_side)
+                conn.execute("UPDATE media SET mtime=0 WHERE id=?", (new["id"],))   # re-read with the names on the next scan
+            except OSError:
+                pass
+        conn.execute("DELETE FROM media WHERE id=?", (old["id"],))
+        n += 1
+    return n
