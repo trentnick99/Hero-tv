@@ -24,13 +24,16 @@ jobs:
       - name: Install ffmpeg (used by the tests and by HERO TV)
         run: choco install ffmpeg -y --no-progress
 
+      - name: Install the time-zone database (Windows Python has none built in)
+        run: python -m pip install tzdata
+
       - name: Run all tests on real Windows
         run: python scripts/ci_tests.py
 
       - name: Build HERO-TV.exe
         run: |
           python -m pip install --upgrade pyinstaller
-          python -m PyInstaller --noconfirm --clean --onedir --name HERO-TV --icon assets\hero-tv.ico --collect-submodules herotv app_entry.py
+          python -m PyInstaller --noconfirm --clean --onedir --name HERO-TV --icon assets\hero-tv.ico --collect-submodules herotv --collect-data tzdata --hidden-import tzdata app_entry.py
 
       - name: Put the app together (exe + program files, ready to unzip)
         shell: pwsh

@@ -27,7 +27,7 @@ taskkill /f /im HERO-TV.exe >nul 2>nul
 %PY% -c "from herotv import launcher; launcher.stop_old_server(launcher.Config())" >nul 2>nul
 timeout /t 2 /nobreak >nul
 echo Installing the build tool ^(PyInstaller^)...
-%PY% -m pip install --upgrade pyinstaller
+%PY% -m pip install --upgrade pyinstaller tzdata
 if errorlevel 1 (
   echo.
   echo Could not install PyInstaller. Check the Internet connection ^(or antivirus web shield^) and try again.
@@ -37,7 +37,7 @@ if errorlevel 1 (
 if not exist "assets\hero-tv.ico" %PY% -c "from herotv import icon; icon.make_ico('assets/hero-tv.ico')"
 echo.
 echo Building... ^(this is the slow part^)
-%PY% -m PyInstaller --noconfirm --clean --onedir --name HERO-TV --icon "%~dp0assets\hero-tv.ico" --collect-submodules herotv --distpath "%~dp0build-app\dist" --workpath "%~dp0build-app\work" --specpath "%~dp0build-app" "%~dp0app_entry.py"
+%PY% -m PyInstaller --noconfirm --clean --onedir --name HERO-TV --icon "%~dp0assets\hero-tv.ico" --collect-submodules herotv --collect-data tzdata --hidden-import tzdata --distpath "%~dp0build-app\dist" --workpath "%~dp0build-app\work" --specpath "%~dp0build-app" "%~dp0app_entry.py"
 if errorlevel 1 (
   echo.
   echo The build failed - read the messages above. Antivirus software sometimes blocks it: allow this folder and try again.
