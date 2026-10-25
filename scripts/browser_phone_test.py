@@ -42,13 +42,13 @@ def free_port():
 
 def main(engine):
     home = tempfile.mkdtemp()
-    os.environ["HOME"] = home                      # settings.json lands in this temp home (macOS/Linux)
-    os.environ["LOCALAPPDATA"] = home              # ... and on Windows
     sys.path.insert(0, str(ROOT))
     from herotv import config, remote as R, scheduler as S, server as SV
     from herotv.config import Config
     from herotv.db import connect
-    sf = config.settings_file(); sf.parent.mkdir(parents=True, exist_ok=True)
+    sf = Path(home) / "settings.json"              # a throw-away settings file (HOME is left alone: browsers live there)
+    config.settings_file = lambda: sf
+    sf.parent.mkdir(parents=True, exist_ok=True)
     sf.write_text(json.dumps({"lan_share": True}))
     media = Path(home) / "media" / "MCU"; media.mkdir(parents=True)
     fixture = "sample.webm" if engine == "chromium" else "sample.mp4"   # headless Chromium has no H.264
@@ -177,4 +177,14 @@ def main(engine):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "webkit"))
+    engine = sys.argv[1] if len(sys.argv) > 1 else "webkit"
+    try:
+        code = main(engine)
+    except Exception:
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::error title=Phone test ({engine}) crashed::" + "\n".join(tb.strip().splitlines()[-25:]).replace("%", "%25").replace("\n", "%0A"))
+        code = 2
+    sys.exit(code)

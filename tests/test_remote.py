@@ -164,6 +164,9 @@ class RemoteTests(unittest.TestCase):
         from http.server import ThreadingHTTPServer
         import threading
         srv = ThreadingHTTPServer(("127.0.0.1", 0), SV.make_handler(self.app))
+        while R.lan_port(self.cfg) == srv.server_address[1]:          # never let the two test servers share a port
+            self.cfg.port = free_pair_of_ports()
+        self.lan = f"http://127.0.0.1:{R.lan_port(self.cfg)}"
         threading.Thread(target=srv.serve_forever, daemon=True).start()
         self.addCleanup(srv.server_close); self.addCleanup(srv.shutdown)
         base = f"http://127.0.0.1:{srv.server_address[1]}"
