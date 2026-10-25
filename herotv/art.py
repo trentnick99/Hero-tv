@@ -103,14 +103,23 @@ def lookup(kind, title, year, key, fj=None):
         hit = _pick(fj("/search/" + kind, params, key).get("results"), title, year, kind)
     if hit is None:
         return None
-    d = fj(f"/{kind}/{hit['id']}", {"append_to_response": "credits", "language": "en-US"}, key)
+    d = fj(f"/{kind}/{hit['id']}", {"append_to_response": "credits,keywords", "language": "en-US"}, key)
+    kw = d.get("keywords") or {}
+    kw = kw.get("keywords") or kw.get("results") or []          # movies say "keywords", shows say "results"
     cast = [c["name"] for c in (d.get("credits") or {}).get("cast", [])[:6] if c.get("name")]
     runtime = d.get("runtime") or (d.get("episode_run_time") or [0])[0] or 0
     return {"tmdb_id": hit["id"], "kind": kind, "title": d.get("title") or d.get("name") or title,
             "year": int((d.get("release_date") or d.get("first_air_date") or "0")[:4] or 0) or None,
             "overview": d.get("overview") or "", "tagline": d.get("tagline") or "",
             "genres": [g["name"] for g in d.get("genres", [])], "cast": cast, "rating": round(float(d.get("vote_average") or 0), 1),
-            "runtime": int(runtime), "poster": d.get("poster_path") or hit.get("poster_path") or ""}
+            "runtime": int(runtime), "poster": d.get("poster_path") or hit.get("poster_path") or "",
+            "facts": {"type": "tv" if kind == "tv" else "movie",
+                      "companies": [c["name"] for c in d.get("production_companies") or [] if c.get("name")]
+                      + [n["name"] for n in d.get("networks") or [] if n.get("name")],
+                      "genres": [g["name"] for g in d.get("genres", [])],
+                      "keywords": [k["name"] for k in kw if isinstance(k, dict) and k.get("name")],
+                      "collection": (d.get("belongs_to_collection") or {}).get("name") or "",
+                      "year": int((d.get("release_date") or d.get("first_air_date") or "0")[:4] or 0) or None}}
 
 
 def save(conn, key, data, cfg, fb=None):
@@ -126,10 +135,11 @@ def save(conn, key, data, cfg, fb=None):
         except OSError:
             pass
     if data:
-        conn.execute("INSERT OR REPLACE INTO art(key,tmdb_id,kind,title,year,overview,tagline,genres,\"cast\",rating,runtime,poster,fetched,miss) "
-                     "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0)",
+        conn.execute("INSERT OR REPLACE INTO art(key,tmdb_id,kind,title,year,overview,tagline,genres,\"cast\",rating,runtime,poster,fetched,miss,facts) "
+                     "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)",
                      (key, data["tmdb_id"], data["kind"], data["title"], data["year"], data["overview"], data["tagline"],
-                      json.dumps(data["genres"]), json.dumps(data["cast"]), data["rating"], data["runtime"], data["poster"], int(time.time())))
+                      json.dumps(data["genres"]), json.dumps(data["cast"]), data["rating"], data["runtime"], data["poster"], int(time.time()),
+                      json.dumps(data.get("facts") or {})))
     else:
         conn.execute("INSERT OR REPLACE INTO art(key,kind,fetched,miss) VALUES(?,?,?,1)", (key, "", int(time.time())))
     conn.commit()
@@ -242,3 +252,28 @@ def stats(conn):
     n = conn.execute("SELECT COUNT(*) FROM art WHERE miss=0").fetchone()[0]
     m = conn.execute("SELECT COUNT(*) FROM art WHERE miss=1").fetchone()[0]
     return {"found": n, "not_found": m, "waiting": len(pending(conn))}
+
+
+
+# ---------- facts for sorting new videos onto channels ----------
+def facts_for(conn, cfg, stem, key=None, fj=None, fb=None):
+    """What TMDB knows about a video file name (studio, genres, keywords) - or None without a key, when offline, or
+    when TMDB does not know the title. Remembered, so each title is looked up once (the poster comes along too)."""
+    from . import library
+    g = library._guess([stem], stem)
+    row = {"series": g["series"], "title": g["title"], "year": g["year"]}
+    k, kind, title, year = key_for(row)
+    a = conn.execute("SELECT facts,miss FROM art WHERE key=?", (k,)).fetchone()
+    if a and a["miss"]:
+        return None
+    if a and a["facts"] and a["facts"] != "{}":
+        return json.loads(a["facts"])
+    key = key or api_key()
+    if not key:
+        return None
+    try:
+        data = lookup(kind, title, year, key, fj)
+    except Exception:
+        return None                               # offline or refused: fall back to keywords this time
+    save(conn, k, data, cfg, fb)
+    return (data or {}).get("facts")

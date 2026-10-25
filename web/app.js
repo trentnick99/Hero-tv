@@ -595,6 +595,11 @@ async function chPost(body,okText,backToList){sMsg("Saving...");try{const r=awai
 function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  if(!chList){main.append(el("div","empty","Loading channels..."));api("/api/channels-config").then(j=>{chList=j.channels;if(layer==="settings"&&sCat==="chan")drawSettings()}).catch(()=>{main.textContent="";main.append(el("div","empty","Channels could not be loaded."))});return}
  if(chSel===null){main.append(el("small",0,"Click a channel to rename it, change its colour, folder or keywords. Changes show up in the guide straight away."));
+  { const sm=el("input");sm.type="checkbox";sm.checked=sData&&sData.smart_sort!==false;
+    sm.onchange=async()=>{try{await pj("/api/settings",{smart_sort:sm.checked});sData=await api("/api/settings");chList=null;drawSettings();toast(sm.checked?"Smart sorting on":"Smart sorting off")}catch(e){sMsg(String(e.message||e),"err")}};
+    const l=el("label","lb");l.append(sm," Smart sorting");l.style.display="flex";l.style.gap="1vw";
+    const hasKey=sData&&sData.art&&sData.art.has_key;
+    main.append(sField("",hasKey?"New videos are filed by what they really are - studio, genre and film series from TMDB - so a non-Marvel film with a Marvel-sounding name stays out of the Marvel channels. Keywords are used when a title is unknown.":"Needs a free TMDB key (Settings > Cover art). Until then new videos are filed by the keywords in their names.",l))}
   { const sc=el("input");sc.type="checkbox";sc.checked=sData&&sData.seasonal!==false;
     sc.onchange=async()=>{try{await pj("/api/settings",{seasonal:sc.checked});sData=await api("/api/settings");toast(sc.checked?"Seasonal specials on":"Seasonal specials off")}catch(e){sMsg(String(e.message||e),"err")}};
     const l=el("label","lb");l.append(sc," Seasonal specials");l.style.display="flex";l.style.gap="1vw";
@@ -617,6 +622,7 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
   if(isNew||c.folder){folder=sInput(isNew?"":c.folder,"text",isNew?"same as the name":"");folder.style.width="30vw";main.append(sField("Folder","Videos in this folder (inside your media folder) play on this channel."+(isNew?" It is created for you.":" Renaming it does not move videos already in the old folder."),folder))}
   else main.append(sField("What it shows",c.summary+" - these special rules are kept as they are. They can be changed in config\\channels.json.",null));
   words=el("textarea");words.value=c.keywords.join("\n");words.placeholder="one per line, for example:\niron man\navengers";words.addEventListener("input",()=>{sDirty=true;sLeave=false});
+  if(c.smart&&c.smart.length)main.append(sField("Smart sorting",`With a TMDB key, this channel automatically gets: ${c.smart.join("; ")}. The keywords below are then only used for titles TMDB does not know.`,null));
   main.append(sField("Keywords","When new videos arrive in the Inbox (or you use Sort-Movies), a file whose name contains one of these words goes on this channel. One per line."+(c.shared_keywords?` ${c.shared_keywords} more keywords are shared with other channels and are not shown here.`:""),words))}
  desc=sInput(c.description);desc.style.width="50vw";main.append(sField("Description","One line shown in the guide.",desc));
  const bar=el("div","sbar"),payload=()=>{const b={name:name.value,color:col,description:desc.value};if(num.value.trim()!=="")b.number=num.value.trim();if(mode)b.mode=mode.value;if(folder&&(isNew||folder.value.trim()))b.folder=folder.value;if(words)b.keywords=words.value;return b};

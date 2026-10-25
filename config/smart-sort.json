@@ -1,0 +1,139 @@
+{
+ "_help": "Smart sorting: when you have a free TMDB key (Settings > Cover art), HERO TV looks each new video up and files it by what it really is - studio, genre, TMDB keywords and film series - instead of by words in the file name. Channels listed here are decided ONLY by these facts when they are known (no more false matches); other channels still use the keywords in auto-sort.json. Rules are checked top to bottom; \"stop\" ends the search. Matching of companies/keywords is by whole words, ignoring capitals. Switch it off in Settings > Channels.",
+ "rules": [
+  {
+   "label": "Spider-Man TV shows",
+   "channels": [
+    "marvel-tv"
+   ],
+   "type": "tv",
+   "keywords": [
+    "spider-man"
+   ],
+   "stop": true
+  },
+  {
+   "label": "animated Marvel",
+   "channels": [
+    "marvel-animation"
+   ],
+   "companies": [
+    "marvel"
+   ],
+   "genres": [
+    "Animation"
+   ],
+   "stop": true
+  },
+  {
+   "label": "Marvel TV shows",
+   "channels": [
+    "marvel-tv"
+   ],
+   "type": "tv",
+   "companies": [
+    "marvel"
+   ]
+  },
+  {
+   "label": "Marvel Studios films",
+   "channels": [
+    "mcu"
+   ],
+   "type": "movie",
+   "companies": [
+    "marvel studios"
+   ]
+  },
+  {
+   "label": "Spider-Man films",
+   "channels": [
+    "spider-verse"
+   ],
+   "type": "movie",
+   "keywords": [
+    "spider-man",
+    "spider-verse",
+    "miles morales"
+   ]
+  },
+  {
+   "label": "X-Men, Wolverine and Deadpool films",
+   "channels": [
+    "x-men"
+   ],
+   "type": "movie",
+   "keywords": [
+    "x-men",
+    "wolverine",
+    "deadpool"
+   ]
+  },
+  {
+   "label": "DC films",
+   "channels": [
+    "dc"
+   ],
+   "type": "movie",
+   "companies": [
+    "dc comics",
+    "dc entertainment",
+    "dc films",
+    "dc studios"
+   ]
+  },
+  {
+   "label": "superhero comedies",
+   "channels": [
+    "comedy"
+   ],
+   "type": "movie",
+   "genres": [
+    "Comedy"
+   ],
+   "keywords": [
+    "superhero"
+   ]
+  },
+  {
+   "label": "superhero films up to 1979",
+   "channels": [
+    "classics"
+   ],
+   "type": "movie",
+   "keywords": [
+    "superhero"
+   ],
+   "year_max": 1979
+  },
+  {
+   "label": "horror films",
+   "channels": [
+    "horror"
+   ],
+   "type": "movie",
+   "genres": [
+    "Horror"
+   ]
+  },
+  {
+   "label": "thrillers (not action or fantasy)",
+   "channels": [
+    "horror"
+   ],
+   "type": "movie",
+   "genres": [
+    "Thriller"
+   ],
+   "not_genres": [
+    "Action",
+    "Adventure",
+    "Science Fiction",
+    "Fantasy",
+    "Animation",
+    "Family",
+    "Comedy"
+   ]
+  }
+ ]
+}

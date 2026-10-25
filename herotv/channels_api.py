@@ -101,6 +101,8 @@ def read(cfg):
     cf, af, _ = _paths(cfg)
     data = _read(cf, {"channels": []})
     rules = _rules(cfg, data.get("channels", []))
+    from . import sortrules
+    smart = sortrules.smart_rules(cfg)
     out = []
     for c in sorted(data.get("channels", []), key=lambda x: x.get("number", 0)):
         kws, shared = _own_keywords(rules, c["id"])
@@ -108,6 +110,7 @@ def read(cfg):
         out.append({"id": c["id"], "number": c.get("number"), "name": c.get("name", ""), "color": c.get("color", "#ffcf1f"),
                     "mode": c.get("mode", "sequential"), "description": c.get("description", ""), "kind": c.get("kind", "tv"),
                     "folder": folder, "keywords": kws, "shared_keywords": shared, "summary": _summary(c),
+                    "smart": [r.get("label") or "" for r in smart if c["id"] in r["channels"]],
                     "special": bool(c.get("also") or c.get("blocks") or c.get("smart") or (folder is None and c.get("kind") != "weather"))})
     return {"channels": out, "media_dir": str(cfg.media_dir)}
 

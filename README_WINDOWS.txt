@@ -294,6 +294,15 @@ ADDING MOVIES HANDS-FREE (Inbox)
   videos (or whole folders) from Explorer onto the TV window: they are copied into the Inbox for you. To switch this off, add
   "auto_inbox": false to settings.json in %LOCALAPPDATA%\HeroTV.
 
+SMART SORTING (needs the free TMDB key from Settings > Cover art)
+  New videos (dragged onto the TV, dropped in the Inbox, or Sort-Movies) are looked up on TMDB and filed by what they
+  really are: the studio (Marvel Studios, Marvel Television, DC...), the genre (horror, animation, comedy) and the film
+  series - not just by words in the file name. So "Iron Man (1931)" or "Logan Lucky" stay out of the Marvel channels,
+  Spider-Man cartoons go to Marvel Television, and a thriller like Se7en goes to Thriller & Horror while The Dark
+  Knight does not. Titles TMDB does not know (and everything, if you have no key) use the channel keywords as before.
+  Settings > Channels shows which smart rules feed each channel and has the on/off switch; the rules themselves are in
+  config\smart-sort.json.
+
 INSTALLING ON A NEW PC, SUBTITLE STYLE
   New PC: download  HERO-TV-Setup-v1.x.x.exe  from github.com/trentnick99/Hero-tv > Releases and run it. No administrator
   rights needed; it installs into your user folder, adds HERO TV to the Start menu (and the desktop if you tick it),

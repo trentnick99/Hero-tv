@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.8.0": [
+        "Smart sorting: with your TMDB key, new videos are filed by what they really are - studio, genre and film series.",
+        "Marvel channels only get Marvel shows and films, horror gets horror and dark thrillers, DC gets DC - same-name titles stay out.",
+        "Spider-Man cartoons go to Marvel Television, X-Men '97 to Marvel Animation, Logan to X-Men (and Logan Lucky nowhere).",
+        "Without a key, or for titles TMDB does not know, the keywords are used as before. Switch it off in Settings > Channels.",
+    ],
     "1.7.0": [
         "A cleaner look: one matching set of icons on the Home menu, a bigger Live TV tile showing what is on now.",
         "The details screen (D) shows the video's picture full-size with Play and Back buttons.",

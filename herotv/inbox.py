@@ -68,7 +68,21 @@ def waiting(cfg):
     return n
 
 
-def run_once(cfg, seen, now=None, place=None):
+def facts_lookup(cfg):
+    """A function stem -> TMDB facts (or None), using the library database as its memory."""
+    from . import art
+    from .db import connect
+
+    def get(stem):
+        c = connect(cfg.db_path)
+        try:
+            return art.facts_for(c, cfg, stem)
+        finally:
+            c.close()
+    return get
+
+
+def run_once(cfg, seen, now=None, place=None, facts=None):
     """One pass. Files are filed one at a time (converting can be slow). Returns {"filed": [...], "left": n}."""
     from . import launcher
     place = place or launcher._place
@@ -80,9 +94,12 @@ def run_once(cfg, seen, now=None, place=None):
         return out
     from . import sortrules
     rules, channels = sortrules.load(cfg)
+    smart = sortrules.smart_rules(cfg)
+    facts = facts or (facts_lookup(cfg) if smart else None)
     media = os.path.abspath(str(cfg.media_dir))
     for src in ready:
-        picked = sortrules.targets(os.path.splitext(os.path.basename(src))[0], rules, channels)
+        stem = os.path.splitext(os.path.basename(src))[0]
+        picked = sortrules.targets(stem, rules, channels, facts(stem) if facts else None, smart)
         if not picked:
             out["left"] += 1
             continue

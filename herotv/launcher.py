@@ -855,6 +855,9 @@ def sort_movies(assume_yes=False, cfg=None):
     from . import sortrules
     rules_file = os.path.join(os.path.dirname(cfg.channels_file), "auto-sort.json")
     rules, channels = sortrules.load(cfg)
+    smart = sortrules.smart_rules(cfg)
+    from . import inbox as _inbox
+    lookup = _inbox.facts_lookup(cfg) if smart else None
     todo = []
     for dp, dn, fn in os.walk(media):
         if os.path.abspath(dp) != media and not _under(dp, inbox):
@@ -869,7 +872,8 @@ def sort_movies(assume_yes=False, cfg=None):
         return 0
     plan, left = [], []
     for src in todo:
-        picked = sortrules.targets(os.path.splitext(os.path.basename(src))[0], rules, channels)
+        stem = os.path.splitext(os.path.basename(src))[0]
+        picked = sortrules.targets(stem, rules, channels, lookup(stem) if lookup else None, smart)
         (plan if picked else left).append((src, picked))
     say(f"Found {len(todo)} movie(s) to sort:\n")
     for src, picked in plan:
