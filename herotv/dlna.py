@@ -549,7 +549,8 @@ class Server:
             return
         p = port(self.app.cfg)
         try:
-            self.http = ThreadingHTTPServer(("0.0.0.0", p), make_handler(self.app))
+            from .server import _TVServer          # same server class, without the slow network-name lookup
+            self.http = _TVServer(("0.0.0.0", p), make_handler(self.app))
         except OSError as e:
             raise ValueError(f"Port {p} is busy on this PC, so the TV cannot connect ({e}).")
         self.http.daemon_threads = True

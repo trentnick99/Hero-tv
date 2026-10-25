@@ -175,6 +175,14 @@ class _TVServer(ThreadingHTTPServer):
     request_queue_size = 128
     daemon_threads = True
 
+    def server_bind(self):
+        # The standard version looks up this computer's full network name (getfqdn), which can hang for half a
+        # minute on some networks. Nothing here needs it.
+        import socketserver
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name, self.server_port = str(host), port
+
 
 def make_handler(app, remote=False):
     class H(BaseHTTPRequestHandler):
