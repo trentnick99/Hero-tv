@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.15.0": [
+        "Report a problem (Settings > Backup and about): type what happened, press Make a report, then Copy and paste it into your Claude chat.",
+        "The report holds what is needed to find the cause - version, settings (keys hidden), library, channels, the network check, errors on the screen and the last log lines. Nothing is sent anywhere.",
+    ],
     "1.14.3": [
         "Home menu: Down and Up now move between rows properly (the wide Live TV tile confused them before).",
     ],

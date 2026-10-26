@@ -146,6 +146,13 @@ def main(engine):
         pg.locator("#st-main input[type=checkbox]").first.focus(); pg.keyboard.press("Space"); pg.wait_for_timeout(1500)   # put it back
         pg.locator("#st-main button").first.focus(); pg.keyboard.press("ArrowLeft"); pg.wait_for_timeout(150)
         check(js_in("#st-nav"), "Left from the leftmost control goes back to the section list")
+        if pg.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
+            pg.click("#tapgo")             # this test browser blocks autoplay after the channel list changed
+        pg.click("#st-nav >> text=Backup and about"); pg.wait_for_timeout(1500)
+        pg.fill("#st-main textarea", "test: Up moves sideways"); pg.click("#st-main >> text=Make a report"); pg.wait_for_timeout(1500)
+        rep = pg.evaluate("[...document.querySelectorAll('#st-main textarea')].pop().value")
+        check("=== HERO TV problem report ===" in rep and "test: Up moves sideways" in rep and "Errors on the TV page" in rep,
+              f"Report a problem makes a report ready to copy ({len(rep)} characters)")
         pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
         check(not errors, "no script errors" + (": " + "; ".join(errors[:3]) if errors else ""))
         b.close()

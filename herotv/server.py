@@ -371,7 +371,8 @@ def make_handler(app, remote=False):
             from . import backup, library as LIB
             from .config import settings_file
             folders = {"open-media": app.cfg.media_dir, "open-inbox": inbox.inbox_dir(app.cfg),
-                       "open-backups": backup.default_dir(), "open-logs": settings_file().parent}
+                       "open-backups": backup.default_dir(), "open-logs": settings_file().parent,
+                       "open-reports": __import__("herotv.launcher", fromlist=["x"]).app_data_dir() / "reports"}
             if name in folders:
                 d = str(folders[name])
                 os.makedirs(d, exist_ok=True)
@@ -874,6 +875,21 @@ def make_handler(app, remote=False):
                 if not self.is_remote:                 # a phone watching does not keep the PC's TV window "open"
                     app.last_hb = time.monotonic()
                 return self.send_json({"ok": True, "lib": app.lib_version, "note": app.lib_note, "v": __version__})
+            if p == "client-error" and method == "POST":       # a script error on the TV page (PC only)
+                from . import report
+                b = self.body()
+                report.page_error(str(b.get("msg", ""))[:400], str(b.get("where", ""))[:80])
+                return self.send_json({"ok": True})
+            if p == "report" and method == "POST":             # Settings > Backup and about > Report a problem
+                from . import report
+                b = self.body()
+                text = report.build(c, app.cfg, str(b.get("note", ""))[:2000], lan=app.lan_srv is not None,
+                                    dlna_on=app.dlna.running, page=str(b.get("page", ""))[:200])
+                try:
+                    f = report.save(text)
+                except OSError:
+                    f = ""
+                return self.send_json({"text": text, "file": f})
             if p == "update":                                 # one-press updates (PC only: not in the phone allowlist)
                 from . import selfupdate
                 if method == "POST":

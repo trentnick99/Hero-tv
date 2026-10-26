@@ -117,6 +117,9 @@ function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clea
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
   if(layer==="guide"){await loadGuide();drawGuide()}else if(layer==="lib"){const keep=li;await search();li=Math.min(keep,items.length-1);drawList()}
   toast("Library updated"+(note&&note!=="updated"?": "+note:""))}catch(e){}}
+let errSent=0;function sendErr(msg,where){if(REMOTE||Date.now()-errSent<2000)return;errSent=Date.now();try{fetch("/api/client-error",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({msg:String(msg).slice(0,400),where:String(where||"").slice(0,80)})}).catch(()=>{})}catch(e){}}
+addEventListener("error",e=>sendErr(e.message,(e.filename||"").split("/").pop()+":"+e.lineno));
+addEventListener("unhandledrejection",e=>sendErr("promise: "+((e.reason&&(e.reason.message||e.reason))||""),"async"));
 let bootV=null;const beat=()=>fetch("/api/hb").then(r=>r.json()).then(j=>{if(j.v){if(bootV===null)bootV=j.v;else if(j.v!==bootV){bootV=j.v;return location.reload()}}
  if(libV===null)libV=j.lib;else if(j.lib!==libV){libV=j.lib;libChanged(j.note)}}).catch(()=>{});beat();setInterval(beat,1e4);
 /* what you actually watch live is remembered (30 s at a time): channels then pass over finished shows, and pick up where you left off */
@@ -534,6 +537,16 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
   if(d.art.has_key)bar.append(sBtn("Remove key",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press again to remove the key. Posters already downloaded stay.","err");return}delete main.dataset.sure;sSave({tmdb_key:""},"Key removed.",()=>drawSettings())},"warn"));
   main.append(bar,msg,el("small",0,"This product uses the TMDB API but is not endorsed or certified by TMDB."))}
  else{main.append(el("h3",0,"Updates"));const ub=el("div","tcard");ub.id="upd";main.append(ub);drawUpdate(ub,d);
+  main.append(el("h3",0,"Something not right?"));
+  {const c=tCard("Report a problem","Makes one report with what is needed to find the problem: version, settings (keys hidden), library counts, errors on this screen and the last lines of the log. Copy it and paste it into your chat with Claude. HERO TV does not send it anywhere.");
+   const note=el("textarea");note.placeholder="What happened? (for example: on Home, pressing Up moves sideways)";note.rows=3;note.style.width="100%";
+   const out=el("textarea");out.readOnly=true;out.rows=8;out.style.cssText="width:100%;display:none;font-family:ui-monospace,Consolas,monospace;font-size:1.5vh";
+   const bar=el("div","sbar"),info=el("small");
+   const mk=sBtn("Make a report",async()=>{mk.disabled=true;info.textContent="Making the report...";try{const r=await pj("/api/report",{note:note.value,page:`${layer||"tv"}/${sCat} ${innerWidth}x${innerHeight} ${navigator.userAgent}`});
+     out.value=r.text;out.style.display="";cp.style.display="";info.textContent=r.file?"Saved as "+r.file+" - now press Copy and paste it into the chat.":"Press Copy and paste it into the chat."}catch(e){info.textContent=String(e.message||e)}mk.disabled=false},"pri");
+   const cp=sBtn("Copy",async()=>{try{await navigator.clipboard.writeText(out.value);toast("Report copied - paste it into the chat (Ctrl+V).")}catch(e){out.focus();out.select();document.execCommand&&document.execCommand("copy");toast("Report selected and copied.")}});cp.style.display="none";
+   const of=sBtn("Open reports folder",()=>sAct("open-reports",of));
+   bar.append(mk,cp,of);c.append(note,bar,info,out);main.append(c)}
   main.append(el("h3",0,"Backup"));
   const bar=el("div","sbar"),b1=sBtn("Back up my settings now",()=>sAct("backup",b1),"pri"),b2=sBtn("Open backups folder",()=>sAct("open-backups",b2)),b3=sBtn("Open log folder",()=>sAct("open-logs",b3));bar.append(b1,b2,b3);
   main.append(sField("","A backup keeps your favorites, resume points, channel settings and look - not the videos themselves.",null),bar,msg);

@@ -332,6 +332,13 @@ PHONE WON'T CONNECT (keeps loading)
   Wi-Fi > (i)) must start with the same three numbers as the PC's address. If not, plug the PC into the main router,
   put the phone on the second router's WiFi, or set the second router to Access Point / Bridge mode.
 
+REPORT A PROBLEM (for help from Claude)
+  Settings > Backup and about > Report a problem: type what happened (e.g. "on Home, Up moves sideways"), press Make a
+  report, then Copy and paste it into your Claude chat. It contains the version, Windows version, settings (keys and
+  tokens hidden, your user folder shown as <home>), library and channel counts, the network check, script errors on
+  the TV screen and the last lines of the log. Nothing is sent anywhere by HERO TV; a copy is kept in the reports
+  folder (Open reports folder).
+
 CHOOSING YOUR CHANNELS
   The first time HERO TV starts it shows "Pick your channels": every starter channel (Marvel, Spider-Verse, X-Men, DC,
   South Park, Dragon Ball, Thriller & Horror...) is on - tap the ones you do not want, then Done. Later: Settings >
