@@ -640,7 +640,15 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
    if(d.enabled)c.append(el("small",0,"The first time, Windows may ask whether HERO TV may use the network: choose Allow (private networks only)."));
    main.append(c)}
  if(d.enabled){
-  { const c=tCard("On the phone, open this address",d.addresses.length?"Type it into Safari or Chrome while the phone is on the same WiFi as this PC.":"This PC does not seem to be on a home network right now.");
+  { const c=tCard("Phone can't connect?","Checks this PC for the usual reasons (Windows Firewall, a network marked Public, a VPN) and fixes what it can. Ethernet on the PC and WiFi on the phone is fine - they only need the same router.");
+    const ck=d.check,row=el("div","sbar"),b=sBtn("Check the connection",()=>devOp({op:"check"},b),ck?"":"pri");row.append(b);
+    if(ck){if(!ck.problems.length)c.append(el("b",0,ck.windows?"Everything looks right on this PC.":"Nothing wrong found (the firewall check only works on Windows)."),
+       el("small",0,"Still no luck? Check the phone is on your main WiFi (not a guest network) and try the address again. Some routers have 'AP / client isolation' switched on - it must be off."));
+     for(const p of ck.problems){const x=el("div","ibx");x.append(el("b",0,p.title),el("small",0,p.text));c.append(x)}
+     if(ck.problems.some(p=>p.fixable)){const f=sBtn("Fix it",async()=>{f.disabled=true;try{dData=await pj("/api/devices",{op:"fix-network"});sMsg("Windows will ask for permission - choose Yes. Checking again in a few seconds...","ok");
+       setTimeout(()=>devOp({op:"check"}),7000)}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");f.disabled=false}},"pri");row.prepend(f)}}
+    c.append(row);main.append(c)}
+  { const c=tCard("On the phone, open this address",d.addresses.length?"Type it into Safari or Chrome while the phone is on the same WiFi as this PC."+(d.addresses.length>1?" If the first one does not open, try the others.":""):"This PC does not seem to be on a home network right now.");
     for(const a of d.addresses){const b=el("b",0,a);b.style.fontSize="calc(3vh*var(--tx))";b.style.userSelect="all";c.append(b)}
     if(d.qr){const q=el("div");q.id="phone-qr";q.innerHTML=d.qr;q.style.cssText="display:inline-block;align-self:flex-start;line-height:0;background:#fff;padding:8px;border-radius:8px";   /* whole pixels per square: sharp for cameras */c.append(el("small",0,"Or open the iPhone's Camera and point it at this code, then tap the link that appears:"),q)}
     main.append(c)}

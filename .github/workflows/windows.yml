@@ -92,6 +92,20 @@ jobs:
           Write-Host "Paired device sees $($ch.channels.Count) channels"
           $code = 0; try { Invoke-WebRequest "http://${ip}:8800/api/settings" -UseBasicParsing -WebSession $s | Out-Null } catch { $code = $_.Exception.Response.StatusCode.value__ }
           if ($code -ne 403) { throw "paired device could read settings ($code)" }
+          # --- "Phone can't connect?": read the real Windows firewall/network type, then let the fix run as admin ---
+          $chk = Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"check"}'
+          Write-Host "connection check: $($chk.check | ConvertTo-Json -Compress -Depth 4)"
+          if (-not $chk.check.windows) { throw "the connection check could not read Windows' firewall and network settings" }
+          if (-not $chk.check.alias) { throw "the connection check did not find the network card of $($chk.check.addresses[0])" }
+          $fixable = @($chk.check.problems | Where-Object { $_.fixable }).Count
+          if ($fixable -gt 0) {
+            Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"fix-network"}' | Out-Null
+            Start-Sleep -Seconds 10
+            $chk = Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"check"}'
+            Write-Host "after the fix: $($chk.check | ConvertTo-Json -Compress -Depth 4)"
+            if (@($chk.check.problems | Where-Object { $_.fixable }).Count -gt 0) { throw "the fix did not clear: $(($chk.check.problems | ForEach-Object { $_.id }) -join ', ')" }
+          }
+          if (-not (Get-NetFirewallRule -DisplayName 'HERO TV (home network)' -ErrorAction SilentlyContinue) -and $fixable -gt 0) { throw "no firewall rule was made" }
           Invoke-RestMethod http://127.0.0.1:8799/api/devices -Method Post -ContentType 'application/json' -Body '{"op":"disable"}' | Out-Null
           Write-Host "Other-devices test passed."
           # --- TV media players (DLNA): off by default, then browsable over the network ---

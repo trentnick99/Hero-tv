@@ -322,6 +322,13 @@ FOR YOU, RELEASE ORDER AND TIME-OF-DAY TV
   hero films in prime time (20:00-23:00) and Thriller & Horror late at night (23:00-02:00) - only from what you have.
   Seasonal specials and blocks you add yourself come first. On/off: Settings > Channels > Time-of-day programming.
 
+PHONE WON'T CONNECT (keeps loading)
+  Settings > Other devices > "Check the connection". It looks at Windows Firewall (a cancelled "Allow access?" question
+  leaves a block), whether Windows calls your home network Public, and whether the address belongs to a VPN. "Fix
+  it" removes the block, lets HERO TV in on private networks only and marks your home network Private - Windows asks
+  for permission first. A PC on a cable and a phone on WiFi is fine as long as both use the same router (not a guest
+  WiFi; and the router's "AP/client isolation" must be off).
+
 CHOOSING YOUR CHANNELS
   The first time HERO TV starts it shows "Pick your channels": every starter channel (Marvel, Spider-Verse, X-Men, DC,
   South Park, Dragon Ball, Thriller & Horror...) is on - tap the ones you do not want, then Done. Later: Settings >

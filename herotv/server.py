@@ -434,6 +434,19 @@ def make_handler(app, remote=False):
                 R.remove(c, str(b.get("id") or ""))
             elif op == "remove-all":
                 R.remove(c, None)
+            elif op == "check":                               # why can't my phone connect?
+                from . import netcheck
+                addrs = R.lan_addresses()
+                return dict(self.devices_info(c), check=netcheck.diagnose(app.lan_srv is not None, addrs, netcheck.snapshot()))
+            elif op == "fix-network":                         # Windows asks for permission, then fixes firewall/Public
+                from . import netcheck
+                addrs = R.lan_addresses()
+                d = netcheck.diagnose(app.lan_srv is not None, addrs, netcheck.snapshot())
+                ids = {p["id"] for p in d["problems"]}
+                if not ids & {"public", "blocked", "noallow"}:
+                    raise ValueError("Nothing here needs fixing.")
+                netcheck.fix(d["alias"] if "public" in ids else "")
+                return dict(self.devices_info(c), check=d, fixing=True)
             else:
                 raise ValueError("unknown change")
             return self.devices_info(c)

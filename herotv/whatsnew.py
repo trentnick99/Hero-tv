@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.14.0": [
+        "Phone won't connect? Settings > Other devices > Check the connection finds out why (Windows Firewall, a network marked Public, a VPN).",
+        "Fix it sorts out the firewall and network type in one press - Windows asks for permission first.",
+        "Every address this PC has is listed, in case the first one is not your home network.",
+    ],
     "1.13.0": [
         "New channel 17, For You: it learns what you watch - the next episode of your shows, films you stopped half-way, and more like what you enjoyed lately.",
         "Movies play in release order: with your TMDB key, films are sorted by their real release dates, even when the file name has no year.",

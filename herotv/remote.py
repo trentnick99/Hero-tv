@@ -71,12 +71,11 @@ def lan_addresses():
         s.close()
     except OSError:
         pass
-    if not found:                               # fallback: ask for this computer's own name, but never wait long
-        box = []
-        t = threading.Thread(target=lambda: box.extend(_by_name()), daemon=True)
-        t.start()
-        t.join(2)
-        found += box
+    box = []                                    # also every other address this PC has (best guess stays first)
+    t = threading.Thread(target=lambda: box.extend(_by_name()), daemon=True)
+    t.start()
+    t.join(2 if not found else 0.5)
+    found += box
     out = []
     for a in found:
         try:
