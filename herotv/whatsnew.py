@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.14.1": [
+        "Check the connection now also explains the two-router case: if the phone's address starts differently from the PC's, they are on different routers - and how to fix it.",
+    ],
     "1.14.0": [
         "Phone won't connect? Settings > Other devices > Check the connection finds out why (Windows Firewall, a network marked Public, a VPN).",
         "Fix it sorts out the firewall and network type in one press - Windows asks for permission first.",

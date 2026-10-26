@@ -327,7 +327,10 @@ PHONE WON'T CONNECT (keeps loading)
   leaves a block), whether Windows calls your home network Public, and whether the address belongs to a VPN. "Fix
   it" removes the block, lets HERO TV in on private networks only and marks your home network Private - Windows asks
   for permission first. A PC on a cable and a phone on WiFi is fine as long as both use the same router (not a guest
-  WiFi; and the router's "AP/client isolation" must be off).
+  WiFi; and the router's "AP/client isolation" must be off). Two routers (one plugged into the other, e.g. your own
+  router behind the internet provider's) make two separate networks: the phone's WiFi IP address (iPhone: Settings >
+  Wi-Fi > (i)) must start with the same three numbers as the PC's address. If not, plug the PC into the main router,
+  put the phone on the second router's WiFi, or set the second router to Access Point / Bridge mode.
 
 CHOOSING YOUR CHANNELS
   The first time HERO TV starts it shows "Pick your channels": every starter channel (Marvel, Spider-Verse, X-Men, DC,
