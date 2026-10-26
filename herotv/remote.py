@@ -71,11 +71,7 @@ def lan_addresses():
         s.close()
     except OSError:
         pass
-    box = []                                    # also every other address this PC has (best guess stays first)
-    t = threading.Thread(target=lambda: box.extend(_by_name()), daemon=True)
-    t.start()
-    t.join(2 if not found else 0.5)
-    found += box
+    found += _other_addresses(wait=2 if not found else 0)   # also every other address this PC has (best guess stays first)
     out = []
     for a in found:
         try:
@@ -85,6 +81,27 @@ def lan_addresses():
         if ip.version == 4 and ip.is_private and not ip.is_loopback and not ip.is_link_local and a not in out:
             out.append(a)
     return out
+
+
+_names = {"at": 0.0, "addrs": [], "busy": False}
+
+
+def _other_addresses(wait=0.0):
+    """This PC's other addresses, looked up in the background and remembered for a minute (the lookup can be slow)."""
+    import time as _t
+    if _t.monotonic() - _names["at"] > 60 and not _names["busy"]:
+        _names["busy"] = True
+
+        def look():
+            try:
+                _names["addrs"] = _by_name()
+            finally:
+                _names["at"], _names["busy"] = _t.monotonic(), False
+        t = threading.Thread(target=look, daemon=True)
+        t.start()
+        if wait:
+            t.join(wait)
+    return list(_names["addrs"])
 
 
 def _by_name():
