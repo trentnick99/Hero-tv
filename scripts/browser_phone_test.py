@@ -33,13 +33,21 @@ def check(ok, what):
 
 
 def free_port():
-    for _ in range(50):
-        s = socket.socket(); s.bind(("127.0.0.1", 0)); p = s.getsockname()[1]; s.close()
-        t = socket.socket()
+    """A port whose next two (phone listener, TV media server) are free too - picked outside the range the system
+    hands out for outgoing connections, so a browser connection cannot take one of them halfway through the test."""
+    import random
+    for _ in range(200):
+        p = random.randrange(20000, 32000)
+        socks = []
         try:
-            t.bind(("0.0.0.0", p + 1)); t.close(); return p
+            for q, host in ((p, "127.0.0.1"), (p + 1, "0.0.0.0"), (p + 2, "0.0.0.0")):
+                t = socket.socket(); socks.append(t); t.bind((host, q))
+            return p
         except OSError:
-            t.close()
+            pass
+        finally:
+            for t in socks:
+                t.close()
     raise RuntimeError("no free ports")
 
 
