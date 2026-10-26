@@ -415,7 +415,7 @@ addEventListener("keydown",e=>{const k=e.key;
  if(sleeping){e.preventDefault();return wake()}
  if(neOpen()){if(k==="Enter"||k===" "){e.preventDefault();nePlay()}else if(k==="Escape"||k==="Backspace"){e.preventDefault();neStop()}return}
  if(newsOpen()){const a=document.activeElement,inPick=$("#news").dataset.kind==="lineup"&&a&&a.closest&&a.closest("#nw-l");
-  if($("#news").dataset.kind==="lineup"&&k.startsWith("Arrow")){e.preventDefault();spatialMove(k,$("#news"));return}
+  if($("#news").dataset.kind==="lineup"&&k.startsWith("Arrow")){e.preventDefault();spatialMove(k,$("#news"),true);return}
   if(inPick&&(k==="Enter"||k===" "))return;                       /* the focused channel button toggles itself */
   if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
  if(ctxIsOpen())return ctxKey(e);
@@ -423,7 +423,7 @@ addEventListener("keydown",e=>{const k=e.key;
  if(layer==="info"){const a=document.activeElement,inside=!!(a&&a.closest&&a.closest("#info")&&/^(BUTTON|INPUT|SELECT)$/.test(a.tagName));
   if(k==="Escape"||(k==="Backspace"&&!inside)||((k==="d"||k==="D")&&!inside)){e.preventDefault();const mv=$("#in-move");if(mv){mv.remove();const b=$("#in-btns button:last-child");if(b)b.focus()}else closeInfo(false)}
   else if((k==="m"||k==="M")&&!REMOTE){e.preventDefault();openMove()}
-  else if(k.startsWith("Arrow")&&!arrowOwnedByField(a,k)){e.preventDefault();spatialMove(k,$("#info"))}
+  else if(k.startsWith("Arrow")&&!arrowOwnedByField(a,k)){e.preventDefault();spatialMove(k,$("#info"),true)}
   else if(k==="Enter"&&!inside){e.preventDefault();closeInfo(true)}return}
  if((k==="d"||k==="D")&&(layer==="guide"||layer===""||vod)&&!(layer==="lib")){e.preventDefault();return openInfo()}
  if(layer==="home")return homeKey(e);
@@ -736,7 +736,7 @@ function arrowOwnedByField(a,k){if(!a)return false;const t=a.tagName,typ=(a.type
  if(t==="INPUT"&&typ==="range")return k==="ArrowLeft"||k==="ArrowRight";
  if(t==="SELECT")return k==="ArrowLeft"||k==="ArrowRight";            /* left/right change the choice, up/down leave it */
  return false}
-function spatialMove(k,root){const a=document.activeElement;
+function spatialMove(k,root,wrap){const a=document.activeElement;
  const all=[...root.querySelectorAll(FOCUSABLE)].filter(x=>x.getClientRects().length&&getComputedStyle(x).visibility!=="hidden");
  if(!all.length)return false;
  if(!a||a===document.body||!root.contains(a)){all[0].focus();all[0].scrollIntoView({block:"nearest"});return true}
@@ -748,6 +748,7 @@ function spatialMove(k,root){const a=document.activeElement;
   else if(k==="ArrowRight"){if(q.left<r.right-2&&qx<=cx+2)continue;along=qx-cx;across=Math.abs(qy-cy)}
   else{if(q.right>r.left+2&&qx>=cx-2)continue;along=cx-qx;across=Math.abs(qy-cy)}
   if(along<=0)continue;const d=along+across*2;if(d<bd){bd=d;best=n}}
+ if(!best&&wrap&&(k==="ArrowRight"||k==="ArrowLeft")){const i=all.indexOf(a);best=all[i+(k==="ArrowRight"?1:-1)]||null}   /* end of a row: on to the next one */
  if(!best)return false;best.focus({preventScroll:true});best.scrollIntoView({block:"nearest",inline:"nearest"});return true}
 function settingsKey(e){const k=e.key;
  if(k==="Escape"){e.preventDefault();if(sDirty&&!sLeave){sLeave=true;return toast("You have unsaved changes. Press Esc again to leave without saving.")}if(sCat==="chan"&&chSel!==null)return chBack();return openHome()}
