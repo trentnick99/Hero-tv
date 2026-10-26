@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.16.0": [
+        "HERO TV on your Roku TV: a real app on the TV - Up/Down changes channel, OK shows the channel list, * turns subtitles on.",
+        "Installed from this PC (Settings > Other devices > HERO TV on your Roku TV) - nothing to type on the TV, no pairing code.",
+        "HERO TV keeps the TV app up to date by itself, and what you watch on the TV counts for For You too.",
+    ],
     "1.15.0": [
         "Report a problem (Settings > Backup and about): type what happened, press Make a report, then Copy and paste it into your Claude chat.",
         "The report holds what is needed to find the cause - version, settings (keys hidden), library, channels, the network check, errors on the screen and the last log lines. Nothing is sent anywhere.",

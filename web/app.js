@@ -682,6 +682,7 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
    on.onchange=()=>devOp({op:on.checked?"enable":"disable"});c.append(l);
    if(d.enabled)c.append(el("small",0,"The first time, Windows may ask whether HERO TV may use the network: choose Allow (private networks only)."));
    main.append(c)}
+ main.append(rokuCard());
  if(d.enabled){
   { const c=tCard("Phone can't connect?","Checks this PC for the usual reasons (Windows Firewall, a network marked Public, a VPN) and fixes what it can. Ethernet on the PC and WiFi on the phone is fine - they only need the same router.");
     const ck=d.check,row=el("div","sbar"),b=sBtn("Check the connection",()=>devOp({op:"check"},b),ck?"":"pri");row.append(b);
@@ -704,7 +705,6 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
      const b=sBtn("Remove",()=>{if(!row.dataset.sure){row.dataset.sure=1;b.textContent="Press again to remove";return}devOp({op:"remove",id:x.id},b)},"warn");row.append(b);c.append(row)}
     if(d.devices.length>1){const row=el("div","sbar"),b=sBtn("Remove all",()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to remove every device";return}devOp({op:"remove-all"},b)},"warn");row.append(b);c.append(row)}
     main.append(c)}
-  main.append(rokuCard())
   main.append(tCard("Watching on the TV","On the iPhone, start a video, tap the AirPlay icon and pick your TV (on a Roku TV, AirPlay must be on: Settings > Apple AirPlay and HomeKit). Or mirror this PC: press Windows key + K and pick the TV."))}
  { const x=d.dlna||{},c=tCard("Browse your library on the TV itself","For TVs with a media player app (Roku Media Player, VLC, the 'Media' app of many smart TVs): your folders, shows and new arrivals appear there, and play straight on the TV. Watch-only: nothing can be changed through it.");
    const w=el("small",0,"Important: this standard has no pairing. While it is on, ANY device on your WiFi can see and play your videos. Leave it off on shared or public networks.");w.style.color="var(--accent)";c.append(w);

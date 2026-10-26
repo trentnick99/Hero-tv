@@ -194,6 +194,9 @@ class TvEndpointTests(unittest.TestCase):
         self.assertIsInstance(j["offset"], (int, float))
         video = self.get(f"/media/{slot['media_id']}.mkv?k={self.mk}", cookie=False)            # the extension the Roku needs
         self.assertEqual(video, b"0123456789" * 100)
+        head = urllib.request.Request(f"{self.lan}/media/{slot['media_id']}.mkv?k={self.mk}", method="HEAD")
+        with urllib.request.urlopen(head, timeout=10) as r:                                     # players ask for the size first
+            self.assertEqual((r.status, r.headers["Content-Length"], r.read()), (200, "1000", b""))
         self.assertIn(b"Hello", self.get(f"/sub/{slot['media_id']}/x0.vtt?k={self.mk}", cookie=False))
         with self.assertRaises(urllib.error.HTTPError) as cm:
             self.get("/api/tv/mcu", cookie=False)                                              # unpaired: refused

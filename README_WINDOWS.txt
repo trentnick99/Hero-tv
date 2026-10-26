@@ -322,6 +322,15 @@ FOR YOU, RELEASE ORDER AND TIME-OF-DAY TV
   hero films in prime time (20:00-23:00) and Thriller & Horror late at night (23:00-02:00) - only from what you have.
   Seasonal specials and blocks you add yourself come first. On/off: Settings > Channels > Time-of-day programming.
 
+HERO TV ON YOUR ROKU TV (a real app on the TV)
+  Once, on the TV: press Home 3 times, Up 2 times, then Right, Left, Right, Left, Right on the Roku remote. Choose
+  "Enable installer and restart", agree, and pick a password. The TV restarts. (This is Roku's free developer mode.)
+  On the PC: Settings > Other devices > HERO TV on your Roku TV > Find my Roku TV, choose it, type that password and
+  press Install on the TV. The app arrives already linked to this PC (its own watch-only key, listed under Paired
+  devices) and starts. On the TV: Up/Down = channel, OK = channel list, * = subtitles on/off, Back = leave.
+  The PC must be on with HERO TV open. HERO TV updates the TV app by itself after HERO TV updates, or when this PC
+  gets a new network address (the TV must be on). The password is kept in HERO TV's settings on this PC.
+
 PHONE WON'T CONNECT (keeps loading)
   Settings > Other devices > "Check the connection". It looks at Windows Firewall (a cancelled "Allow access?" question
   leaves a block), whether Windows calls your home network Public, and whether the address belongs to a VPN. "Fix

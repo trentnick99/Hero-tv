@@ -277,6 +277,15 @@ def make_handler(app, remote=False):
         def do_POST(self):
             self.dispatch("POST")
 
+        def do_HEAD(self):
+            """Only videos answer HEAD (TV players check the size first); everything else says 405."""
+            if urlparse(self.path).path.startswith("/media/"):
+                self.close_connection = True
+                return self.dispatch("GET")
+            self.send_response(405)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
         def remote_gate(self, method):
             """Network port only. True when the request may go on; otherwise the reply has been sent."""
             u = urlparse(self.path)
@@ -1412,6 +1421,8 @@ def make_handler(app, remote=False):
             if code == 206:
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
             self.end_headers()
+            if self.command == "HEAD":                     # TV players often ask for the size first
+                return
             with open(path, "rb") as f:
                 f.seek(start)
                 left = end - start + 1
