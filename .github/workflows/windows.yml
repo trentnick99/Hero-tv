@@ -291,7 +291,13 @@ jobs:
             grep -E "(error|warning)" bsc.log | head -40 | while read -r l; do echo "::error title=Roku app::$l"; done
             exit 1
           fi
-          echo "::notice title=Roku app::compiled without errors"
+          echo "::notice title=Roku app::compiled without errors - $(grep -v '^\s*$' bsc.log | tail -2 | tr '\n' ' ' | cut -c1-200)"
+          # the checker must really catch mistakes: a copy with a broken line has to fail
+          rm -rf broken && cp -r roku broken && printf '\nsub oops(\n    x = = 1\nend sub\n' >> broken/components/MainScene.brs
+          sed 's#"rootDir": "roku"#"rootDir": "broken"#' bsconfig.json > bsbroken.json
+          if npx bsc --project bsbroken.json > broken.log 2>&1 && ! grep -qiE "error" broken.log; then
+            echo "::error title=Roku app::the BrightScript check did not notice a broken file"; exit 1
+          fi
       - name: Package the Roku app like HERO TV does and check it
         run: |
           python3 -c "
