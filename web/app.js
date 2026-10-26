@@ -415,7 +415,7 @@ addEventListener("keydown",e=>{const k=e.key;
  if(sleeping){e.preventDefault();return wake()}
  if(neOpen()){if(k==="Enter"||k===" "){e.preventDefault();nePlay()}else if(k==="Escape"||k==="Backspace"){e.preventDefault();neStop()}return}
  if(newsOpen()){const a=document.activeElement,inPick=$("#news").dataset.kind==="lineup"&&a&&a.closest&&a.closest("#nw-l");
-  if(inPick&&k.startsWith("Arrow")){e.preventDefault();const all=[...$("#news").querySelectorAll("button")];const i=all.indexOf(a);const n=all[(i+(k==="ArrowRight"||k==="ArrowDown"?1:-1)+all.length)%all.length];if(n)n.focus();return}
+  if($("#news").dataset.kind==="lineup"&&k.startsWith("Arrow")){e.preventDefault();spatialMove(k,$("#news"));return}
   if(inPick&&(k==="Enter"||k===" "))return;                       /* the focused channel button toggles itself */
   if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
  if(ctxIsOpen())return ctxKey(e);
@@ -423,7 +423,7 @@ addEventListener("keydown",e=>{const k=e.key;
  if(layer==="info"){const a=document.activeElement,inside=!!(a&&a.closest&&a.closest("#info")&&/^(BUTTON|INPUT|SELECT)$/.test(a.tagName));
   if(k==="Escape"||(k==="Backspace"&&!inside)||((k==="d"||k==="D")&&!inside)){e.preventDefault();const mv=$("#in-move");if(mv){mv.remove();const b=$("#in-btns button:last-child");if(b)b.focus()}else closeInfo(false)}
   else if((k==="m"||k==="M")&&!REMOTE){e.preventDefault();openMove()}
-  else if(inside&&k.startsWith("Arrow")){e.preventDefault();const all=[...$("#info").querySelectorAll("button:not([disabled]),input")].filter(x=>x.offsetParent);const i=all.indexOf(a);const n=all[(i+(k==="ArrowRight"||k==="ArrowDown"?1:-1)+all.length)%all.length];if(n)n.focus()}
+  else if(k.startsWith("Arrow")&&!arrowOwnedByField(a,k)){e.preventDefault();spatialMove(k,$("#info"))}
   else if(k==="Enter"&&!inside){e.preventDefault();closeInfo(true)}return}
  if((k==="d"||k==="D")&&(layer==="guide"||layer===""||vod)&&!(layer==="lib")){e.preventDefault();return openInfo()}
  if(layer==="home")return homeKey(e);
@@ -481,9 +481,12 @@ async function sAct(name,btn){const old=btn.textContent;btn.disabled=true;btn.te
  try{const r=await pj("/api/action",{name});sMsg(r.message||"Done.","ok")}catch(e){sMsg(String(e.message||e),"err")}btn.disabled=false;btn.textContent=old}
 async function openSettings(cat){if(REMOTE)return toast("Settings are on the PC.");if(cat)sCat=cat;layer="settings";sDirty=false;sLeave=false;chList=null;chSel=null;tData=null;
  for(const id of ["#guide","#lib","#home","#help","#check","#info","#osd","#msg"])show(id,false);placePreview(false);show("#settings",true);paint($("#settings"),theme.color);
- hints($("#st-hints"),[["Tab","next control"],["← →","change section"],["Esc","back"]]);
+ hints($("#st-hints"),[["↑ ↓ ← →","move"],["Enter","choose"],["Esc","back"]]);
  try{sData=await api("/api/settings")}catch(e){sData=null}drawSettings()}
-function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textContent=main.textContent="";
+function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
+ {const a=document.activeElement;if(a&&main.contains(a)){const all=[...main.querySelectorAll(FOCUSABLE)];sKeep={cat:sCat,i:all.indexOf(a),text:a.textContent,type:a.type,top:main.scrollTop}}
+  else if(sKeep&&(sKeep.cat!==sCat||(a&&a!==document.body)))sKeep=null}       /* a "Loading..." redraw in between keeps your place */
+ nav.textContent=main.textContent="";
  for(const[k,n]of SCATS){const b=el("button",k===sCat?"on":"",n);b.type="button";b.setAttribute("role","tab");b.onclick=()=>sGo(k);b.dataset.k=k;nav.append(b)}
  if(!sData){main.append(el("div","empty","Settings could not be loaded. Make sure HERO TV is still running."));return}
  const d=sData,msg=el("div","smsg");msg.id="st-msg";
@@ -538,7 +541,11 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");nav.textConten
   main.append(sField("",d.last_backup?"Last backup: "+new Date(d.last_backup.when*1e3).toLocaleString():"No backup yet.",abl));
   const a=d.about,kv=el("div","kv");for(const[x,y]of[["HERO TV version",a.version+" (build "+a.api+")"],["Video tools (ffmpeg)",a.ffmpeg&&a.ffprobe?"installed":"MISSING - Settings > Tools > Install video tools"],["Settings file",a.settings_file],["Log file",a.log_file],["Channel files",a.config_dir]])kv.append(el("span",0,x),el("span",0,y));
   main.append(el("h3",0,"About"),kv)}
- const sel=nav.querySelector(".on");if(sel&&document.activeElement===document.body)sel.focus()}
+ if(sKeep&&sKeep.cat===sCat){const all=[...main.querySelectorAll(FOCUSABLE)].filter(x=>x.getClientRects().length);     /* keep your place after a redraw */
+  const t=all.find(x=>x.textContent===sKeep.text&&sKeep.text)||all[Math.min(sKeep.i,all.length-1)];if(t){main.scrollTop=sKeep.top;t.focus({preventScroll:true});sKeep=null;return}
+  if(!all.length)return}                                                          /* still loading: try again on the next draw */
+ sKeep=null;const sel=nav.querySelector(".on");if(sel&&(document.activeElement===document.body||!document.activeElement))sel.focus()}
+let sKeep=null;
 /* ---- one-press updates ---- */
 let updT=null;
 async function drawUpdate(box,d,u){box.textContent="";if(!u){box.append(el("small",0,"Checking..."));try{u=await api("/api/update")}catch(e){box.textContent="";box.append(el("small",0,"Could not ask about updates."));return}}
@@ -721,9 +728,35 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  main.append(bar,msg)}
 function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices")dData=null;drawSettings();$("#st-main").scrollTop=0}
 function closeSettings(){show("#settings",false);layer="";sDirty=false;sLeave=false}
+/* ---- arrow keys move between buttons and boxes by where they are on screen (TV-remote style) ---- */
+const FOCUSABLE='button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),a[href]';
+function arrowOwnedByField(a,k){if(!a)return false;const t=a.tagName,typ=(a.type||"").toLowerCase();
+ if(t==="TEXTAREA")return true;                                          /* moving the cursor in a text box */
+ if(t==="INPUT"&&!["checkbox","radio","button","submit","color","range"].includes(typ))return k==="ArrowLeft"||k==="ArrowRight";
+ if(t==="INPUT"&&typ==="range")return k==="ArrowLeft"||k==="ArrowRight";
+ if(t==="SELECT")return k==="ArrowLeft"||k==="ArrowRight";            /* left/right change the choice, up/down leave it */
+ return false}
+function spatialMove(k,root){const a=document.activeElement;
+ const all=[...root.querySelectorAll(FOCUSABLE)].filter(x=>x.getClientRects().length&&getComputedStyle(x).visibility!=="hidden");
+ if(!all.length)return false;
+ if(!a||a===document.body||!root.contains(a)){all[0].focus();all[0].scrollIntoView({block:"nearest"});return true}
+ const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let best=null,bd=Infinity;
+ for(const n of all){if(n===a)continue;const q=n.getBoundingClientRect(),qx=q.left+q.width/2,qy=q.top+q.height/2;let along,across;
+  if(k==="ArrowDown"){if(q.top<r.bottom-2&&qy<=cy+2)continue;along=qy-cy;across=(q.right<r.left||q.left>r.right)?Math.abs(qx-cx):0}
+  else if(k==="ArrowUp"){if(q.bottom>r.top+2&&qy>=cy-2)continue;along=cy-qy;across=(q.right<r.left||q.left>r.right)?Math.abs(qx-cx):0}
+  else if(q.bottom<=r.top+2||q.top>=r.bottom-2)continue;                  /* left/right: only along the same row */
+  else if(k==="ArrowRight"){if(q.left<r.right-2&&qx<=cx+2)continue;along=qx-cx;across=Math.abs(qy-cy)}
+  else{if(q.right>r.left+2&&qx>=cx-2)continue;along=cx-qx;across=Math.abs(qy-cy)}
+  if(along<=0)continue;const d=along+across*2;if(d<bd){bd=d;best=n}}
+ if(!best)return false;best.focus({preventScroll:true});best.scrollIntoView({block:"nearest",inline:"nearest"});return true}
 function settingsKey(e){const k=e.key;
  if(k==="Escape"){e.preventDefault();if(sDirty&&!sLeave){sLeave=true;return toast("You have unsaved changes. Press Esc again to leave without saving.")}if(sCat==="chan"&&chSel!==null)return chBack();return openHome()}
- if((k==="ArrowRight"||k==="ArrowLeft")&&document.activeElement&&document.activeElement.closest&&document.activeElement.closest("#st-nav")){e.preventDefault();const ks=SCATS.map(x=>x[0]),i=ks.indexOf(sCat),n=ks[(i+(k==="ArrowRight"?1:-1)+ks.length)%ks.length];sGo(n);const b=$("#st-nav .on");if(b)b.focus()}}
+ if(!k.startsWith("Arrow"))return;const a=document.activeElement,inNav=!!(a&&a.closest&&a.closest("#st-nav"));
+ if(inNav&&(k==="ArrowUp"||k==="ArrowDown")){e.preventDefault();const ks=SCATS.map(x=>x[0]),i=ks.indexOf(sCat),n=ks[(i+(k==="ArrowDown"?1:-1)+ks.length)%ks.length];sGo(n);const b=$("#st-nav .on");if(b)b.focus();return}
+ if(inNav&&k==="ArrowRight"){e.preventDefault();const f=[...$("#st-main").querySelectorAll(FOCUSABLE)].find(x=>x.getClientRects().length);if(f){f.focus({preventScroll:true});f.scrollIntoView({block:"nearest"})}return}
+ if(inNav&&k==="ArrowLeft"){e.preventDefault();return}
+ if(arrowOwnedByField(a,k))return;
+ e.preventDefault();if(!spatialMove(k,$("#st-main"))&&k==="ArrowLeft"){const b=$("#st-nav .on");if(b)b.focus()}}
 /* ---- on-screen buttons for the mouse + right-click menus ---- */
 let mbarT;function mbarInit(){const b=$("#mbar");if(b.dataset.ok)return;b.dataset.ok=1;
  for(const[t,fn]of[...(COARSE?[["Ch ▲",()=>tune(ci+1)],["Ch ▼",()=>tune(ci-1)]]:[]),["Home",()=>openHome()],["Guide",()=>openGuide()],["Library",()=>openLib()],["Details",()=>openInfo()],...(REMOTE?[]:[["Settings",()=>openSettings()]]),["Full screen",()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})]]){const x=el("button",0,t);x.type="button";x.onclick=fn;b.append(x)}}

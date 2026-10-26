@@ -118,6 +118,28 @@ def main(engine):
         check(pg.locator("#in-move").count() == 0 and pg.evaluate("document.querySelector('#info').classList.contains('on')"),
               "Esc closes the picker without moving anything (Details stay open)")
         pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        # --- Settings with the arrow keys only (TV-remote style) ---
+        pg.keyboard.press("o"); pg.wait_for_timeout(900)
+        js_in = lambda sel: pg.evaluate(f"!!(document.activeElement && document.activeElement.closest('{sel}'))")
+        check(js_in("#st-nav"), "Settings opens with the section list in focus")
+        pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(900)
+        check(pg.inner_text("#st-nav .on") == "Channels" and js_in("#st-nav"), f"Down moves to the next section ({pg.inner_text('#st-nav .on')!r})")
+        pg.keyboard.press("ArrowRight"); pg.wait_for_timeout(200)
+        first = pg.evaluate("document.activeElement.textContent")
+        check(js_in("#st-main"), f"Right goes into the section ({first!r})")
+        top = lambda: pg.evaluate("document.activeElement.getBoundingClientRect().top")
+        t0 = top(); pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(150); t1 = top()
+        check(js_in("#st-main") and t1 > t0, f"Down moves to the control below ({t0:.0f} -> {t1:.0f})")
+        pg.keyboard.press("ArrowDown"); pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(150)
+        pg.keyboard.press("ArrowUp"); pg.keyboard.press("ArrowUp"); pg.keyboard.press("ArrowUp"); pg.wait_for_timeout(150)
+        check(pg.evaluate("document.activeElement.textContent") == first, "Up comes back the same way")
+        box = pg.locator("#st-main input[type=checkbox]").first
+        box.focus(); before = box.is_checked(); pg.keyboard.press("Space"); pg.wait_for_timeout(1500)
+        check(js_in("#st-main") and pg.evaluate("document.activeElement.type") == "checkbox", "after a setting changes, the focus stays where it was")
+        pg.locator("#st-main input[type=checkbox]").first.focus(); pg.keyboard.press("Space"); pg.wait_for_timeout(1500)   # put it back
+        pg.locator("#st-main button").first.focus(); pg.keyboard.press("ArrowLeft"); pg.wait_for_timeout(150)
+        check(js_in("#st-nav"), "Left from the leftmost control goes back to the section list")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
         check(not errors, "no script errors" + (": " + "; ".join(errors[:3]) if errors else ""))
         b.close()
     srv.shutdown()

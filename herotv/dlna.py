@@ -598,11 +598,15 @@ class Server:
         if self.http:
             return
         p = port(self.app.cfg)
-        try:
-            from .server import _TVServer          # same server class, without the slow network-name lookup
-            self.http = _TVServer(("0.0.0.0", p), make_handler(self.app))
-        except OSError as e:
-            raise ValueError(f"Port {p} is busy on this PC, so the TV cannot connect ({e}).")
+        from .server import _TVServer              # same server class, without the slow network-name lookup
+        for attempt in range(8):                   # just switched off? a TV's open connection can hold the port a moment
+            try:
+                self.http = _TVServer(("0.0.0.0", p), make_handler(self.app))
+                break
+            except OSError as e:
+                if attempt == 7:
+                    raise ValueError(f"Port {p} is busy on this PC, so the TV cannot connect ({e}).")
+                time.sleep(0.4)
         self.http.daemon_threads = True
         threading.Thread(target=self.http.serve_forever, daemon=True, name="dlna-http").start()
         try:
