@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- The whole app: full-screen live TV, a channel banner, and a channel list (OK). -->
+<component name="MainScene" extends="Scene">
+  <interface>
+    <field id="exitApp" type="boolean" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/source/config.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <script type="text/brightscript" uri="MainScene.brs" />
+  <children>
+    <Rectangle id="bg" width="1920" height="1080" color="0x0b0e17FF" />
+    <Video id="video" width="1920" height="1080" translation="[0,0]" enableUI="false" />
+
+    <Group id="banner" visible="false" translation="[0,780]">
+      <Rectangle width="1920" height="300" color="0x000000C8" />
+      <Rectangle id="bnBar" width="12" height="220" translation="[90,40]" color="0xffcf1fFF" />
+      <Label id="bnNum" translation="[130,36]" width="200" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="bnChan" translation="[330,48]" width="1200" font="font:MediumSystemFont" color="0xC8CDD8FF" />
+      <Label id="bnTitle" translation="[130,110]" width="1500" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="bnTime" translation="[130,175]" width="1500" font="font:SmallSystemFont" color="0xC8CDD8FF" />
+      <Label id="bnNext" translation="[130,215]" width="1500" font="font:SmallSystemFont" color="0x9AA3B5FF" />
+      <Label id="bnHelp" translation="[1230,48]" width="600" horizAlign="right" font="font:SmallestSystemFont" color="0x9AA3B5FF"
+             text="Up/Down: channel    OK: channel list    *: subtitles" />
+    </Group>
+
+    <Group id="guide" visible="false">
+      <Rectangle width="1920" height="1080" color="0x0b0e17EE" />
+      <Label id="gStation" translation="[100,60]" width="900" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="gHint" translation="[100,125]" width="900" font="font:SmallestSystemFont" color="0x9AA3B5FF"
+             text="Up/Down: choose    OK: watch    Back: return to TV" />
+      <LabelList id="list" translation="[100,190]" itemSize="[900,72]" numRows="11" vertFocusAnimationStyle="floatingFocus" />
+      <Poster id="gPic" translation="[1080,190]" width="740" height="416" loadDisplayMode="scaleToFit" />
+      <Label id="gTitle" translation="[1080,630]" width="740" wrap="true" maxLines="2" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="gTime" translation="[1080,730]" width="740" font="font:SmallSystemFont" color="0xC8CDD8FF" />
+      <Label id="gNext" translation="[1080,780]" width="740" wrap="true" maxLines="2" font="font:SmallSystemFont" color="0x9AA3B5FF" />
+      <Label id="gDesc" translation="[1080,870]" width="740" wrap="true" maxLines="3" font="font:SmallestSystemFont" color="0x9AA3B5FF" />
+    </Group>
+
+    <Group id="msgBox" visible="false">
+      <Rectangle width="1920" height="1080" color="0x0b0e17E0" />
+      <Label id="msg" translation="[260,380]" width="1400" height="320" wrap="true" horizAlign="center" vertAlign="center"
+             font="font:MediumSystemFont" color="0xFFFFFFFF" />
+    </Group>
+
+    <Timer id="bannerTimer" duration="6" />
+    <Timer id="refreshTimer" duration="60" repeat="true" />
+    <Timer id="seenTimer" duration="30" repeat="true" />
+  </children>
+</component>

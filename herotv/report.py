@@ -40,6 +40,8 @@ def _settings():
     for k, v in sorted(d.items()):
         if any(k == s or k.endswith("_" + s) for s in SECRET_KEYS):
             out[k] = "<set>" if v else "<empty>"
+        elif k == "roku" and isinstance(v, dict):
+            out[k] = {kk: ("<set>" if kk in ("password",) else vv) for kk, vv in v.items()}
         elif k == "weather" and isinstance(v, dict):
             out[k] = {"name": v.get("name", ""), "units": v.get("units", "")}       # not the exact coordinates
         else:

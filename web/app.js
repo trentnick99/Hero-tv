@@ -644,6 +644,28 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
    if(!t.ffmpeg){const b=sBtn("Install video tools",()=>runJob({name:"ffmpeg"},b),"pri");row.append(b)}
    const b2=sBtn("Check setup",()=>runJob({name:"check"},b2));row.append(b2);
    if(t.windows){const b3=sBtn("Make a desktop shortcut",()=>runJob({name:"shortcut"},b3));row.append(b3)}c.append(row);main.append(c)}}
+/* ---- the HERO TV app on a Roku TV: found and installed from here, nothing to type on the TV ---- */
+let rData=null,rFound=null,rPick="";
+function rokuCard(){const c=tCard("HERO TV on your Roku TV","Puts a real HERO TV app on the TV: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK shows the channel list. This PC does the work, so it must be on with HERO TV open.");
+ if(!rData){c.append(el("small",0,"Loading..."));api("/api/roku").then(j=>{rData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return c}
+ const r=rData,sv=r.saved;
+ if(!r.app_files){c.append(el("small","err","The Roku app files are missing from this HERO TV folder. Reinstall HERO TV."));return c}
+ if(sv&&sv.ip){c.append(el("b",0,`Installed on ${sv.name||"your Roku TV"} (${sv.ip}) - version ${sv.installed||"?"}`));
+  c.append(el("small",0,r.needs_update?`It will be updated by itself (${r.needs_update}) the next time the TV is on - or press Update now.`:"HERO TV keeps it up to date by itself when HERO TV updates."))}
+ else{const ol=el("ol","rsteps");for(const t of["On the TV's remote press: Home 3 times, Up 2 times, then Right, Left, Right, Left, Right.","On the screen that opens, choose Enable installer and restart, agree, and pick a password (write it down). The TV restarts.","Back here: press Find my Roku TV, choose it, type that password and press Install on the TV."])ol.append(el("li",0,t));c.append(ol)}
+ const row=el("div","sbar");
+ const find=sBtn("Find my Roku TV",async()=>{find.disabled=true;sMsg("Looking for Roku TVs on your network...");try{const j=await pj("/api/roku",{op:"find"});rData=j;rFound=j.found;if(rFound.length===1)rPick=rFound[0].ip;sMsg(rFound.length?"":"No Roku TV answered. Is it on? You can also type its address (TV: Settings > Network > About).",rFound.length?"ok":"err");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");find.disabled=false}},sv?"":"pri");row.append(find);c.append(row);
+ if(rFound&&rFound.length){const box=el("div","picks");for(const t of rFound){const b=sBtn(`${t.name}${t.model?" - "+t.model:""} (${t.ip})${t.dev===false?" - developer mode is OFF":""}`,()=>{rPick=t.ip;drawSettings()});b.classList.toggle("on",rPick===t.ip);box.append(b)}c.append(box)}
+ const ip=el("input");ip.type="text";ip.placeholder="TV address, e.g. 192.168.12.40";ip.value=rPick||(sv&&sv.ip)||"";ip.autocomplete="off";ip.style.width="18vw";
+ const pw=el("input");pw.type="password";pw.placeholder=r.has_password?"(remembered)":"developer password from the TV";pw.autocomplete="off";pw.style.width="18vw";
+ const form=el("div","sbar");form.append(ip,pw);
+ const go=sBtn(sv&&sv.ip?"Update now":"Install on the TV",async()=>{go.disabled=true;sMsg("Building the app and sending it to the TV (about 10 seconds)...");
+  try{const j=await pj("/api/roku",{op:"install",ip:ip.value.trim(),password:pw.value||(r.has_password&&sv&&sv.ip===ip.value.trim()?"__saved__":""),name:(rFound||[]).find(x=>x.ip===ip.value.trim())?.name||""});
+   rData=j;dData=null;sMsg(`Done - the HERO TV app is ${j.done.result} on the TV`+(j.done.started?" and starting now.":". Open it from the TV's home screen (it is called HERO TV)."),"ok");drawSettings()}
+  catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");go.disabled=false}},"pri");form.append(go);c.append(form);
+ c.append(el("small",0,"The password is remembered on this PC so HERO TV can update the TV app by itself. The TV gets its own watch-only key (listed under Paired devices)."));
+ if(sv&&sv.ip){const f=sBtn("Remove the TV from HERO TV",async()=>{if(!c.dataset.sure){c.dataset.sure=1;f.textContent="Press again to remove";return}try{rData=await pj("/api/roku",{op:"forget"});dData=null;sMsg("Removed. The app stays on the TV but can no longer watch until you install it again.","ok");drawSettings()}catch(e){sMsg(String(e.message||e),"err")}},"warn");const r2=el("div","sbar");r2.append(f);c.append(r2)}
+ return c}
 /* ---- Other devices: watch on a phone/laptop on the home WiFi (paired, watch-only) ---- */
 let dData=null,devT=null;
 async function devOp(body,btn){if(btn)btn.disabled=true;sMsg("");try{dData=await pj("/api/devices",body);drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}if(btn)btn.disabled=false}
@@ -682,6 +704,7 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
      const b=sBtn("Remove",()=>{if(!row.dataset.sure){row.dataset.sure=1;b.textContent="Press again to remove";return}devOp({op:"remove",id:x.id},b)},"warn");row.append(b);c.append(row)}
     if(d.devices.length>1){const row=el("div","sbar"),b=sBtn("Remove all",()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to remove every device";return}devOp({op:"remove-all"},b)},"warn");row.append(b);c.append(row)}
     main.append(c)}
+  main.append(rokuCard())
   main.append(tCard("Watching on the TV","On the iPhone, start a video, tap the AirPlay icon and pick your TV (on a Roku TV, AirPlay must be on: Settings > Apple AirPlay and HomeKit). Or mirror this PC: press Windows key + K and pick the TV."))}
  { const x=d.dlna||{},c=tCard("Browse your library on the TV itself","For TVs with a media player app (Roku Media Player, VLC, the 'Media' app of many smart TVs): your folders, shows and new arrivals appear there, and play straight on the TV. Watch-only: nothing can be changed through it.");
    const w=el("small",0,"Important: this standard has no pairing. While it is on, ANY device on your WiFi can see and play your videos. Leave it off on shared or public networks.");w.style.color="var(--accent)";c.append(w);
@@ -740,7 +763,7 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  bar.append(sBtn(isNew?"Create channel":"Save",()=>isNew?chPost(Object.assign({op:"add"},payload()),"Channel created.",true):chPost(Object.assign({op:"save",id:c.id},payload()),"Saved."),"pri"),sBtn("Back to the list",()=>{if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}chBack()}));
  if(!isNew)bar.append(sBtn("Delete this channel",()=>{if(!bar.dataset.sure){bar.dataset.sure=1;sMsg("Press Delete again to remove this channel from the guide. Your videos are not touched.","err");return}chPost({op:"delete",id:c.id},"Channel deleted.",true)},"warn"));
  main.append(bar,msg)}
-function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices")dData=null;drawSettings();$("#st-main").scrollTop=0}
+function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null}drawSettings();$("#st-main").scrollTop=0}
 function closeSettings(){show("#settings",false);layer="";sDirty=false;sLeave=false}
 /* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
 function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;

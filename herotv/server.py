@@ -493,6 +493,12 @@ def make_handler(app, remote=False):
             app.lib_note = "channels updated"
             return res
 
+        def roku_info(self):
+            from . import roku
+            r = roku.saved()
+            return {"saved": {k: v for k, v in r.items() if k != "password"} if r else None, "has_password": bool(r.get("password")),
+                    "needs_update": roku.needs_update(app.cfg), "lan": R.enabled(), "app_files": (roku.APP_DIR / "manifest").is_file()}
+
         def move_channels(self):
             """Channels a video can be put on by hand (ones with their own match rule, not Weather or Hero Marathon)."""
             from . import sortrules
@@ -890,6 +896,36 @@ def make_handler(app, remote=False):
                 except OSError:
                     f = ""
                 return self.send_json({"text": text, "file": f})
+            if p == "roku":                                   # HERO TV app on a Roku TV (PC only)
+                from . import roku
+                if method == "POST":
+                    b = self.body()
+                    op = b.get("op")
+                    if op == "find":
+                        return self.send_json(dict(self.roku_info(), found=roku.discover()))
+                    if op == "check":
+                        info = roku.device_info(str(b.get("ip") or "").strip())
+                        if info is None:
+                            raise ValueError("No Roku answered at that address. Check it on the TV: Settings > Network > About.")
+                        return self.send_json(dict(self.roku_info(), found=[info]))
+                    if op == "install":
+                        ip = str(b.get("ip") or "").strip()
+                        if not R.enabled():                     # the TV watches through the paired-devices listener
+                            R.set_enabled(True)
+                        app.start_lan()
+                        pw = str(b.get("password") or "")
+                        if pw == "__saved__":                   # "(remembered)": the password kept from last time
+                            pw = roku.saved().get("password", "") if roku.saved().get("ip") == ip else ""
+                        res = roku.install_on_tv(c, app.cfg, ip, pw, str(b.get("name") or "")[:40])
+                        return self.send_json(dict(self.roku_info(), done=res))
+                    if op == "forget":
+                        r = roku.saved()
+                        if r.get("key_id"):
+                            R.remove(c, r["key_id"])
+                        roku.forget()
+                        return self.send_json(self.roku_info())
+                    raise ValueError("unknown request")
+                return self.send_json(self.roku_info())
             if p == "update":                                 # one-press updates (PC only: not in the phone allowlist)
                 from . import selfupdate
                 if method == "POST":
@@ -918,6 +954,34 @@ def make_handler(app, remote=False):
                                 "now": S.slot_dict(S.current(c, ch["id"], now), tz),
                                 "next": S.slot_dict(S.following(c, ch["id"], now + 1), tz)})
                 return self.send_json({"now": now, "tz": js_zone(tz), "notice": NOTICE, "channels": out})
+            if p.startswith("tv/"):                           # what is on a channel, for the Roku app
+                cid = p[3:]
+                cur = S.current(c, cid, now)
+                if cur is None:
+                    ch = c.execute("SELECT * FROM channels WHERE id=?", (cid,)).fetchone()
+                    if ch is None:
+                        return self.send_json({"error": "unknown channel"}, 404)
+                    S.extend(c, ch, now, app.horizon(), app.tz)
+                    cur = S.current(c, cid, now)
+                nxt = S.following(c, cid, cur["end"] if cur else now)
+
+                def tv_slot(row):
+                    d = S.slot_dict(row, tz)
+                    if d is None:
+                        return None
+                    m = c.execute("SELECT path FROM media WHERE id=?", (d["media_id"],)).fetchone()
+                    d["ext"] = os.path.splitext(m["path"])[1].lstrip(".").lower() if m else ""
+                    d["subs"] = []
+                    if m and os.path.isfile(m["path"]):
+                        from . import subtitles
+                        try:
+                            d["subs"] = [{"url": f"/sub/{d['media_id']}/{t['key']}.vtt", "language": t.get("language") or "",
+                                          "label": t.get("label") or "Subtitles"} for t in subtitles.tracks(m["path"])["tracks"]]
+                        except Exception:
+                            d["subs"] = []
+                    return d
+                return self.send_json({"now": now, "slot": tv_slot(cur), "next": S.slot_dict(nxt, tz),
+                                       "offset": (now - cur["start"]) if cur else None})
             if p.startswith("channel/") and p.endswith("/now"):
                 cid = p[8:-4]
                 cur = S.current(c, cid, now)
@@ -1296,6 +1360,7 @@ def make_handler(app, remote=False):
             return {"action": action}
 
         def media(self, mid):
+            mid = mid.split(".", 1)[0]                     # /media/123.mkv (the Roku app wants a file extension)
             try:
                 mid = int(mid)
             except (TypeError, ValueError):
@@ -1359,6 +1424,29 @@ def make_handler(app, remote=False):
     return H
 
 
+def roku_keeper(app, first=90, every=6 * 3600):
+    """Keep the HERO TV app on the Roku TV current: after HERO TV updated, or when this PC got a new address, the app
+    is rebuilt and reinstalled by itself (the TV must be on; otherwise it tries again later)."""
+    def loop():
+        time.sleep(first)
+        while True:
+            try:
+                from . import roku
+                why = roku.needs_update(app.cfg)
+                if why:
+                    r = roku.saved()
+                    c = app.db()
+                    try:
+                        roku.install_on_tv(c, app.cfg, r["ip"], r["password"], r.get("name", ""), launcher=lambda ip: False)
+                        print(f"Roku TV app updated ({why}).", flush=True)
+                    finally:
+                        c.close()
+            except Exception as e:
+                print(f"Roku TV app not updated yet: {e}", flush=True)
+            time.sleep(every)
+    threading.Thread(target=loop, daemon=True, name="roku-keeper").start()
+
+
 def watch_heartbeat(app, idle_s=150, never_s=300):
     """Quiet mode (no console window): turn the TV off by itself once its window has been closed for a while."""
     def loop():
@@ -1415,6 +1503,7 @@ def serve(cfg):
     app.update_note = selfupdate.take_last_error()
     if os.environ.get("HEROTV_NO_UPDATE_CHECK") != "1":
         selfupdate.watch_forever()
+        roku_keeper(app)
     srv = _TVServer((cfg.host, cfg.port), make_handler(app))
     srv.daemon_threads = True
     app.stop = lambda: threading.Thread(target=srv.shutdown, daemon=True).start()

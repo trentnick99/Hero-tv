@@ -23,7 +23,7 @@ COOKIE = "herotv_dev"
 # What a paired device may use. Everything else on the network port answers 403.
 REMOTE_GET_API = {"channels", "guide", "library", "info", "now", "prefs", "skip", "theme", "weather", "weather/alerts",
                   "health", "hb", "checklist", "help", "device"}
-REMOTE_GET_API_PREFIX = ("info/", "subs/", "skip/", "channel/", "progress/", "next/", "missing/")
+REMOTE_GET_API_PREFIX = ("info/", "subs/", "skip/", "channel/", "progress/", "next/", "missing/", "tv/")
 REMOTE_POST_API = {"progress", "favorite", "seen", "prefs"}    # prefs from a phone are answered but never saved
 OPEN_PATHS = {"/pair", "/pair.html", "/api/pair"}            # usable before pairing
 
@@ -163,6 +163,28 @@ def pair(conn, code, name="", ip="", now=None):
                  (_h(token), mkey, (str(name or "").strip() or "Device")[:60], int(now), int(now), ip))
     conn.commit()
     return token, mkey
+
+
+def add_device(conn, name, ip="", now=None):
+    """A device paired by the PC itself (e.g. the Roku app HERO TV installs): no code to type. Returns (token, media_key)."""
+    now = now or time.time()
+    token, mkey = secrets.token_urlsafe(32), secrets.token_urlsafe(18)
+    ensure(conn)
+    conn.execute("INSERT INTO devices(token_hash,media_key,name,created,last_seen,ip) VALUES(?,?,?,?,?,?)",
+                 (_h(token), mkey, (str(name or "").strip() or "Device")[:60], int(now), int(now), ip))
+    conn.commit()
+    return token, mkey
+
+
+def id_for(token):
+    """The short id Settings shows for a device (see devices())."""
+    return _h(token)[:12]
+
+
+def remove_token(conn, token):
+    ensure(conn)
+    conn.execute("DELETE FROM devices WHERE token_hash=?", (_h(token),))
+    conn.commit()
 
 
 def device_for(conn, token):

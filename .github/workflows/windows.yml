@@ -43,7 +43,7 @@ jobs:
           $pkg = "package\HERO TV"
           New-Item -ItemType Directory -Force $pkg | Out-Null
           Copy-Item -Recurse dist\HERO-TV\* $pkg
-          foreach ($item in "herotv","web","config","assets","scripts","app_entry.py","README.md","README_WINDOWS.txt","requirements-optional.txt") {
+          foreach ($item in "herotv","web","config","assets","scripts","roku","app_entry.py","README.md","README_WINDOWS.txt","requirements-optional.txt") {
             Copy-Item -Recurse $item $pkg
           }
           Copy-Item *.bat $pkg
@@ -265,9 +265,48 @@ jobs:
           path: "*.png"
           retention-days: 14
 
+  roku-app:
+    name: Roku TV app (BrightScript compiler and lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+      - name: Compile the Roku app with the BrightScript compiler
+        run: |
+          set -o pipefail
+          npm i --no-audit --no-fund brighterscript@0.69 @rokucommunity/bslint@0.8 > /dev/null
+          cat > bsconfig.json <<'JSON'
+          {"rootDir": "roku", "files": ["manifest", "source/**/*", "components/**/*", "images/**/*"],
+           "createPackage": false, "diagnosticFilters": [], "plugins": ["@rokucommunity/bslint"]}
+          JSON
+          cat > bslint.json <<'JSON'
+          {"rules": {"inline-if-style": "off", "block-if-style": "off", "condition-style": "off", "named-function-style": "off",
+                     "anon-function-style": "off", "aa-comma-style": "off", "case-sensitivity": "off", "unused-variable": "warn",
+                     "unreachable-code": "warn", "consistent-return": "error", "assign-all-paths": "error"}}
+          JSON
+          npx bsc --project bsconfig.json 2>&1 | tee bsc.log
+          if grep -E "error|ERROR" bsc.log | grep -v " 0 errors"; then
+            grep -E "(error|warning)" bsc.log | head -40 | while read -r l; do echo "::error title=Roku app::$l"; done
+            exit 1
+          fi
+          echo "::notice title=Roku app::compiled without errors"
+      - name: Package the Roku app like HERO TV does and check it
+        run: |
+          python3 -c "
+          import io, zipfile, sys
+          sys.path.insert(0, '.')
+          from herotv import roku
+          z = zipfile.ZipFile(io.BytesIO(roku.build_zip('http://192.168.1.2:8788', 'tok', 'mk')))
+          n = z.namelist()
+          assert 'manifest' in n and 'source/main.brs' in n and 'components/MainScene.xml' in n, n
+          print('Roku package:', len(n), 'files,', sum(i.file_size for i in z.infolist()), 'bytes')
+          "
+
   release:
     # Publishes only when BOTH the Windows checks and the Safari-engine checks passed, and the version is new.
-    needs: [windows, safari-engine]
+    needs: [windows, safari-engine, roku-app]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

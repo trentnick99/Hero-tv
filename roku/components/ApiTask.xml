@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- One request to HERO TV on the PC (network calls must run outside the screen thread). -->
+<component name="ApiTask" extends="Task">
+  <interface>
+    <field id="path" type="string" />
+    <field id="method" type="string" value="GET" />
+    <field id="body" type="string" />
+    <field id="tag" type="string" />
+    <field id="result" type="assocarray" />
+    <field id="error" type="string" />
+    <field id="done" type="boolean" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/source/config.brs" />
+  <script type="text/brightscript" uri="pkg:/source/util.brs" />
+  <script type="text/brightscript" uri="ApiTask.brs" />
+</component>

@@ -252,3 +252,5 @@ body.cue-yellow video::cue{color:#ffe14d}
 #news .picks .sbtn.on{opacity:1;text-decoration:none;background:var(--accent);color:var(--on);border-color:var(--accent);font-weight:700}
 #news .picks .sbtn.on::before{content:"\2713  "}#news .card{max-height:90vh;overflow:auto}
 .chrow.off{opacity:.55}
+.rsteps{margin:.2vh 0 .4vh 1.2vw;padding-left:1em;display:flex;flex-direction:column;gap:.6vh;font-size:calc(1.9vh*var(--tx))}
+.tcard .picks{display:flex;flex-wrap:wrap;gap:.8vh .6vw}.tcard .picks .sbtn.on{background:var(--accent);color:var(--on);border-color:var(--accent);font-weight:700}
