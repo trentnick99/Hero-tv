@@ -193,8 +193,9 @@ function homeKey(e){const k=e.key,cols=getComputedStyle($("#tiles")).gridTemplat
  const mv=d=>{e.preventDefault();hi=Math.max(0,Math.min(homeList.length-1,hi+d));drawHome()};
  if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);
  else if(k==="ArrowDown"||k==="ArrowUp"){e.preventDefault();const ts=[...$("#tiles").children],r0=ts[hi]&&ts[hi].getBoundingClientRect();if(!r0)return;
-  const down=k==="ArrowDown",cx=r0.left+r0.width/2;let best=-1,bd=1e9;
-  ts.forEach((n,i)=>{const r=n.getBoundingClientRect();if(down?r.top<=r0.top+2:r.top>=r0.top-2)return;const dy=Math.abs(r.top-r0.top),dx=Math.abs(r.left+r.width/2-cx),d=dy*4+dx;if(d<bd){bd=d;best=i}});
+  const cx=r0.left+r0.width/2;let best=-1,bd=1e9;
+  ts.forEach((n,i)=>{if(i===hi)return;const r=n.getBoundingClientRect();if(!inDir(r0,r,k))return;     /* the nearest tile in the row above/below */
+   const dy=Math.abs(r.top+r.height/2-r0.top-r0.height/2),dx=overlapX(r0,r)?Math.abs(r.left+r.width/2-cx)*.1:Math.abs(r.left+r.width/2-cx),d=dy*4+dx;if(d<bd){bd=d;best=i}});
   if(best>=0){hi=best;drawHome()}}
  else if(k==="Enter"){e.preventDefault();const t=homeList[hi];if(t){t.go();if(t.stay)drawHome()}}}
 let ck={data:null,i:0};
@@ -728,6 +729,12 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  main.append(bar,msg)}
 function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices")dData=null;drawSettings();$("#st-main").scrollTop=0}
 function closeSettings(){show("#settings",false);layer="";sDirty=false;sLeave=false}
+/* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
+function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;
+ if(k==="ArrowUp")return q.bottom<=r.bottom-r.height*.5&&q.top+q.height/2<r.top+r.height/2;
+ if(k==="ArrowRight")return q.left>=r.left+r.width*.5;return q.right<=r.right-r.width*.5}
+const sameRow=(r,q)=>q.top<r.bottom-Math.min(r.height,q.height)*.5&&q.bottom>r.top+Math.min(r.height,q.height)*.5;
+const overlapX=(r,q)=>q.left<r.right&&q.right>r.left;
 /* ---- arrow keys move between buttons and boxes by where they are on screen (TV-remote style) ---- */
 const FOCUSABLE='button:not([disabled]),input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),a[href]';
 function arrowOwnedByField(a,k){if(!a)return false;const t=a.tagName,typ=(a.type||"").toLowerCase();
@@ -742,11 +749,9 @@ function spatialMove(k,root,wrap){const a=document.activeElement;
  if(!a||a===document.body||!root.contains(a)){all[0].focus();all[0].scrollIntoView({block:"nearest"});return true}
  const r=a.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;let best=null,bd=Infinity;
  for(const n of all){if(n===a)continue;const q=n.getBoundingClientRect(),qx=q.left+q.width/2,qy=q.top+q.height/2;let along,across;
-  if(k==="ArrowDown"){if(q.top<r.bottom-2&&qy<=cy+2)continue;along=qy-cy;across=(q.right<r.left||q.left>r.right)?Math.abs(qx-cx):0}
-  else if(k==="ArrowUp"){if(q.bottom>r.top+2&&qy>=cy-2)continue;along=cy-qy;across=(q.right<r.left||q.left>r.right)?Math.abs(qx-cx):0}
-  else if(q.bottom<=r.top+2||q.top>=r.bottom-2)continue;                  /* left/right: only along the same row */
-  else if(k==="ArrowRight"){if(q.left<r.right-2&&qx<=cx+2)continue;along=qx-cx;across=Math.abs(qy-cy)}
-  else{if(q.right>r.left+2&&qx>=cx-2)continue;along=cx-qx;across=Math.abs(qy-cy)}
+  if(!inDir(r,q,k))continue;
+  if(k==="ArrowDown"||k==="ArrowUp"){along=Math.abs(qy-cy);across=overlapX(r,q)?0:Math.abs(qx-cx)}
+  else{if(!sameRow(r,q))continue;along=Math.abs(qx-cx);across=Math.abs(qy-cy)}                  /* left/right: only along the same row */
   if(along<=0)continue;const d=along+across*2;if(d<bd){bd=d;best=n}}
  if(!best&&wrap&&(k==="ArrowRight"||k==="ArrowLeft")){const i=all.indexOf(a);best=all[i+(k==="ArrowRight"?1:-1)]||null}   /* end of a row: on to the next one */
  if(!best)return false;best.focus({preventScroll:true});best.scrollIntoView({block:"nearest",inline:"nearest"});return true}

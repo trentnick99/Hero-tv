@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.14.3": [
+        "Home menu: Down and Up now move between rows properly (the wide Live TV tile confused them before).",
+    ],
     "1.14.2": [
         "Arrow keys work properly in Settings: up/down to pick a section, right to go in, then the arrows move to the button or box in that direction (left from the edge goes back).",
         "Changing a setting no longer throws you back to the top - you stay where you were.",

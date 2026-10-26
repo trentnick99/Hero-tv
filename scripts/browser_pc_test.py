@@ -79,6 +79,13 @@ def main(engine):
         check("south-park" not in tv and "invincible" in tv, "a switched-off channel is gone from the TV's channel list")
         pg.keyboard.press("h"); pg.wait_for_timeout(1500)
         tiles = pg.inner_text("#tiles")
+        sel_top = lambda: pg.evaluate("document.querySelector('#tiles .tl.sel').getBoundingClientRect().top")
+        start = pg.inner_text("#tiles .tl.sel b"); y0 = sel_top()
+        pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200); y1 = sel_top()
+        pg.keyboard.press("ArrowDown"); pg.wait_for_timeout(200); y2 = sel_top()
+        pg.keyboard.press("ArrowUp"); pg.keyboard.press("ArrowUp"); pg.wait_for_timeout(200)
+        check(y0 + 20 < y1 < y2 - 20 and pg.inner_text("#tiles .tl.sel b") == start,
+              f"Home: Down goes down a row each time and Up comes back ({y0:.0f} -> {y1:.0f} -> {y2:.0f}, back on {pg.inner_text('#tiles .tl.sel b')!r})")
         check("New in your library" in tiles and "3 new" in tiles, "Home shows 'New in your library'")
         pg.click("#tiles >> text=New in your library"); pg.wait_for_timeout(1200)
         tabs = pg.inner_text("#l-tabs")
