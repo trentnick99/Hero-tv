@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.28.1": [
+        "Update checks that fail with 'a security certificate was refused' try again the safe way: Windows is asked to check GitHub once (it then fetches a root certificate it was missing), then HERO TV's own up-to-date list of trusted certificates. Nothing is ever left unchecked.",
+        "Roku TVs: the HERO TV app on them is brought up to date every half hour until it is done (no longer only every 6 hours), and never while you are watching HERO TV on that TV.",
+        "Quieter log: a TV or phone stopping a video no longer writes error lines.",
+    ],
     "1.28.0": [
         "A new look: easy-to-read text and TV-style condensed titles and channel numbers (free fonts, built in).",
         "Pictures in the guide: a still of the show you are on, with a soft blurred copy behind the guide - on the PC, phones and the Roku app.",

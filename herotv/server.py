@@ -198,6 +198,13 @@ class _TVServer(ThreadingHTTPServer):
     request_queue_size = 128
     daemon_threads = True
 
+    def handle_error(self, request, client_address):
+        # A TV, phone or browser that stops a video half-way closes its connection: normal, not worth a log entry.
+        e = sys.exc_info()[1]
+        if isinstance(e, (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, TimeoutError)):
+            return
+        super().handle_error(request, client_address)
+
     def server_bind(self):
         # The standard version looks up this computer's full network name (getfqdn), which can hang for half a
         # minute on some networks. Nothing here needs it.
@@ -1589,29 +1596,40 @@ def make_handler(app, remote=False):
     return H
 
 
-def roku_keeper(app, first=90, every=6 * 3600):
+ROKU_KICK = threading.Event()             # set to check the Roku TVs again at once
+
+
+def roku_keeper(app, first=90, every=6 * 3600, retry=1800):
     """Keep the HERO TV app on the Roku TV current: after HERO TV updated, or when this PC got a new address, the app
-    is rebuilt and reinstalled by itself (the TV must be on; otherwise it tries again later)."""
+    is rebuilt and reinstalled by itself. The TV must be on (or in quick-start standby), and HERO TV must not be open
+    on it right now (installing closes the app): while one is waiting it tries every half hour."""
     def loop():
         time.sleep(first)
         while True:
+            pending = False
             try:
                 from . import roku
                 for tv in roku.tvs():                              # every Roku TV in the house
                     why = roku.needs_update(app.cfg, tv)
                     if not why:
                         continue
+                    if roku.active_app(tv["ip"]) == "dev":     # someone is watching HERO TV on it: later
+                        pending = True
+                        continue
                     c = app.db()
                     try:
                         roku.install_on_tv(c, app.cfg, tv["ip"], tv["password"], tv.get("name", ""), launcher=lambda ip: False)
                         print(f"Roku TV app updated on {tv.get('name') or tv['ip']} ({why}).", flush=True)
                     except Exception as e:
+                        pending = True
                         print(f"Roku TV app on {tv.get('name') or tv['ip']} not updated yet: {e}", flush=True)
                     finally:
                         c.close()
             except Exception as e:
+                pending = True
                 print(f"Roku TV app not updated yet: {e}", flush=True)
-            time.sleep(every)
+            ROKU_KICK.clear()
+            ROKU_KICK.wait(retry if pending else every)
     threading.Thread(target=loop, daemon=True, name="roku-keeper").start()
 
 

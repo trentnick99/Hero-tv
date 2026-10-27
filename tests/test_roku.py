@@ -173,6 +173,36 @@ class RokuTests(unittest.TestCase):
         self.assertEqual(roku.needs_update(self.cfg, tv), "this PC's network address changed")
 
 
+class ActiveAppTests(unittest.TestCase):
+    def test_active_app(self):
+        dev = b'<active-app><app id="dev" type="appl" version="1.28.0">HERO TV</app></active-app>'
+        home = b'<active-app><app>Roku</app></active-app>'
+        self.assertEqual(roku.active_app("192.168.1.5", fetch=lambda u: dev), "dev")
+        self.assertEqual(roku.active_app("192.168.1.5", fetch=lambda u: home), "")
+        self.assertEqual(roku.active_app("8.8.8.8", fetch=lambda u: dev), "")          # not a home address
+
+
+class NetTests(unittest.TestCase):
+    def test_certificate_retries_stay_verified(self):
+        import ssl
+        import urllib.error
+        from herotv import net
+        calls = []
+
+        def fake_open(req, timeout=None, context=None):
+            calls.append(context)
+            if len(calls) < 3:
+                raise urllib.error.URLError(ssl.SSLCertVerificationError("CERTIFICATE_VERIFY_FAILED"))
+            return "ok"
+        with mock.patch.object(urllib.request, "urlopen", fake_open):
+            r = net.urlopen("https://api.github.com/x", _win=lambda u: True, _roots=lambda: ssl.get_default_verify_paths().cafile or __file__)
+        self.assertEqual(r, "ok")
+        self.assertTrue(all(c.verify_mode == ssl.CERT_REQUIRED and c.check_hostname for c in calls))
+        with mock.patch.object(urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(urllib.error.URLError("no route"))):
+            with self.assertRaises(urllib.error.URLError):
+                net.urlopen("https://x", _win=lambda u: self.fail("not a certificate problem"))
+
+
 class TvEndpointTests(unittest.TestCase):
     """What the Roku app asks the PC, through the paired-devices listener."""
     def setUp(self):

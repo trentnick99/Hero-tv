@@ -178,6 +178,19 @@ def install(ip, password, zip_bytes, opener=None):
     raise ValueError("The TV could not install the app" + (f": {m.group(1).strip()}" if m else "."))
 
 
+def active_app(ip, fetch=None):
+    """The id of the app open on the TV right now ("dev" = HERO TV), or "" when unknown / the TV does not answer."""
+    if not _ip_ok(ip):
+        return ""
+    try:
+        raw = (fetch or (lambda u: _opener().open(u, timeout=4).read()))(f"http://{ip}:8060/query/active-app")
+        root = ET.fromstring(raw)
+    except (OSError, ET.ParseError, urllib.error.URLError):
+        return ""
+    a = root.find("app")
+    return (a.get("id") or "") if a is not None else ""
+
+
 def launch(ip, opener=None):
     try:
         (opener or _opener()).open(urllib.request.Request(f"http://{ip}:8060/launch/dev", data=b"", method="POST"), timeout=5).read()
