@@ -125,6 +125,29 @@ def main(engine):
         check(pg.locator("#in-move").count() == 0 and pg.evaluate("document.querySelector('#info').classList.contains('on')"),
               "Esc closes the picker without moving anything (Details stay open)")
         pg.keyboard.press("Escape"); pg.wait_for_timeout(300)
+        # --- reminders: R in the guide, then the "starting now" card switches channel ---
+        pg.keyboard.press("g"); pg.wait_for_timeout(1500)
+        for _ in range(3):                      # a show well ahead (the test episodes are only 12 seconds long)
+            pg.keyboard.press("ArrowRight"); pg.wait_for_timeout(200)
+        pg.keyboard.press("r"); pg.wait_for_timeout(800)
+        check(pg.locator("#grid .blk.rem").count() == 1, "R in the guide sets a reminder on a later show")
+        pg.keyboard.press("r"); pg.wait_for_timeout(800)
+        check(pg.locator("#grid .blk.rem").count() == 0, "R again removes it")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
+        watching = pg.evaluate("localStorage.getItem('ch')")
+        other = next(x for x in ("marathon", "for-you", "invincible") if x != watching)     # a channel you are not on
+        cur = json.loads(urllib.request.urlopen(base + f"/api/channel/{other}/now").read())["slot"]
+        rq = urllib.request.Request(base + "/api/reminders", json.dumps({"channel": other, "start": cur["start"]}).encode(),
+                                    {"Content-Type": "application/json"})
+        urllib.request.urlopen(rq).read()
+        for _ in range(60):
+            if pg.evaluate("!!document.querySelector('#remind.on')"):
+                break
+            pg.wait_for_timeout(500)
+        check(pg.evaluate("!!document.querySelector('#remind.on')"), "a due reminder shows 'starting now' on the TV")
+        pg.keyboard.press("Enter"); pg.wait_for_timeout(1500)
+        tuned = pg.evaluate("localStorage.getItem('ch')")
+        check(tuned == other and not pg.evaluate("!!document.querySelector('#remind.on')"), f"Enter switches to that channel ({tuned})")
         # --- Settings with the arrow keys only (TV-remote style) ---
         pg.keyboard.press("o"); pg.wait_for_timeout(900)
         js_in = lambda sel: pg.evaluate(f"!!(document.activeElement && document.activeElement.closest('{sel}'))")

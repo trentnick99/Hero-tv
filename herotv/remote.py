@@ -22,9 +22,9 @@ COOKIE = "herotv_dev"
 
 # What a paired device may use. Everything else on the network port answers 403.
 REMOTE_GET_API = {"channels", "guide", "library", "info", "now", "prefs", "skip", "theme", "weather", "weather/alerts",
-                  "health", "hb", "checklist", "help", "device"}
+                  "health", "hb", "checklist", "help", "device", "reminders"}
 REMOTE_GET_API_PREFIX = ("info/", "subs/", "skip/", "channel/", "progress/", "next/", "missing/", "tv/")
-REMOTE_POST_API = {"progress", "favorite", "seen", "prefs"}    # prefs from a phone are answered but never saved
+REMOTE_POST_API = {"progress", "favorite", "seen", "prefs", "reminders"}    # prefs from a phone are answered but never saved
 OPEN_PATHS = {"/pair", "/pair.html", "/api/pair"}            # usable before pairing
 
 SCHEMA = """CREATE TABLE IF NOT EXISTS devices(token_hash TEXT PRIMARY KEY, media_key TEXT UNIQUE, name TEXT,

@@ -42,6 +42,24 @@ sub init()
     m.seenTimer.observeField("fire", "reportSeen")
     m.refreshTimer.control = "start"
     m.seenTimer.control = "start"
+    m.skew = 0
+    m.live = true
+    m.nextSlot = invalid
+    m.upShown = ""
+    m.remKeys = {}
+    m.remShown = {}
+    m.remDue = invalid
+    m.upNext = m.top.findNode("upNext")
+    m.remBox = m.top.findNode("remBox")
+    m.top.findNode("unBar").color = accent
+    m.top.findNode("rmBar").color = accent
+    m.tickTimer = m.top.findNode("tickTimer")
+    m.tickTimer.observeField("fire", "onTick")
+    m.tickTimer.control = "start"
+    m.remTimer = m.top.findNode("remTimer")
+    m.remTimer.observeField("fire", "pollReminders")
+    m.remTimer.control = "start"
+    m.top.findNode("remHide").observeField("fire", "hideReminder")
 
     m.top.setFocus(true)
     loadChannels()
@@ -165,6 +183,10 @@ sub onNow(event as object)
         offset = 0
     end if
     m.afterFinish = false
+    m.skew = num(r.now) - CreateObject("roDateTime").AsSeconds()
+    m.nextSlot = r.next
+    m.live = true
+    m.upNext.visible = false
     if not isAA(slot)
         showMsg("Nothing is on this channel right now.")
         return
@@ -248,6 +270,8 @@ end sub
 sub startOver()
     if not isAA(m.slot) then return
     m.seq = m.seq + 1
+    m.live = false
+    m.upNext.visible = false
     play(m.slot, 0)
     flash("From the start  -  press Fwd to go back to live")
 end sub
@@ -274,6 +298,7 @@ sub showGrid()
     now = CreateObject("roDateTime").AsSeconds()
     m.gridFrom = now - (now mod 1800)
     api("/api/guide?hours=12&from=" + m.gridFrom.ToStr(), "onGuide")
+    pollReminders()
 end sub
 
 sub hideGrid()
@@ -331,8 +356,14 @@ sub onGridFocus()
     if not isAA(d) then return
     ci = num(d.focusChannelIndex)
     if ci < 0 or ci >= m.channels.count() then return
+    m.gridCi = ci
+    m.gridProg = d.content
     showGridInfo(m.channels[ci], d.content)
 end sub
+
+function serverNow() as integer
+    return CreateObject("roDateTime").AsSeconds() + m.skew
+end function
 
 sub showGridInfo(ch as object, prog as dynamic)
     title = txt(ch.name)
@@ -340,6 +371,7 @@ sub showGridInfo(ch as object, prog as dynamic)
     if prog <> invalid
         title = prog.title
         times = prog.description + "   on " + txt(ch.number) + " " + txt(ch.name)
+        if m.remKeys.DoesExist(ch.id + ":" + num(prog.playStart).ToStr()) then times = times + "   -   REMINDER SET (OK removes it)"
     end if
     m.top.findNode("tgTitle").text = title
     m.top.findNode("tgTime").text = times
@@ -347,9 +379,105 @@ end sub
 
 sub onGridSelect()
     i = m.tg.channelFocused
+    prog = m.gridProg
+    if prog <> invalid and i >= 0 and i < m.channels.count() and num(prog.playStart) > serverNow() + 60
+        ' a later show: set (or clear) a reminder instead of switching
+        ch = m.channels[i]
+        k = ch.id + ":" + num(prog.playStart).ToStr()
+        op = "add"
+        if m.remKeys.DoesExist(k) then op = "remove"
+        api("/api/reminders", "onReminders", "POST", FormatJson({ op: op, channel: ch.id, start: num(prog.playStart) }))
+        if op = "add"
+            m.remKeys[k] = true
+            m.top.findNode("tgTime").text = "Reminder set: " + prog.title + "  -  " + prog.description
+        else
+            m.remKeys.Delete(k)
+            m.top.findNode("tgTime").text = "Reminder removed"
+        end if
+        return
+    end if
     hideGrid()
     if i >= 0 and i < m.channels.count()
         if i <> m.current then tune(i) else showBanner(m.channels[m.current], invalid)
+    end if
+end sub
+
+' ---------- reminders and "up next" ----------
+sub pollReminders()
+    api("/api/reminders", "onReminders")
+end sub
+
+sub onReminders(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if t.error <> "" then return
+    r = t.result
+    keys = {}
+    if isArr(r.reminders)
+        for each x in r.reminders
+            if isAA(x) then keys[txt(x.channel) + ":" + num(x.start).ToStr()] = true
+        end for
+    end if
+    m.remKeys = keys
+    if not isArr(r.due) then return
+    for each d in r.due
+        if isAA(d)
+            k = txt(d.channel) + ":" + num(d.start).ToStr()
+            watching = false
+            if m.live and m.current >= 0 and m.current < m.channels.count()
+                if m.channels[m.current].id = txt(d.channel) then watching = true
+            end if
+            if not m.remShown.DoesExist(k) and not watching and not m.grid.visible
+                m.remShown[k] = true
+                m.remDue = d
+                m.top.findNode("rmTitle").text = txt(d.title)
+                m.top.findNode("rmWhere").text = txt(d.number) + " " + txt(d.channel_name)
+                m.remBox.visible = true
+                hideTimer = m.top.findNode("remHide")
+                hideTimer.control = "stop"
+                hideTimer.control = "start"
+                return
+            end if
+        end if
+    end for
+end sub
+
+sub hideReminder()
+    m.remBox.visible = false
+    m.remDue = invalid
+end sub
+
+sub watchReminder()
+    d = m.remDue
+    hideReminder()
+    if not isAA(d) then return
+    i = indexOf(txt(d.channel))
+    if i < 0
+        flash("That channel is not on the TV right now")
+        return
+    end if
+    tune(i)
+end sub
+
+' every few seconds: the "up next" card in the last minute of a show
+sub onTick()
+    if not m.live or not isAA(m.slot) or not isAA(m.nextSlot) or m.grid.visible or m.guide.visible
+        m.upNext.visible = false
+        return
+    end if
+    left = num(m.slot["end"]) - serverNow()
+    if left > 0 and left <= 60
+        k = txt(m.nextSlot.media_id) + ":" + txt(m.nextSlot.start)
+        if m.upShown <> k
+            m.upShown = k
+            ch = m.channels[m.current]
+            m.top.findNode("unHead").text = "UP NEXT ON " + UCase(txt(ch.name))
+            m.top.findNode("unTitle").text = txt(m.nextSlot.title)
+            m.top.findNode("unTime").text = "at " + clock(m.nextSlot.start_local)
+        end if
+        m.upNext.visible = true
+    else
+        m.upNext.visible = false
     end if
 end sub
 
@@ -439,6 +567,10 @@ end sub
 ' ---------- the remote ----------
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if m.remBox.visible and (key = "OK" or key = "back")
+        if key = "OK" then watchReminder() else hideReminder()
+        return true
+    end if
     if m.grid.visible
         if key = "back"
             hideGrid()

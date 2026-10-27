@@ -322,6 +322,12 @@ FOR YOU, RELEASE ORDER AND TIME-OF-DAY TV
   hero films in prime time (20:00-23:00) and Thriller & Horror late at night (23:00-02:00) - only from what you have.
   Seasonal specials and blocks you add yourself come first. On/off: Settings > Channels > Time-of-day programming.
 
+REMINDERS
+  In the TV guide (G), move to a later show and press R: it is marked "Reminder". When it starts, a card offers to
+  switch - Enter to watch, Esc for not now. On the Roku: open the guide (OK), choose a later show and press OK (OK
+  again removes it); when it starts the TV shows the reminder - OK to watch, Back for not now. Reminders are shared
+  by the PC, phones and the Roku app, and clear themselves after the show.
+
 ALWAYS ON (for the Roku app and phones)
   Settings > Other devices > Always on: "Start HERO TV when I sign in to Windows" puts a HERO TV shortcut in the
   Startup folder; it starts in the background with no window. "Keep HERO TV running when the TV window is closed" is

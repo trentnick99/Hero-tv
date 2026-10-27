@@ -255,3 +255,9 @@ body.cue-yellow video::cue{color:#ffe14d}
 .rsteps{margin:.2vh 0 .4vh 1.2vw;padding-left:1em;display:flex;flex-direction:column;gap:.6vh;font-size:calc(1.9vh*var(--tx))}
 .tcard .picks{display:flex;flex-wrap:wrap;gap:.8vh .6vw}.tcard .picks .sbtn.on{background:var(--accent);color:var(--on);border-color:var(--accent);font-weight:700}
 .quitmsg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:3vh;color:#c8cdd8;background:#0b0e17}
+#remind{position:fixed;top:4vh;right:3vw;z-index:96;display:none;flex-direction:column;gap:.8vh;max-width:34vw;padding:2vh 1.6vw;border-radius:1.4vh;
+ background:var(--night,#0b0e17);border:2px solid var(--accent,#ffcf1f);box-shadow:0 1vh 4vh #000a}#remind.on{display:flex}
+#remind small{color:var(--accent);font-weight:700;letter-spacing:.06em;font-size:calc(1.6vh*var(--tx))}#remind b{font-size:calc(2.8vh*var(--tx))}
+#remind span{opacity:.8;font-size:calc(1.9vh*var(--tx))}
+.blk.rem{outline:2px dashed var(--accent);outline-offset:-3px}.blk .rbadge{position:absolute;right:.5vw;top:.4vh;font-size:1.3vh;font-weight:700;
+ background:var(--accent);color:var(--on);border-radius:.6vh;padding:.1vh .5vw}

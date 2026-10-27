@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.19.0": [
+        "Reminders: in the guide press R on a later show (on the Roku: OK on it). When it starts, HERO TV offers to switch - Enter (OK on the Roku) to watch.",
+        "Roku app: an 'Up next' card in the last minute of every show, like the one on the PC.",
+    ],
     "1.18.0": [
         "Always on (Settings > Other devices): HERO TV can start by itself when you sign in to Windows, quietly in the background, so the Roku app and phones always find it.",
         "It keeps running when the TV window is closed (on by default once a phone or the Roku TV is set up), and starts itself again if it ever stops with an error.",

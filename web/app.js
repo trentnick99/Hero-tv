@@ -246,7 +246,9 @@ function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent
 
 /* ---- guide ---- */
 let g={t0:0,t:0,row:0,data:[]};const WIN=3*3600;
-async function loadGuide(){const j=await api(`/api/guide?from=${g.t0}&hours=3`);g.data=j.channels.filter(c=>chans.some(x=>x.id===c.id))}
+let remSet=new Set();
+async function loadGuide(){const j=await api(`/api/guide?from=${g.t0}&hours=3`);g.data=j.channels.filter(c=>chans.some(x=>x.id===c.id));
+ try{const r=await api("/api/reminders");remSet=new Set(r.reminders.map(x=>x.channel+":"+x.start))}catch(e){}}
 const inSlot=(c,t)=>c.slots.find(s=>s.start<=t&&t<s.end);
 const dayStr=()=>new Intl.DateTimeFormat([],{weekday:"short",month:"short",day:"numeric",timeZone:cfg.tz||undefined}).format(nowS()*1e3)+"   "+T(nowS());
 function placePreview(on){if(!on){v.style.cssText="";document.body.classList.remove("gopen");return}
@@ -259,6 +261,7 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
   if(c.kind==="weather"){const b_=el("div","blk wxb");b_.style.left="0px";b_.style.width=(WIN*pxs-4)+"px";b_.append(el("b",0,"Local weather  ·  live"),el("small",0,"Current conditions, 7-day forecast and alerts"));if(r===g.row)b_.classList.add("sel");track.append(b_)}
   else for(const s of c.slots){const a=Math.max(s.start,g.t0),b=Math.min(s.end,g.t0+WIN),b_=el("div","blk");b_.style.left=(a-g.t0)*pxs+"px";b_.style.width=Math.max(2,(b-a)*pxs-4)+"px";
    const on=s.start<=nowS()&&nowS()<s.end;b_.append(thumb(s.media_id),el("b",0,label(s)),el("small",0,`${T(s.start)} to ${T(s.end)}`));
+   if(remSet.has(c.id+":"+s.start)){b_.classList.add("rem");b_.append(el("span","rbadge","Reminder"))}
    if(on){const p=el("i");p.style.width=Math.min(100,(nowS()-s.start)/(s.end-s.start)*100)+"%";b_.append(p)}
    if(r===g.row&&s.start<=g.t&&g.t<s.end)b_.classList.add("sel");b_.dataset.r=r;b_.dataset.t=s.start;b_.onclick=()=>{if(COARSE&&g.row===r&&s.start<=g.t&&g.t<s.end){closeAll();return tune(r)}g.row=r;g.t=s.start;drawGuide()};b_.ondblclick=()=>{closeAll();tune(r)};track.append(b_)}
   if(!c.slots.length&&c.kind!=="weather")track.append(el("div","none","No programming"));
@@ -271,11 +274,15 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
  if(c.kind==="weather"){d.append(el("h3",0,"Local weather"),el("p","meta","Live, around the clock"),el("p",0,"Current conditions, the hourly and 7-day forecast, and live weather alerts. Press Enter to watch."))}
  else if(s){d.append(el("h3",0,label(s)),el("p","meta",`${T(s.start)} to ${T(s.end)}, ${mins(s.end-s.start)} min`+(s.start<=nowS()&&nowS()<s.end?", on now":"")+([s.franchise,s.year].filter(Boolean).length?"   ·   "+[s.franchise,s.year].filter(Boolean).join(", "):"")+(s.block?"   ·   "+s.block:"")));if(s.plot)d.append(el("p",0,s.plot))}
  else d.append(el("p",0,"Nothing is scheduled here."))}
-async function openGuide(){show("#settings",false);show("#info",false);const n=nowS();g.t0=Math.floor(n/1800)*1800;g.t=n;g.row=ci;layer="guide";await loadGuide();hints($("#g-hints"),[["↑ ↓","channel"],["← →","time"],["Enter","watch"],["G","close"],["L","library"],["F3","rename"]]);
+async function openGuide(){show("#settings",false);show("#info",false);const n=nowS();g.t0=Math.floor(n/1800)*1800;g.t=n;g.row=ci;layer="guide";await loadGuide();hints($("#g-hints"),[["↑ ↓","channel"],["← →","time"],["Enter","watch"],["R","remind me"],["G","close"],["L","library"],["F3","rename"]]);
  const nt=el("span",0,"Showtimes are generated on this PC from your own videos. They are not real TV listings.");$("#g-hints").append(nt);nt.style.marginLeft="auto";
  show("#guide",true);show("#osd",false);drawGuide();placePreview(true)}
 setInterval(()=>{if(layer==="guide"){const d=$(".hdr .day");if(d)d.textContent=dayStr()}},15e3);
 async function guideKey(k){const c=g.data[g.row],s=inSlot(c,g.t);
+ if((k==="r"||k==="R")&&s&&c&&c.kind!=="weather"){const key=c.id+":"+s.start,had=remSet.has(key);
+  if(!had&&s.start<=nowS())return toast("That is on now - press Enter to watch it.");
+  try{await pj("/api/reminders",{op:had?"remove":"add",channel:c.id,start:s.start});had?remSet.delete(key):remSet.add(key);toast(had?"Reminder removed.":`Reminder set: ${label(s)} at ${T(s.start)} on ${c.number} ${c.name}.`)}
+  catch(e){toast(String(e.message||e).replace(/^Error: /,""))}return drawGuide()}
  if(k==="ArrowUp")g.row=Math.max(0,g.row-1);else if(k==="ArrowDown")g.row=Math.min(g.data.length-1,g.row+1);
  else if(k==="ArrowLeft"&&s){const nt=s.start-1;if(nt<Math.floor(nowS()/1800)*1800-3600)return;g.t=nt;if(nt<g.t0){g.t0-=3600;await loadGuide()}}
  else if(k==="ArrowRight"&&s){g.t=s.end;if(g.t>=g.t0+WIN){g.t0+=3600;await loadGuide()}}
@@ -413,9 +420,25 @@ async function saveRen(){if(!renCtx||!renCtx.t)return;const{t,kind}=renCtx,val=$
  catch(e){$("#ren-s").textContent="Could not reach HERO TV.";$("#ren-s").classList.add("err")}}
 $("#ren-in").addEventListener("keydown",e=>{e.stopPropagation();if(e.key==="Enter"){e.preventDefault();saveRen()}else if(e.key==="Escape"){e.preventDefault();closeRen()}});
 
+/* ---- reminders that are due: "Starting now on ... - Enter to watch" ---- */
+const remShown=new Set();let remDue=null;
+const remOpen=()=>$("#remind")&&$("#remind").classList.contains("on");
+function remClose(){const r=$("#remind");if(r)r.classList.remove("on");remDue=null}
+function remWatch(){const d=remDue;remClose();if(!d)return;const i=chans.findIndex(c=>c.id===d.channel);if(i<0)return toast("That channel is not on the TV right now.");
+ if(layer!=="")closeAll();vod=null;tune(i)}
+async function remPoll(){try{const r=await api("/api/reminders");for(const d of r.due){const k=d.channel+":"+d.start;if(remShown.has(k))continue;
+  if(!vod&&chans[ci]&&chans[ci].id===d.channel)continue;                 /* already watching it (asks again if you switch away) */
+  remShown.add(k);
+  let box=$("#remind");if(!box){box=el("div");box.id="remind";box.setAttribute("role","alertdialog");document.body.append(box)}
+  box.textContent="";paint(box,theme.color);const late=r.now>d.start;
+  box.append(el("small",0,late?"YOUR REMINDER - IT HAS STARTED":"YOUR REMINDER - STARTING NOW"),el("b",0,d.title),el("span",0,`${d.number??""} ${d.channel_name} at ${T(d.start)}`));
+  const row=el("div","sbar"),w=sBtn("Watch (Enter)",remWatch,"pri"),x=sBtn("Not now (Esc)",remClose);row.append(w,x);box.append(row);
+  remDue=d;box.classList.add("on");clearTimeout(box._t);box._t=setTimeout(remClose,120000);return}}catch(e){}}
+setInterval(remPoll,20000);setTimeout(remPoll,6000);
 /* ---- keys (keyboard / HDMI-CEC remote) ---- */
 addEventListener("keydown",e=>{const k=e.key;
  if(layer==="rename"||e.ctrlKey||e.metaKey||e.altKey)return;
+ if(remOpen()&&(k==="Enter"||k==="Escape")&&!(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))){e.preventDefault();e.stopPropagation();return k==="Enter"?remWatch():remClose()}
  if(sleeping){e.preventDefault();return wake()}
  if(neOpen()){if(k==="Enter"||k===" "){e.preventDefault();nePlay()}else if(k==="Escape"||k==="Backspace"){e.preventDefault();neStop()}return}
  if(newsOpen()){const a=document.activeElement,inPick=$("#news").dataset.kind==="lineup"&&a&&a.closest&&a.closest("#nw-l");
@@ -441,7 +464,7 @@ addEventListener("keydown",e=>{const k=e.key;
   if(k==="F8"&&items[li]){e.preventDefault();return openInfo()}
   if(k==="Escape"||k==="Backspace"&&!$("#q").value)closeAll();else if(k==="ArrowDown")mv(cols);else if(k==="ArrowUp")mv(-cols);
   else if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);else if(k==="Enter"&&items[li])startVod(items[li]);return}
- if(layer==="guide"){if(k==="Escape"||k==="g"||k==="G")closeAll();else if(k.startsWith("Arrow")||k==="Enter"){e.preventDefault();guideKey(k)}return}
+ if(layer==="guide"){if(k==="Escape"||k==="g"||k==="G")closeAll();else if(k.startsWith("Arrow")||k==="Enter"||k==="r"||k==="R"){e.preventDefault();guideKey(k)}return}
  if(layer===""){
   if(k==="h"||k==="H"||k==="Home"||k==="BrowserHome"){e.preventDefault();return openHome()}
   if(k==="?"||k==="F1"){e.preventDefault();return openHelp("")}
