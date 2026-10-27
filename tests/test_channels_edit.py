@@ -47,6 +47,27 @@ class ChannelEditTests(unittest.TestCase):
         self.assertTrue((Path(self.cfg.channels_file).with_name("channels.json.bak")).exists())
         self.assertIn("_help", self.rules())
 
+    def test_time_slots(self):
+        r = CA.update(self.cfg, {"op": "add_block", "id": "mcu", "days": "sat", "from": "08:00", "to": "11:00",
+                                 "mode": "mixed", "what": {"folder": "Marvel Animation"}})
+        b = self.chans()["mcu"]["blocks"][0]
+        self.assertEqual((b["days"], b["from"], b["to"], b["mode"], b["match"]),
+                         ("sat", "08:00", "11:00", "mixed", {"franchise": ["Marvel Animation"]}))
+        row = [c for c in r["channels"] if c["id"] == "mcu"][0]
+        self.assertEqual(row["blocks"][0]["what"], "Marvel Animation")
+        self.assertFalse(row["special"])                                      # its folder can still be edited
+        CA.update(self.cfg, {"op": "add_block", "id": "mcu", "days": "daily", "from": "22:00", "to": "02:00",
+                             "what": {"series": "Daredevil"}})
+        self.assertEqual(len(self.chans()["mcu"]["blocks"]), 2)
+        for bad in ({"from": "8am", "to": "11:00", "what": {"folder": "X"}}, {"from": "08:00", "to": "08:00", "what": {"folder": "X"}},
+                    {"from": "08:00", "to": "09:00"}, {"days": "someday", "from": "08:00", "to": "09:00", "what": {"folder": "X"}}):
+            with self.assertRaises(ValueError):
+                CA.update(self.cfg, dict({"op": "add_block", "id": "mcu"}, **bad))
+        CA.update(self.cfg, {"op": "remove_block", "id": "mcu", "name": b["name"]})
+        self.assertEqual(len(self.chans()["mcu"]["blocks"]), 1)
+        with self.assertRaises(ValueError):
+            CA.update(self.cfg, {"op": "add_block", "id": "weather", "from": "08:00", "to": "09:00", "what": {"folder": "X"}})
+
     def test_start_times_setting(self):
         CA.update(self.cfg, {"op": "save", "id": "mcu", "starts": 30})
         self.assertEqual(self.chans()["mcu"]["starts"], 30)
@@ -82,7 +103,7 @@ class ChannelEditTests(unittest.TestCase):
     def test_add_and_delete(self):
         r = CA.update(self.cfg, {"op": "add", "name": "Anime Night", "keywords": ["naruto", "bleach"], "color": "#ff2e88"})
         new = next(c for c in r["channels"] if c["name"] == "Anime Night")
-        self.assertEqual(new["number"], 18); self.assertEqual(new["folder"], "Anime Night")   # 17 is For You
+        self.assertEqual(new["number"], 19); self.assertEqual(new["folder"], "Anime Night")   # 17 For You, 18 Cartoon Shorts
         self.assertTrue((self.media / "Anime Night").is_dir())
         self.assertEqual(self.chans()[new["id"]]["match"], {"franchise": ["Anime Night"]})
         with self.assertRaises(ValueError):

@@ -406,11 +406,28 @@ def mix_shows(rows, rng, cycle=0, balanced=False):
     return out
 
 
-def _next(conn, ch, plan, key, last_media, cycle, cache, skip=frozenset()):
-    """Next item after `last_media`, passing over anything in `skip` (already watched) while something else is left."""
+def _month_of(r):
+    """The month a seasonal video belongs to (folder "December", "Halloween"...), else 0."""
+    for t in json.loads(r["tags"] or "[]"):
+        if str(t).startswith("month:"):
+            try:
+                return int(str(t)[6:])
+            except ValueError:
+                return 0
+    return 0
+
+
+def _next(conn, ch, plan, key, last_media, cycle, cache, skip=frozenset(), month=0):
+    """Next item after `last_media`, passing over anything in `skip` (already watched) while something else is left.
+    Seasonal videos (in a "December" or "Halloween" folder) are passed over outside their month."""
     rows, ids = _playlist(conn, ch, plan, key, cycle, cache)
     if not rows:
         return None
+    off = {r["id"] for r in rows if _month_of(r) not in (0, month)} if month else set()
+    if off:
+        if len(off) == len(rows):                         # only out-of-season videos: nothing to show now
+            return None
+        skip = set(skip) | off
     idx = 0 if last_media is None or last_media not in ids else ids.index(last_media) + 1
     cyc = cycle
     for _ in range(2):
@@ -419,8 +436,8 @@ def _next(conn, ch, plan, key, last_media, cycle, cache, skip=frozenset()):
             if rows[i]["id"] not in skip:
                 return rows[i], cyc
         cyc, idx = cyc + 1, 0
-    if skip:                                   # everything has been seen: just carry on in order
-        return _next(conn, ch, plan, key, last_media, cycle, cache)
+    if skip and skip != off:                   # everything has been seen: just carry on in order (still in season)
+        return _next(conn, ch, plan, key, last_media, cycle, cache, frozenset(off))
     return None
 
 
@@ -456,20 +473,25 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
         align = plan[0].get("_align") if plan[0].get("_align") in ALIGN_CHOICES else None
         fill_state = {"pool": None, "last": None}
 
-        def pad(t, fallback_media):
-            """Fill from t to the next clean start time; returns that time."""
-            b = next_start(t, align, z)
-            if b <= t:
-                return t
-            nb = block_at(blocks, dt.datetime.fromtimestamp(b, z)) if blocks else None
-            nkey = nb["name"] if nb else ""
-            peek = _next(conn, ch, plan, nkey, *where_was(nkey), cache, skip) or \
-                _next(conn, ch, plan, "", *where_was(""), cache, skip)
+        def load_pool():
             if fill_state["pool"] is None:
                 fill_state["pool"] = shorts_pool(conn, plan[0].get("_filler"))
                 r0 = conn.execute("SELECT media_id FROM slots WHERE channel_id=? AND pl=? ORDER BY start DESC LIMIT 1",
                                   (ch["id"], SHORTS)).fetchone()
                 fill_state["last"] = r0["media_id"] if r0 else None
+            return fill_state["pool"]
+
+        def pad(t, fallback_media):
+            """Fill from t to the next clean start time; returns that time."""
+            b = next_start(t, align, z)
+            if b <= t:
+                return t
+            bw = dt.datetime.fromtimestamp(b, z)
+            nb = block_at(blocks, bw) if blocks else None
+            nkey = nb["name"] if nb else ""
+            peek = _next(conn, ch, plan, nkey, *where_was(nkey), cache, skip, bw.month) or \
+                _next(conn, ch, plan, "", *where_was(""), cache, skip, bw.month)
+            load_pool()
             fill_state["last"] = fill_gap(conn, ch["id"], t, b, fill_state["pool"], fill_state["last"],
                                           peek[0]["id"] if peek else fallback_media)
             return b
@@ -487,14 +509,27 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
         if align and last is not None and start == last["end"] and start < now + horizon_s:
             start = pad(start, last["media_id"])      # e.g. carrying on after a short, or the setting was just switched on
         while start < now + horizon_s and added < MAX_SLOTS_PER_RUN:
-            b = block_at(blocks, dt.datetime.fromtimestamp(start, z)) if blocks else None
+            when = dt.datetime.fromtimestamp(start, z)
+            b = block_at(blocks, when) if blocks else None
             key = b["name"] if b else ""
-            r = _next(conn, ch, plan, key, *where_was(key), cache, skip)
+            r = _next(conn, ch, plan, key, *where_was(key), cache, skip, when.month)
             if r is None and key:                 # a block with nothing to show falls back to normal programming
                 key = ""
-                r = _next(conn, ch, plan, key, *where_was(key), cache, skip)
+                r = _next(conn, ch, plan, key, *where_was(key), cache, skip, when.month)
             if r is None:
-                break
+                # nothing this channel can show right now (e.g. only Christmas videos in March): shorts instead of
+                # dead air, while there are any; the channel's own videos come back as soon as there is something
+                pool = load_pool() if conn.execute("SELECT 1 FROM slots WHERE channel_id=? LIMIT 1", (ch["id"],)).fetchone() \
+                    or _playlist(conn, ch, plan, "", 0, cache)[0] else []
+                if not pool:
+                    break
+                ids = [p["id"] for p in pool]
+                sm = pool[(ids.index(fill_state["last"]) + 1) % len(pool) if fill_state["last"] in ids else 0]
+                end = start + max(1, math.ceil(sm["runtime_s"]))
+                conn.execute("INSERT INTO slots(channel_id,start,end,media_id,cycle,pl) VALUES(?,?,?,?,0,?)",
+                             (ch["id"], start, end, sm["id"], SHORTS))
+                fill_state["last"], start, added = sm["id"], end, added + 1
+                continue
             m, cycle = r
             dur = max(1, math.ceil(m["runtime_s"]))
             end = start + dur

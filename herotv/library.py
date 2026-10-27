@@ -149,6 +149,42 @@ def tag_title(text):
     return t if len(t) >= 2 else ""
 
 
+_MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+           "november", "december"]
+_HOLIDAYS = {"halloween": 10, "thanksgiving": 11, "christmas": 12, "xmas": 12, "holiday": 12, "holidays": 12,
+             "valentines": 2, "valentine's day": 2, "valentines day": 2}
+
+
+def season_month(rel_parts):
+    """1-12 when a video sits in a folder named after a month or holiday ("December", "Halloween", "Christmas"):
+    such videos only play on channels in that month. 0 otherwise. Only the folders count, not the file name."""
+    for part in rel_parts[:-1]:
+        p = part.strip().lower()
+        if p in _MONTHS:
+            return _MONTHS.index(p) + 1
+        if p in _HOLIDAYS:
+            return _HOLIDAYS[p]
+    return 0
+
+
+def tag_months(conn, root):
+    """Keep the "month:N" tag in step with the folders (also for videos found by older versions)."""
+    n = 0
+    for r in conn.execute("SELECT id,path,tags FROM media WHERE available=1").fetchall():
+        try:
+            rel = os.path.relpath(r["path"], root).split(os.sep)
+            tags = json.loads(r["tags"] or "[]")
+        except (ValueError, TypeError):
+            continue
+        want = season_month(rel)
+        keep = [t for t in tags if not str(t).startswith("month:")]
+        new = keep + ([f"month:{want}"] if want else [])
+        if new != tags:
+            conn.execute("UPDATE media SET tags=? WHERE id=?", (json.dumps(new), r["id"]))
+            n += 1
+    return n
+
+
 def fix_site_titles(conn, root):
     """Titles that are a download site's label (found inside the file by older versions) are named again from the
     file name. Videos with a title in their .hero.json keep it. Returns how many were fixed."""
@@ -304,6 +340,7 @@ def scan(conn, root, probe_fn=probe):
             stats["missing"] += 1
     stats["relinked"] = relink(conn, added_paths)
     stats["renamed"] = fix_site_titles(conn, root)
+    tag_months(conn, root)
     conn.commit()
     return stats
 

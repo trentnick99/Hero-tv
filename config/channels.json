@@ -17,5 +17,6 @@
  {"id":"marathon","number":10,"name":"Hero Marathon","color":"#f2f0ea","mode":"shuffle","match":{},"description":"Everything, shuffled, all day. Friday and Saturday evenings are Movie Night, Saturday mornings are cartoons.",
   "blocks":[{"name":"Movie Night","days":["fri","sat"],"from":"19:00","to":"23:00","mode":"shuffle","match":{"min_minutes":75}},
    {"name":"Saturday Morning Cartoons","days":["sat"],"from":"07:00","to":"12:00","mode":"shuffle","match":{"franchise":["Marvel Animation","Dragon Ball","South Park"]}}]},
- {"id":"for-you","number":17,"name":"For You","color":"#ff6ad5","mode":"sequential","kind":"foryou","description":"Picked for you: the next episode of what you are watching, films you stopped half-way, and more like what you watched lately."}
+ {"id":"for-you","number":17,"name":"For You","color":"#ff6ad5","mode":"sequential","kind":"foryou","description":"Picked for you: the next episode of what you are watching, films you stopped half-way, and more like what you watched lately."},
+ {"id":"shorts","number":18,"name":"Cartoon Shorts","color":"#ffa94d","mode":"shuffle","match":{"franchise":["Shorts"]},"also":[{"franchise":["Free Movies"],"tags":["cartoon"],"max_minutes":15}],"description":"Short cartoons around the clock: your Shorts folder and the free classic cartoons."}
 ]}

@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.23.0": [
+        "Time slots (Settings > Channels > a channel > Time slots): pick days and hours and what plays then - like cartoons on Saturday mornings.",
+        "Seasonal folders: videos in a folder named December, Halloween, Christmas (or any month) only play on the channels in that month.",
+        "New channel 18, Cartoon Shorts: your Shorts folder and the free classic cartoons, all day. A channel with nothing to show plays shorts instead of going blank.",
+    ],
     "1.22.0": [
         "New play orders (Settings > Channels > a channel > Play order): 'Mixed shows, each in order' - shows take turns but episodes never jump around - and 'Mixed shows, fair share', so a big show no longer crowds out the small ones.",
         "Channel logo in the corner of the picture, like a TV network's (Settings > Appearance > Channel logo): now and then, always, or off. On the Roku too.",

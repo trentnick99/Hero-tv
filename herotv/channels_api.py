@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
+TIME = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 BAD_FOLDER = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 MODES = ("sequential", "shuffle", "mixed", "balanced")
 SIMPLE_KEYS = {"franchise"}
@@ -52,6 +53,13 @@ FOR_YOU = {"id": "for-you", "number": 17, "name": "For You", "color": "#ff6ad5",
                           "like what you watched lately."}
 
 
+SHORTS_CHANNEL = {"id": "shorts", "number": 18, "name": "Cartoon Shorts", "color": "#ffa94d", "mode": "shuffle",
+                  "match": {"franchise": ["Shorts"]},
+                  "also": [{"franchise": ["Free Movies"], "tags": ["cartoon"], "max_minutes": 15}],
+                  "description": "Short cartoons around the clock: your Shorts folder and the free classic cartoons."}
+BUILTINS = (FOR_YOU, SHORTS_CHANNEL)
+
+
 def ensure_builtin(cfg):
     """Give an existing channels.json the channels newer versions brought (once - if you delete one, it stays gone)."""
     from . import settings_api
@@ -61,16 +69,24 @@ def ensure_builtin(cfg):
         return False
     st = settings_api._load()
     done = st.get("builtins") if isinstance(st.get("builtins"), list) else []
-    if FOR_YOU["id"] in done:
+    todo = [b for b in BUILTINS if b["id"] not in done]
+    if not todo:
         return False
     chans = data["channels"]
-    if not any(c.get("id") == FOR_YOU["id"] or c.get("kind") == "foryou" for c in chans):
-        c = dict(FOR_YOU)
-        taken = {x.get("number") for x in chans}
-        c["number"] = next(n for n in range(17, 1000) if n not in taken) if c["number"] in taken else c["number"]
-        chans.append(c)
+    wrote = False
+    for b in todo:
+        same = (lambda c: c.get("id") == b["id"] or c.get("kind") == "foryou") if b.get("kind") == "foryou" else \
+            (lambda c: c.get("id") == b["id"])
+        if not any(same(c) for c in chans):
+            c = json.loads(json.dumps(b))
+            taken = {x.get("number") for x in chans}
+            if c["number"] in taken:
+                c["number"] = next(n for n in range(c["number"], 1000) if n not in taken)
+            chans.append(c)
+            wrote = True
+    if wrote:
         _write(cf, _dump_channels(data))
-    st["builtins"] = done + [FOR_YOU["id"]]
+    st["builtins"] = done + [b["id"] for b in todo]
     settings_api._save(st)
     return True
 
@@ -130,7 +146,7 @@ GROUPS = (                       # how the first-start "Your channels" screen gr
     ("Superheroes", ("mcu", "marvel-tv", "marvel-animation", "spider-verse", "x-men", "dc", "classics", "action", "comedy", "invincible")),
     ("Cartoons and anime", ("dragon-ball", "south-park")),
     ("Movies", ("horror", "free")),
-    ("Extras", ("for-you", "weather", "marathon")),
+    ("Extras", ("for-you", "shorts", "weather", "marathon")),
 )
 
 
@@ -164,10 +180,10 @@ def read(cfg):
         kws, shared = _own_keywords(rules, c["id"])
         folder = _folder_of(c)
         out.append({"id": c["id"], "number": c.get("number"), "name": c.get("name", ""), "color": c.get("color", "#ffcf1f"),
-                    "mode": c.get("mode", "sequential"), "starts": c.get("starts") or 0, "description": c.get("description", ""), "kind": c.get("kind", "tv"),
+                    "mode": c.get("mode", "sequential"), "starts": c.get("starts") or 0, "blocks": _block_rows(c), "description": c.get("description", ""), "kind": c.get("kind", "tv"),
                     "folder": folder, "keywords": kws, "shared_keywords": shared, "summary": _summary(c), "off": bool(c.get("off")),
                     "smart": [r.get("label") or "" for r in smart if c["id"] in r["channels"]],
-                    "special": bool(c.get("also") or c.get("blocks") or c.get("smart") or (folder is None and c.get("kind") not in ("weather", "foryou")))})
+                    "special": bool(c.get("also") or c.get("smart") or (folder is None and c.get("kind") not in ("weather", "foryou")))})
     return {"channels": out, "media_dir": str(cfg.media_dir)}
 
 
@@ -247,6 +263,49 @@ def _apply_basic(c, ch, channels):
         if ch["mode"] not in MODES:
             raise ValueError("Play order must be in order, shuffled, mixed shows or fair share.")
         c["mode"] = ch["mode"]
+
+
+DAY_LABELS = {"daily": "Every day", "weekdays": "Weekdays", "weekends": "Weekends", "mon": "Mondays", "tue": "Tuesdays",
+              "wed": "Wednesdays", "thu": "Thursdays", "fri": "Fridays", "sat": "Saturdays", "sun": "Sundays"}
+
+
+def _new_block(body, blocks):
+    days = str(body.get("days", "daily"))
+    if days not in DAY_LABELS:
+        raise ValueError("Choose the days from the list.")
+    what = body.get("what") if isinstance(body.get("what"), dict) else {}
+    if what.get("folder"):
+        match, label = {"franchise": [str(what["folder"])]}, str(what["folder"])
+    elif what.get("series"):
+        match, label = {"series": [str(what["series"])]}, str(what["series"])
+    else:
+        raise ValueError("Choose what plays in this time slot.")
+    mode = body.get("mode", "shuffle")
+    if mode not in MODES:
+        raise ValueError("Choose the play order from the list.")
+    a, z = str(body.get("from", "")), str(body.get("to", ""))
+    if not (TIME.fullmatch(a) and TIME.fullmatch(z)):
+        raise ValueError('Times must look like 08:00.')
+    name = f"{label} - {DAY_LABELS[days]} {a}"
+    taken = {str(b.get("name", "")).lower() for b in blocks}
+    n, base = 2, name
+    while name.lower() in taken:
+        name, n = f"{base} ({n})", n + 1
+    return {"name": name, "days": days, "from": a, "to": z, "mode": mode, "match": match}
+
+
+def _block_rows(c):
+    out = []
+    for b in c.get("blocks") or []:
+        if not isinstance(b, dict):
+            continue
+        m = b.get("match") or {}
+        what = ", ".join(m.get("franchise") or m.get("series") or m.get("tags") or []) or "the channel's own videos"
+        days = b.get("days", "daily")
+        days = DAY_LABELS.get(days, days) if isinstance(days, str) else ", ".join(DAY_LABELS.get(d, d) for d in days)
+        out.append({"name": b.get("name", ""), "days": days, "from": b.get("from", ""), "to": b.get("to", ""),
+                    "what": what, "mode": b.get("mode") or "", "dates": b.get("dates", "")})
+    return out
 
 
 def _set_keywords(rules, cid, words):
@@ -342,6 +401,29 @@ def update(cfg, body):
         n = sum(1 for c in chans if c.get("off"))
         note = (f"{n} channel(s) switched off - nothing was deleted; switch them back on in Settings > Channels any time." if n
                 else "Every channel is on.")
+    elif op in ("add_block", "remove_block"):            # time slots: "cartoons on Saturday mornings"
+        c = next((x for x in chans if x["id"] == body.get("id")), None)
+        if c is None:
+            raise ValueError("That channel no longer exists.")
+        if c.get("kind") in ("weather", "foryou"):
+            raise ValueError("This channel cannot have time slots.")
+        blocks = [b for b in (c.get("blocks") or []) if isinstance(b, dict)]
+        if op == "remove_block":
+            name = str(body.get("name", ""))
+            if not any(str(b.get("name")) == name for b in blocks):
+                raise ValueError("That time slot is already gone.")
+            blocks = [b for b in blocks if str(b.get("name")) != name]
+            note = "Time slot removed."
+        else:
+            b = _new_block(body, blocks)
+            blocks.append(b)
+            from . import scheduler
+            scheduler.parse_blocks(dict(c, blocks=blocks))      # same checks as when HERO TV starts
+            note = f"Time slot added: {b['name']}. The guide changes from the next show that has not started yet."
+        if blocks:
+            c["blocks"] = blocks
+        else:
+            c.pop("blocks", None)
     elif op == "delete":
         c = next((x for x in chans if x["id"] == body.get("id")), None)
         if c is None:

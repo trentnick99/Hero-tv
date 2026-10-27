@@ -1305,7 +1305,11 @@ def make_handler(app, remote=False):
             if p == "channels-config":
                 if method == "POST":
                     return self.send_json(self.change_channels(c, self.body()))
-                return self.send_json(dict(channels_api.read(app.cfg), shorts=len(S.shorts_pool(c))))
+                choices = {"folders": [r[0] for r in c.execute(
+                               "SELECT DISTINCT franchise FROM media WHERE available=1 AND franchise<>'' ORDER BY franchise COLLATE NOCASE")],
+                           "series": [r[0] for r in c.execute(
+                               "SELECT DISTINCT series FROM media WHERE available=1 AND series<>'' ORDER BY series COLLATE NOCASE LIMIT 400")]}
+                return self.send_json(dict(channels_api.read(app.cfg), shorts=len(S.shorts_pool(c)), slot_choices=choices))
             if p == "theme":
                 return self.send_json(dict(station(), subs=settings_api.subs_style(), logo=settings_api.logo_mode()))
             if p == "checklist":

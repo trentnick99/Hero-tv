@@ -85,5 +85,34 @@ class StartTimes(unittest.TestCase):
         self.assertEqual((d["card"], d["title"], d["next_title"], d["filler"]), (True, "Up next", "Ep1", "card"))
 
 
+class SeasonalFolders(unittest.TestCase):
+    def test_month_folders_play_only_in_their_month(self):
+        import datetime as dt
+        import json
+        from herotv import library as L
+        self.assertEqual(L.season_month(["MCU", "December", "x.mp4"]), 12)
+        self.assertEqual(L.season_month(["Shorts", "Halloween", "x.mp4"]), 10)
+        self.assertEqual(L.season_month(["MCU", "May December (2023).mp4"]), 0)    # only folders count
+        c = make_db()
+        a = add(c, "Regular", 1800)
+        x = add(c, "Xmas special", 1800)
+        c.execute("UPDATE media SET tags=? WHERE id=?", (json.dumps(["month:12"]), x))
+        c.commit()
+        ch = chan(c, 0)
+        S.extend(c, ch, T0, 6 * H, tz="UTC")                                  # T0 is in January
+        self.assertEqual({r[0] for r in c.execute("SELECT media_id FROM slots")}, {a})
+        dec = int(dt.datetime(2026, 12, 10, tzinfo=dt.timezone.utc).timestamp())
+        c.execute("DELETE FROM slots")
+        S.extend(c, ch, dec, 6 * H, tz="UTC")
+        self.assertEqual({r[0] for r in c.execute("SELECT media_id FROM slots")}, {a, x})
+        only = make_db()
+        y = add(only, "Only xmas", 1800)
+        only.execute("UPDATE media SET tags=? WHERE id=?", (json.dumps(["month:12"]), y))
+        self.assertEqual(S.extend(only, chan(only, 0), T0, H, tz="UTC"), 0)   # nothing in season: nothing scheduled
+        sh = add(only, "Popeye", 400, franchise="Shorts")
+        S.extend(only, chan(only, 0), T0, H, tz="UTC")                        # ...or shorts, when there are some
+        self.assertEqual({r[0] for r in only.execute("SELECT media_id FROM slots")}, {sh})
+
+
 if __name__ == "__main__":
     unittest.main()

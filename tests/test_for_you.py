@@ -145,12 +145,14 @@ class BuiltinChannelTests(unittest.TestCase):
 
     def test_for_you_reaches_an_older_channels_file_once(self):
         old = json.loads(self.cf.read_text(encoding="utf-8"))
-        old["channels"] = [c for c in old["channels"] if c["id"] != "for-you"]
+        old["channels"] = [c for c in old["channels"] if c["id"] not in ("for-you", "shorts")]
         old["channels"].append({"id": "mine", "number": 17, "name": "Mine", "match": {"franchise": ["Mine"]}})
         self.cf.write_text(json.dumps(old), encoding="utf-8")
         self.assertTrue(channels_api.ensure_builtin(self.cfg))
         fy = [c for c in json.loads(self.cf.read_text(encoding="utf-8"))["channels"] if c["id"] == "for-you"][0]
         self.assertEqual((fy["kind"], fy["number"]), ("foryou", 18))           # 17 was taken by your own channel
+        sh = [c for c in json.loads(self.cf.read_text(encoding="utf-8"))["channels"] if c["id"] == "shorts"][0]
+        self.assertEqual(sh["number"], 19)                                       # Cartoon Shorts (1.23) came too
         channels_api.update(self.cfg, {"op": "delete", "id": "for-you"})
         self.assertFalse(channels_api.ensure_builtin(self.cfg))                 # deleted by you: stays gone
         self.assertNotIn("for-you", self.ids())

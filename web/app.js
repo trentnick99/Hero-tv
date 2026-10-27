@@ -513,7 +513,7 @@ async function loadTheme(){try{theme=Object.assign(theme,await api("/api/theme")
 function applyCues(st){st=st||{};const b=document.body.classList;b.toggle("cue-l",st.size==="large");b.toggle("cue-xl",st.size==="xl");b.toggle("cue-none",st.bg==="none");b.toggle("cue-yellow",st.color==="yellow")}
 const SW=["#ffcf1f","#ff3b3b","#3d6bff","#3ddc84","#b06bff","#ff8c00","#ff2e88","#1fd1b4"];
 const SCATS=[["look","Appearance"],["chan","Channels"],["lib","Media library"],["weather","Weather"],["art","Cover art"],["tools","Tools"],["devices","Other devices"],["about","Backup and about"]];
-let chList=null,chSel=null,chShorts=0;let sCat="look",sData=null,sDirty=false,sLeave=false;
+let chList=null,chSel=null,chShorts=0,chChoices={folders:[],series:[]};let sCat="look",sData=null,sDirty=false,sLeave=false;
 function sMsg(t,cls){const m=$("#st-msg");if(m){m.textContent=t||"";m.className="smsg"+(cls?" "+cls:"")}}
 function sField(label,help,input,row){const f=el("div","sf"+(row?" row":""));if(label)f.append(el("label",0,label));if(input)f.append(input);if(help)f.append(el("small",0,help));return f}
 function sBtn(text,fn,cls){const b=el("button","sbtn"+(cls?" "+cls:""),text);b.type="button";b.onclick=fn;return b}
@@ -779,7 +779,7 @@ function chBack(){chSel=null;sDirty=false;sLeave=false;drawSettings();$("#st-mai
 async function chSaved(r,text){chList=r.channels;sDirty=false;sLeave=false;try{libV=(await fetch("/api/hb").then(x=>x.json())).lib}catch(e){}libChanged("channels updated");sMsg(text+(r.note?" "+r.note:""),"ok")}
 async function chPost(body,okText,backToList){sMsg("Saving...");try{const r=await pj("/api/channels-config",body);await chSaved(r,okText);if(backToList){chSel=null;drawSettings();sMsg(okText+(r.note?" "+r.note:""),"ok")}}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}}
 function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
- if(!chList){main.append(el("div","empty","Loading channels..."));api("/api/channels-config").then(j=>{chList=j.channels;chShorts=j.shorts||0;if(layer==="settings"&&sCat==="chan")drawSettings()}).catch(()=>{main.textContent="";main.append(el("div","empty","Channels could not be loaded."))});return}
+ if(!chList){main.append(el("div","empty","Loading channels..."));api("/api/channels-config").then(j=>{chList=j.channels;chShorts=j.shorts||0;chChoices=j.slot_choices||chChoices;if(layer==="settings"&&sCat==="chan")drawSettings()}).catch(()=>{main.textContent="";main.append(el("div","empty","Channels could not be loaded."))});return}
  if(chSel===null){main.append(el("small",0,"Click a channel to rename it, change its color, folder or keywords. Changes show up in the guide straight away."));
   { const sm=el("input");sm.type="checkbox";sm.checked=sData&&sData.smart_sort!==false;
     sm.onchange=async()=>{try{await pj("/api/settings",{smart_sort:sm.checked});sData=await api("/api/settings");chList=null;drawSettings();toast(sm.checked?"Smart sorting on":"Smart sorting off")}catch(e){sMsg(String(e.message||e),"err")}};
@@ -811,6 +811,7 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  let mode=null;if(c.kind!=="weather"){mode=el("select");for(const[v,t]of[["sequential","In order (episodes and movies one after another)"],["mixed","Mixed shows, each in order (shows take turns, episodes stay in order)"],["balanced","Mixed shows, fair share (like Mixed, and a big show no longer crowds out small ones)"],["shuffle","Shuffled (everything in a random order)"]]){const o=el("option",0,t);o.value=v;if(v===c.mode)o.selected=true;mode.append(o)}mode.onchange=()=>{sDirty=true;sLeave=false};main.append(sField("Play order",null,mode))}
  let starts=null;if(c.kind!=="weather"){starts=el("select");for(const[v,t]of[[0,"Any time (one show straight after the other)"],[15,"On the quarter hour (:00, :15, :30, :45)"],[30,"On the half hour (:00 and :30)"],[60,"On the hour"]]){const o=el("option",0,t);o.value=v;if(v===(c.starts||0))o.selected=true;starts.append(o)}starts.onchange=()=>{sDirty=true;sLeave=false};
   main.append(sField("Start times",`Like real TV: shows start at clean times, and the gap before them is filled with whole short cartoons from your Shorts folder (put them in a folder called Shorts in your media folder - Tools > Free movies > Superhero-era cartoons gets some free ones) and an "Up next" card for the last minute or two. You have ${chShorts} short${chShorts===1?"":"s"} right now`+(chShorts<10?" - with few or none, the gaps are mostly the Up next card, so quarter hours work best.":"."),starts))}
+ if(!isNew&&c.kind!=="weather"&&c.kind!=="foryou")main.append(slotsField(c));
  let folder=null,words=null,desc=null;
  if(c.kind!=="weather"){
   if(!isNew)main.append(sField(c.off?"This channel is off":"On or off",c.off?"It is hidden from the guide and nothing new is filed onto it. Your videos are untouched.":"Switching it off hides it from the guide and stops new videos being filed onto it. Nothing is deleted.",
@@ -825,6 +826,22 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  bar.append(sBtn(isNew?"Create channel":"Save",()=>isNew?chPost(Object.assign({op:"add"},payload()),"Channel created.",true):chPost(Object.assign({op:"save",id:c.id},payload()),"Saved."),"pri"),sBtn("Back to the list",()=>{if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}chBack()}));
  if(!isNew)bar.append(sBtn("Delete this channel",()=>{if(!bar.dataset.sure){bar.dataset.sure=1;sMsg("Press Delete again to remove this channel from the guide. Your videos are not touched.","err");return}chPost({op:"delete",id:c.id},"Channel deleted.",true)},"warn"));
  main.append(bar,msg)}
+/* time slots: "Spider-Man cartoons on Saturday mornings" - blocks in channels.json, made here */
+function slotsField(c){const box=el("div","slots"),ORD={sequential:"in order",mixed:"mixed shows, in order",balanced:"fair share",shuffle:"shuffled"};
+ const post=async(body,ok)=>{sMsg("Saving...");try{const r=await pj("/api/channels-config",body);await chSaved(r,ok);drawSettings();sMsg(ok+(r.note?" "+r.note:""),"ok")}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}};
+ for(const b of c.blocks||[]){const row=el("div","sbar");const t12=x=>{const[h,mm]=String(x).split(":").map(Number);return isNaN(h)?x:`${h%12||12}:${String(mm).padStart(2,"0")} ${h<12?"AM":"PM"}`};row.append(el("span",0,`${b.days} ${t12(b.from)} to ${t12(b.to)}: ${b.what}${b.mode?" ("+(ORD[b.mode]||b.mode)+")":""}${b.dates?" - only "+b.dates:""}`),
+  sBtn("Remove",()=>post({op:"remove_block",id:c.id,name:b.name},"Time slot removed."),"warn"));box.append(row)}
+ if(!(c.blocks||[]).length)box.append(el("small",0,"None yet."));
+ const days=el("select");for(const[v,t]of[["daily","Every day"],["weekdays","Weekdays"],["weekends","Weekends"],["mon","Mondays"],["tue","Tuesdays"],["wed","Wednesdays"],["thu","Thursdays"],["fri","Fridays"],["sat","Saturdays"],["sun","Sundays"]]){const o=el("option",0,t);o.value=v;days.append(o)}
+ const tm=v=>{const i=el("select");for(let q=0;q<96;q++){const h=Math.floor(q/4),mm=String(q%4*15).padStart(2,"0"),val=String(h).padStart(2,"0")+":"+mm;
+   const o=el("option",0,`${h%12||12}:${mm} ${h<12?"AM":"PM"}`);o.value=val;if(val===v)o.selected=true;i.append(o)}return i},a=tm("08:00"),z=tm("11:00");
+ const what=el("select");const grp=(label,list,key)=>{if(!list.length)return;const g=document.createElement("optgroup");g.label=label;for(const x of list){const o=el("option",0,x);o.value=key+"\t"+x;g.append(o)}what.append(g)};
+ grp("Folders",chChoices.folders||[],"folder");grp("Shows",chChoices.series||[],"series");
+ const ord=el("select");for(const[v,t]of[["shuffle","Shuffled"],["mixed","Mixed shows, each in order"],["sequential","In order"],["balanced","Mixed shows, fair share"]]){const o=el("option",0,t);o.value=v;ord.append(o)}
+ const add=sBtn("Add time slot",()=>{const[k,x]=(what.value||"\t").split("\t");if(!x)return sMsg("Choose what plays in the time slot.","err");
+  post({op:"add_block",id:c.id,days:days.value,from:a.value,to:z.value,mode:ord.value,what:{[k]:x}},"Time slot added.")});
+ const form=el("div","sbar");form.append(days,a,el("span",0,"to"),z,what,ord,add);box.append(form);
+ return sField("Time slots","Like real TV: during these hours this channel plays only what you pick - for example cartoons on Saturday mornings. Outside them it plays as usual. A slot can run past midnight (22:00 to 02:00).",box)}
 function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null;aData=null}drawSettings();$("#st-main").scrollTop=0}
 /* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
 function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;

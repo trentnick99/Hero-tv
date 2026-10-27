@@ -218,6 +218,17 @@ REMINDERS
   again removes it); when it starts the TV shows the reminder - OK to watch, Back for not now. Reminders are shared
   by the PC, phones and the Roku app, and clear themselves after the show.
 
+TIME SLOTS, SEASONAL FOLDERS AND CARTOON SHORTS
+  Settings > Channels > a channel > Time slots: during the hours you pick, the channel plays only what you choose -
+  a folder or one show - for example "Saturdays 8:00 AM to 11:00 AM: Marvel Animation". Outside them it plays as
+  usual. A slot can run past midnight. Remove one with its Remove button.
+  Seasonal folders: put videos in a folder named after a month or holiday - for example MCU\December or
+  Shorts\Halloween ("Christmas", "Holiday", "Thanksgiving" and "Valentines" work too) - and they only play on the
+  channels in that month. They stay in the on-demand library all year.
+  Cartoon Shorts (channel 18): your Shorts folder and the free classic cartoons, around the clock. It appears in the
+  guide once there is something in it. If a channel ever has nothing it can show (for example only Christmas videos
+  in March), it plays shorts instead of going blank.
+
 PLAY ORDER AND THE CHANNEL LOGO
   Settings > Channels > a channel > Play order: "In order"; "Mixed shows, each in order" (shows take turns at
   random, but every show's episodes stay in order - good for channels with several shows); "Mixed shows, fair share"
