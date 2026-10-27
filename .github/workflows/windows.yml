@@ -256,8 +256,9 @@ jobs:
 
 
   safari-engine:
-    # Safari's engine (WebKit) on a Mac: the closest thing to an iPhone that runs in the cloud.
-    runs-on: macos-latest
+    # Safari's engine (WebKit), the engine of every iPhone browser. Runs on Linux: GitHub's Mac machines are often
+    # queued for a long time, and a release should not wait on them.
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -267,7 +268,7 @@ jobs:
       - name: Install the Safari engine
         run: |
           python -m pip install playwright opencv-python-headless numpy
-          python -m playwright install webkit
+          python -m playwright install --with-deps webkit
       - name: Phone test (pair, watch, touch, watch-only) in Safari's engine
         run: python scripts/browser_phone_test.py webkit
       - name: Everyday features test (welcome, New, next episode, settings) in Safari's engine
