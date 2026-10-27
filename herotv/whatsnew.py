@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.25.0": [
+        "Live TV in other apps (Settings > Other devices): your channels and the guide in Plex, Jellyfin, Emby, Channels and IPTV apps like TiviMate on Fire TV, Apple TV and Android TV. Off until you switch it on.",
+    ],
     "1.24.0": [
         "Breaks inside shows, like real TV: tick 'Breaks inside shows' under Start times on a channel. Shorts play in the middle of each show (two breaks in longer ones), at a chapter mark when the video has one.",
         "A show cut short by a time slot now switches over on time on every screen.",

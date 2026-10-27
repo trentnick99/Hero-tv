@@ -282,3 +282,5 @@ body.cue-yellow video::cue{color:#ffe14d}
 #osd.on~#bug{opacity:0}
 .slots{display:flex;flex-direction:column;gap:1vh}
 .slots .sbar>span{align-self:center;font-size:calc(2.1vh*var(--tx))}
+
+.ibx code{font-size:calc(2.2vh*var(--tx));color:var(--text)}

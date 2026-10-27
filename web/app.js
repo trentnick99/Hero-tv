@@ -702,6 +702,24 @@ function alwaysCard(){const c=tCard("Always on","So your Roku TV and phones alwa
  c.append(mk("stay_awake","Keep this PC awake so the TVs always find it (the screen can still switch off)",aData.stay_awake));
  c.append(el("small",0,aData.startup?"Starting with Windows also keeps it running. To stop it: Settings > Backup and about > Quit HERO TV.":"If it ever stops with an error while running in the background, it starts itself again."));
  return c}
+/* ---- live TV in other apps: M3U + XMLTV guide + HDHomeRun look-alike (own warned switch, off by default) ---- */
+let iData=null;
+function iptvCard(){const c=tCard("Live TV in other apps","Your channels as live TV in Plex, Jellyfin, Emby, Channels and IPTV apps (TiviMate, IPTV Smarters, VLC...) on Fire TV, Apple TV, Android TV, phones and smart TVs - with the TV guide. Each channel is one live stream that follows your schedule.");
+ if(!iData){c.append(el("small",0,"Loading..."));api("/api/iptv").then(j=>{iData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return c}
+ const d=iData,err=t=>sMsg(String(t.message||t).replace(/^Error: /,""),"err");
+ if(!d.ffmpeg)c.append(el("small","err","This needs ffmpeg (Settings > Tools shows how to get it)."));
+ if(!d.on){c.append(el("small","err","Warning: when this is on, any app or device on your home network that knows the address can watch your channels (watch-only - nothing can be changed). There is no pairing, like the TV media server. Only switch it on at home, on a network you trust."));
+  const b=sBtn("Switch on live TV for other apps",async()=>{if(!b.dataset.sure){b.dataset.sure=1;b.textContent="Press again to switch it on";return}
+   try{iData=await pj("/api/iptv",{on:true});sMsg("Live TV for other apps is on.","ok");drawSettings()}catch(e){err(e)}},"warn");
+  if(!d.lan)c.append(el("small",0,"Switch on 'Let other devices watch' above first."));c.append(b);return c}
+ const row=(label,val)=>{const r=el("div","ibx");r.append(el("b",0,label));const t=el("code",0,val||"(this PC has no network address right now)");t.style.userSelect="all";r.append(t);return r};
+ c.append(row("Channel list (M3U) for IPTV apps",d.m3u),row("TV guide (XMLTV)",d.xmltv),row("Tuner address for Plex / Jellyfin / Emby (HDHomeRun)",d.hdhr));
+ c.append(el("small",0,"Short addresses, easy to type with a remote. If an app wants a private address instead: "+(d.m3u_long||"")+" and "+(d.xmltv_long||"")));
+ const ol=el("ol","rsteps");for(const t of["Plex: Settings > Live TV & DVR > Set up Plex DVR > 'Don't see your HDHomeRun device? Enter its network address manually' > type the tuner address. For the guide choose 'Have an XMLTV guide on your server?' and paste the guide address.","Jellyfin / Emby: Dashboard > Live TV > add a Tuner (HDHomeRun, the tuner address) and a TV guide provider (XMLTV, the guide address).","IPTV apps (TiviMate, IPTV Smarters, VLC...): add a playlist by URL with the channel list address; most find the guide by themselves (else paste the guide address)."])ol.append(el("li",0,t));c.append(ol);
+ const bar=el("div","sbar");
+ bar.append(sBtn("New addresses (old ones stop working)",async()=>{try{iData=await pj("/api/iptv",{on:true,new_key:true});sMsg("New addresses made - put them into your apps again.","ok");drawSettings()}catch(e){err(e)}}),
+  sBtn("Switch off",async()=>{try{iData=await pj("/api/iptv",{on:false});sMsg("Live TV for other apps is off.","ok");drawSettings()}catch(e){err(e)}},"warn"));
+ c.append(bar,el("small",0,"Works while this PC is on with HERO TV running. Videos are sent as they are when the format allows and converted on the fly otherwise (that uses more of the PC)."));return c}
 /* ---- the HERO TV app on a Roku TV: found and installed from here, nothing to type on the TV ---- */
 let rData=null,rFound=null,rPick="";
 function rokuCard(){const c=tCard("HERO TV on your Roku TVs","Puts a real HERO TV app on each Roku TV in the house: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK opens the TV guide, Left opens everything on demand. Every TV can watch its own channel. This PC does the work, so it must be on with HERO TV open.");
@@ -744,6 +762,7 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
    main.append(c)}
  main.append(alwaysCard());
  main.append(rokuCard());
+ main.append(iptvCard());
  if(d.enabled){
   { const c=tCard("Phone can't connect?","Checks this PC for the usual reasons (Windows Firewall, a network marked Public, a VPN) and fixes what it can. Ethernet on the PC and WiFi on the phone is fine - they only need the same router.");
     const ck=d.check,row=el("div","sbar"),b=sBtn("Check the connection",()=>devOp({op:"check"},b),ck?"":"pri");row.append(b);
@@ -845,7 +864,7 @@ function slotsField(c){const box=el("div","slots"),ORD={sequential:"in order",mi
   post({op:"add_block",id:c.id,days:days.value,from:a.value,to:z.value,mode:ord.value,what:{[k]:x}},"Time slot added.")});
  const form=el("div","sbar");form.append(days,a,el("span",0,"to"),z,what,ord,add);box.append(form);
  return sField("Time slots","Like real TV: during these hours this channel plays only what you pick - for example cartoons on Saturday mornings. Outside them it plays as usual. A slot can run past midnight (22:00 to 02:00).",box)}
-function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null;aData=null}drawSettings();$("#st-main").scrollTop=0}
+function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null;aData=null;iData=null}drawSettings();$("#st-main").scrollTop=0}
 /* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
 function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;
  if(k==="ArrowUp")return q.bottom<=r.bottom-r.height*.5&&q.top+q.height/2<r.top+r.height/2;

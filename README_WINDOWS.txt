@@ -260,6 +260,18 @@ ALWAYS ON (for the Roku app and phones)
   to sleep while HERO TV runs - the screen can still switch off. A TV cannot wake a sleeping PC. Even with it off,
   the PC stays awake while a TV or phone is playing something, and for 15 minutes after.
 
+LIVE TV IN OTHER APPS (Plex, Jellyfin, Emby, Channels, IPTV apps)
+  Settings > Other devices > Live TV in other apps (needs "Let other devices watch" on, and ffmpeg). Off by default:
+  when it is on, any app on your home network that knows the address can watch your channels (watch-only, no
+  pairing), so it asks twice. It shows three addresses:
+  - Channel list (M3U): add it as a playlist URL in IPTV apps such as TiviMate, IPTV Smarters or VLC.
+  - TV guide (XMLTV): most IPTV apps find it by themselves; Plex/Jellyfin/Emby ask for it.
+  - Tuner address: in Plex (Live TV & DVR > enter the HDHomeRun address manually), Jellyfin or Emby (Live TV >
+    add a tuner: HDHomeRun) - your channels then show up as live TV with the guide.
+  Each channel is one live stream that follows your schedule. Videos are sent as they are when the format allows
+  (H.264/HEVC with AAC/AC-3 sound), otherwise converted on the fly, which uses more of the PC. "New addresses" makes
+  a new private key (the old addresses stop working).
+
 HERO TV ON YOUR ROKU TV (a real app on the TV)
   Once, on the TV: press Home 3 times, Up 2 times, then Right, Left, Right, Left, Right on the Roku remote. Choose
   "Enable installer and restart", agree, and pick a password. The TV restarts. (This is Roku's free developer mode.)

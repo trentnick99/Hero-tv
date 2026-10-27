@@ -30,6 +30,8 @@ The full guide is in [`README_WINDOWS.txt`](README_WINDOWS.txt).
 - **Other screens** - phones and laptops on your WiFi (paired once, watch-only), and a **HERO TV app for Roku TVs**
   that HERO TV installs on the TV for you (guide grid, on-demand library with resume and search, Weather, last channel,
   start over, reminders).
+- **Live TV in other apps** - your channels and guide in Plex, Jellyfin, Emby, Channels and IPTV apps (M3U + XMLTV,
+  and an HDHomeRun tuner look-alike). Off by default.
 - **Always on** - can start with Windows, keep running in the background and keep the PC awake for the TVs.
 - **Help built in** - press `?` for what is wrong and how to fix it; *Report a problem* makes a report to paste into
   a Claude chat; *Check the connection* fixes the usual phone/firewall problems.
