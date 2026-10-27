@@ -21,6 +21,25 @@ from . import scheduler as S
 
 TS_VIDEO = {"h264", "hevc", "mpeg2video"}
 TS_AUDIO = {"aac", "mp3", "ac3", "eac3", "mp2"}
+import threading
+
+_live = set()                                   # ffmpeg processes sending live streams right now
+_live_lock = threading.Lock()
+_epoch = [0]                                    # stop_all() moves it on: streams started before it end
+
+
+def stop_all():
+    """End every live stream (HERO TV quits, or 'Let other devices watch' is switched off)."""
+    with _live_lock:
+        _epoch[0] += 1
+        procs = list(_live)
+    for p in procs:
+        try:
+            p.kill()
+        except OSError:
+            pass
+
+
 HDHR_OPEN = ("/discover.json", "/lineup.json", "/lineup_status.json", "/device.xml", "/tv.m3u", "/tv.xml")   # easy to type on a TV
 
 
@@ -171,6 +190,7 @@ def stream_channel(app, cid, write, exe, still_for=None, popen=subprocess.Popen,
     from . import tools
     ts = 0.0
     n = 0
+    epoch = _epoch[0]
     while max_parts is None or n < max_parts:
         n += 1
         c = app.db()
@@ -199,6 +219,8 @@ def stream_channel(app, cid, write, exe, still_for=None, popen=subprocess.Popen,
             cmd = ffmpeg_cmd(exe, d, media, now - d["start"] + (d.get("seek") or 0), length, ts)
         started = clock()
         p = popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL, **tools.HIDE)
+        with _live_lock:
+            _live.add(p)
         try:
             while True:
                 chunk = p.stdout.read(188 * 512)
@@ -218,6 +240,10 @@ def stream_channel(app, cid, write, exe, still_for=None, popen=subprocess.Popen,
                 p.stdout.close()
             except Exception:
                 pass
+            with _live_lock:
+                _live.discard(p)
+        if _epoch[0] != epoch:
+            return
         ts += max(0.5, clock() - started)
         if clock() - started < 0.5 and length > 2:      # ffmpeg gave up at once (unreadable file): go on after this slot
             time.sleep(min(2.0, length))

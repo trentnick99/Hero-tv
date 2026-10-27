@@ -17,13 +17,25 @@ from herotv.db import connect  # noqa: E402
 
 
 def free_pair_of_ports():
-    for _ in range(50):
-        s = socket.socket(); s.bind(("127.0.0.1", 0)); p = s.getsockname()[1]; s.close()
-        t = socket.socket()
+    """Two free neighbouring ports (PC port and the home-network port next to it). Picked outside the range
+    Windows hands out for outgoing connections (49152-65535), where a port that was free a moment ago can be
+    taken again (WinError 10013 on the CI runner)."""
+    import random
+    rng = random.Random()
+    for _ in range(200):
+        p = rng.randrange(20000, 40000)
+        socks = []
         try:
-            t.bind(("0.0.0.0", p + 1)); t.close(); return p
+            for addr in (("127.0.0.1", p), ("0.0.0.0", p + 1)):
+                t = socket.socket()
+                socks.append(t)
+                t.bind(addr)
+            return p
         except OSError:
-            t.close()
+            continue
+        finally:
+            for t in socks:
+                t.close()
     raise RuntimeError("no ports")
 
 

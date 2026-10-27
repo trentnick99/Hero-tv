@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.25.1": [
+        "Live TV in other apps: streams stop cleanly when HERO TV quits or other devices are switched off.",
+    ],
     "1.25.0": [
         "Live TV in other apps (Settings > Other devices): your channels and the guide in Plex, Jellyfin, Emby, Channels and IPTV apps like TiviMate on Fire TV, Apple TV and Android TV. Off until you switch it on.",
     ],

@@ -146,6 +146,7 @@ class App:
     def stop_lan(self):
         with self.lan_lock:
             srv, self.lan_srv = self.lan_srv, None
+        iptv.stop_all()                                   # live streams to other apps end with the listener
         if srv is not None:
             srv.shutdown()
             srv.server_close()
