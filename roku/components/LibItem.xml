@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- One tile in the on-demand rows: a picture from the video with its name on it. -->
+<component name="LibItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="showItem" />
+  </interface>
+  <script type="text/brightscript" uri="LibItem.brs" />
+  <children>
+    <Rectangle id="frame" width="400" height="225" color="0x1b2133FF" />
+    <Label id="big" translation="[20,60]" width="360" height="100" wrap="true" maxLines="3" horizAlign="center" vertAlign="center"
+           font="font:SmallBoldSystemFont" color="0xC8CDD8FF" />
+    <Poster id="pic" width="400" height="225" loadDisplayMode="scaleToFill" />
+    <Rectangle id="shade" translation="[0,163]" width="400" height="62" color="0x000000B4" />
+    <Label id="title" translation="[14,168]" width="372" font="font:SmallestBoldSystemFont" color="0xFFFFFFFF" />
+    <Label id="tag" translation="[14,196]" width="372" font="font:SmallestSystemFont" color="0xC8CDD8FF" />
+  </children>
+</component>

@@ -678,11 +678,12 @@ function alwaysCard(){const c=tCard("Always on","So your Roku TV and phones alwa
   i.onchange=async()=>{i.disabled=true;try{aData=await pj("/api/alwayson",{[key]:i.checked});toast("Saved.")}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");i.checked=!i.checked}i.disabled=false;drawSettings()};return l};
  if(aData.windows)c.append(mk("startup","Start HERO TV when I sign in to Windows (in the background, no window)",aData.startup));
  c.append(mk("background","Keep HERO TV running when the TV window is closed",aData.background,aData.startup));
+ c.append(mk("stay_awake","Keep this PC awake so the TVs always find it (the screen can still switch off)",aData.stay_awake));
  c.append(el("small",0,aData.startup?"Starting with Windows also keeps it running. To stop it: Settings > Backup and about > Quit HERO TV.":"If it ever stops with an error while running in the background, it starts itself again."));
  return c}
 /* ---- the HERO TV app on a Roku TV: found and installed from here, nothing to type on the TV ---- */
 let rData=null,rFound=null,rPick="";
-function rokuCard(){const c=tCard("HERO TV on your Roku TVs","Puts a real HERO TV app on each Roku TV in the house: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK opens the TV guide. Every TV can watch its own channel. This PC does the work, so it must be on with HERO TV open.");
+function rokuCard(){const c=tCard("HERO TV on your Roku TVs","Puts a real HERO TV app on each Roku TV in the house: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK opens the TV guide, Left opens everything on demand. Every TV can watch its own channel. This PC does the work, so it must be on with HERO TV open.");
  if(!rData){c.append(el("small",0,"Loading..."));api("/api/roku").then(j=>{rData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return c}
  const r=rData,err=t=>sMsg(String(t.message||t).replace(/^Error: /,""),"err");
  if(!r.app_files){c.append(el("small","err","The Roku app files are missing from this HERO TV folder. Reinstall HERO TV."));return c}

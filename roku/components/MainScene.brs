@@ -1,6 +1,7 @@
-' HERO TV for Roku: live channels from HERO TV on the PC.
-' Up/Down change channel, OK opens the TV guide, Right the channel list, Replay the last channel, Rew starts the show
-' over, Fwd goes back to live, * turns subtitles on/off, Back leaves the guide (or the app).
+' HERO TV for Roku: live channels and the whole library on demand, from HERO TV on the PC.
+' Up/Down change channel, OK opens the TV guide, Right the channel list, Left the on-demand library, Replay the last
+' channel, Rew starts the show over, Fwd goes back to live, * turns subtitles on/off, Back leaves the guide (or the app).
+' On demand: Left/Right skip 10 seconds, Rew/Fwd 30 seconds, Replay starts again, Back returns to the library.
 
 sub init()
     m.cfg = HeroConfig()
@@ -66,6 +67,52 @@ sub init()
     m.remTimer.control = "start"
     m.top.findNode("remHide").observeField("fire", "hideReminder")
 
+    ' on demand
+    m.mode = "live"                                    ' live, weather or vod
+    m.vod = invalid
+    m.lib = m.top.findNode("lib")
+    m.rows = m.top.findNode("rows")
+    m.eps = m.top.findNode("eps")
+    m.epList = m.top.findNode("epList")
+    m.libRows = []
+    m.libResults = invalid
+    m.libData = []
+    m.epData = []
+    m.epShowTile = invalid
+    m.searchDlg = invalid
+    m.top.findNode("libBar").color = accent
+    m.rows.observeField("rowItemFocused", "onLibFocus")
+    m.rows.observeField("rowItemSelected", "onLibSelect")
+    m.epList.observeField("itemFocused", "onEpFocus")
+    m.epList.observeField("itemSelected", "onEpSelect")
+
+    ' the Weather channel
+    m.wx = m.top.findNode("wx")
+    m.wxTimer = m.top.findNode("wxTimer")
+    m.wxTimer.observeField("fire", "loadWeather")
+    m.wxHours = []
+    m.wxDays = []
+    for i = 0 to 9
+        l = m.top.findNode("wxHours").createChild("Label")
+        l.translation = [i * 168, 0]
+        l.width = 160
+        l.horizAlign = "center"
+        l.wrap = true
+        l.font = "font:SmallSystemFont"
+        l.color = "0xFFFFFFFF"
+        m.wxHours.push(l)
+    end for
+    for i = 0 to 6
+        l = m.top.findNode("wxDays").createChild("Label")
+        l.translation = [i * 240, 0]
+        l.width = 230
+        l.horizAlign = "center"
+        l.wrap = true
+        l.font = "font:SmallSystemFont"
+        l.color = "0xFFFFFFFF"
+        m.wxDays.push(l)
+    end for
+
     m.top.setFocus(true)
     loadChannels()
 end sub
@@ -119,7 +166,7 @@ sub onChannels(event as object)
     all = t.result.channels
     if isArr(all)
         for each c in all
-            if isAA(c) and c.kind <> "weather" and not isTrue(c.empty) then fresh.push(c)
+            if isAA(c) and not isTrue(c.empty) then fresh.push(c)       ' the Weather channel too
         end for
     end if
     m.channels = fresh
@@ -152,6 +199,7 @@ sub fillList()
         item = content.createChild("ContentNode")
         line = txt(c.number) + "   " + txt(c.name)
         if isAA(c.now) then line = line + "   -   " + txt(c.now.title)
+        if c.kind = "weather" then line = line + "   -   local forecast"
         item.title = line
     end for
     m.list.content = content
@@ -168,8 +216,28 @@ sub tune(idx as integer)
     m.seq = m.seq + 1
     m.afterFinish = false
     m.errors = 0
+    leaveVod()
+    m.lib.visible = false
+    m.eps.visible = false
+    m.top.setFocus(true)
     ch = m.channels[idx]
     regWrite("lastChannel", ch.id)
+    if ch.kind = "weather"
+        m.mode = "weather"
+        m.slot = invalid
+        m.nextSlot = invalid
+        m.upNext.visible = false
+        m.video.control = "stop"
+        hideMsg()
+        m.wx.visible = true
+        showBanner(ch, invalid)
+        loadWeather()
+        m.wxTimer.control = "start"
+        return
+    end if
+    m.mode = "live"
+    m.wx.visible = false
+    m.wxTimer.control = "stop"
     showBanner(ch, invalid)
     api("/api/tv/" + ch.id, "onNow")
 end sub
@@ -234,6 +302,10 @@ end sub
 
 sub onVideoState()
     s = m.video.state
+    if m.mode = "vod"
+        onVodState(s)
+        return
+    end if
     if s = "finished"
         m.afterFinish = true
         m.seq = m.seq + 1
@@ -264,6 +336,7 @@ end sub
 sub reportSeen()
     if m.video.state = "playing" and isAA(m.slot)
         api("/api/seen", "onQuiet", "POST", FormatJson({ media_id: num(m.slot.media_id), secs: 30 }))
+        if m.mode = "vod" then saveVod(false)
     end if
 end sub
 
@@ -274,7 +347,7 @@ end sub
 ' ---------- subtitles (*) ----------
 sub cycleSubs()
     c = m.video.content
-    if c = invalid then return
+    if c = invalid or m.mode = "weather" then return
     tr = c.subtitleTracks
     if not isArr(tr) or tr.count() = 0
         flash("No subtitles for this video")
@@ -461,7 +534,7 @@ sub onReminders(event as object)
             if m.live and m.current >= 0 and m.current < m.channels.count()
                 if m.channels[m.current].id = txt(d.channel) then watching = true
             end if
-            if not m.remShown.DoesExist(k) and not watching and not m.grid.visible
+            if not m.remShown.DoesExist(k) and not watching and not m.grid.visible and not m.lib.visible and not m.eps.visible
                 m.remShown[k] = true
                 m.remDue = d
                 m.top.findNode("rmTitle").text = txt(d.title)
@@ -532,6 +605,7 @@ sub showBanner(ch as object, r as dynamic)
     m.top.findNode("bnTitle").text = title
     m.top.findNode("bnTime").text = times
     m.top.findNode("bnNext").text = nxt
+    m.top.findNode("bnHelp").text = "OK guide    Left: on demand    Replay: last channel    Rew: start over    *: subtitles"
     m.banner.visible = true
     m.bannerTimer.control = "stop"
     m.bannerTimer.control = "start"
@@ -619,6 +693,30 @@ function onKeyEvent(key as string, press as boolean) as boolean
         end if
         return false                                   ' the list moves itself and selects with OK
     end if
+    if m.eps.visible
+        if key = "back"
+            m.eps.visible = false
+            m.rows.setFocus(true)
+            return true
+        else if key = "options"
+            i = m.epList.itemFocused
+            if i >= 0 and i < m.epData.count() then toggleFavorite(m.epData[i], m.top.findNode("epLine"))
+            return true
+        end if
+        return false
+    end if
+    if m.lib.visible
+        if key = "back"
+            closeLib()
+            return true
+        else if key = "options"
+            t = focusedTile()
+            if t <> invalid then toggleFavorite(t, m.top.findNode("libLine"))
+            return true
+        end if
+        return false                                   ' the rows move themselves and select with OK
+    end if
+    if m.mode = "vod" then return vodKey(key)
     if m.failed and key = "OK"
         loadChannels()
         return true
@@ -648,11 +746,498 @@ function onKeyEvent(key as string, press as boolean) as boolean
         cycleSubs()
         return true
     else if key = "left"
-        if m.current >= 0 then showBanner(m.channels[m.current], invalid)
+        openLib()
         return true
     else if key = "play"
+        if m.mode = "weather" then return true
         if m.video.state = "playing" then m.video.control = "pause" else m.video.control = "resume"
         return true
     end if
     return false                                       ' Back leaves the app
+end function
+
+' ---------- on demand: the library (Left) ----------
+sub openLib()
+    m.banner.visible = false
+    m.upNext.visible = false
+    m.lib.visible = true
+    if m.libData.count() = 0 then m.top.findNode("libTitle").text = "Loading your library..."
+    m.rows.setFocus(true)
+    api("/api/ondemand", "onLib")
+end sub
+
+sub closeLib()
+    m.lib.visible = false
+    m.eps.visible = false
+    m.top.setFocus(true)
+    if m.mode = "vod"
+        backToLive()                                   ' the video was stopped: back to the channel you were on
+    end if
+end sub
+
+sub onLib(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if not m.lib.visible then return
+    if t.error <> ""
+        m.top.findNode("libTitle").text = t.error
+        return
+    end if
+    if isArr(t.result.rows) then m.libRows = t.result.rows
+    buildLib(1)
+end sub
+
+sub buildLib(focusRow as integer)
+    data = []
+    data.push({ title: "Search", items: [{ type: "search", title: "Search", line: "Find any movie or show by name", plot: "", thumb: "" }] })
+    if isAA(m.libResults) then data.push(m.libResults)
+    for each r in m.libRows
+        if isAA(r) and isArr(r.items) and r.items.count() > 0 then data.push(r)
+    end for
+    root = CreateObject("roSGNode", "ContentNode")
+    m.libData = []
+    for each r in data
+        row = root.createChild("ContentNode")
+        row.title = txt(r.title)
+        tiles = []
+        for each it in r.items
+            if isAA(it)
+                n = row.createChild("ContentNode")
+                n.title = txt(it.title)
+                n.ShortDescriptionLine1 = tileTag(it)
+                if isStr(it.thumb) and it.thumb <> "" then n.HDPosterUrl = m.cfg.server + it.thumb + "?k=" + m.cfg.mk
+                tiles.push(it)
+            end if
+        end for
+        m.libData.push(tiles)
+    end for
+    m.rows.content = root
+    if focusRow >= data.count() then focusRow = 0
+    m.rows.jumpToRowItem = [focusRow, 0]
+    m.rows.setFocus(true)
+    if data.count() = 1 then m.top.findNode("libTitle").text = "Nothing in your library yet - add videos to HERO TV on the PC."
+end sub
+
+function tileTag(it as object) as string
+    tag = txt(it.line)
+    if isTrue(it.favorite) then tag = "* " + tag
+    return tag
+end function
+
+function focusedTile() as dynamic
+    f = m.rows.rowItemFocused
+    if not isArr(f) or f.count() < 2 then return invalid
+    r = num(f[0])
+    c = num(f[1])
+    if r < 0 or r >= m.libData.count() then return invalid
+    if c < 0 or c >= m.libData[r].count() then return invalid
+    return m.libData[r][c]
+end function
+
+sub onLibFocus()
+    t = focusedTile()
+    if t = invalid then return
+    m.top.findNode("libTitle").text = txt(t.title)
+    m.top.findNode("libLine").text = tileTag(t)
+    m.top.findNode("libPlot").text = txt(t.plot)
+end sub
+
+sub onLibSelect()
+    t = focusedTile()
+    if t = invalid then return
+    kind = txt(t["type"])
+    if kind = "search"
+        openSearch()
+    else if kind = "series"
+        m.epShowTile = t
+        m.top.findNode("libLine").text = "Opening " + txt(t.title) + "..."
+        api("/api/ondemand?series=" + esc(txt(t.series)) + "&franchise=" + esc(txt(t.franchise)), "onEps")
+    else
+        startVod(num(t.id))
+    end if
+end sub
+
+function esc(s as string) as string
+    return CreateObject("roUrlTransfer").Escape(s)
+end function
+
+sub toggleFavorite(t as object, where as object)
+    if txt(t["type"]) = "search" then return
+    if txt(t["type"]) = "series"
+        where.text = "Open the show and press * on an episode to add it to your favorites."
+        return
+    end if
+    wantOn = not isTrue(t.favorite)
+    t.favorite = wantOn
+    api("/api/favorite", "onQuiet", "POST", FormatJson({ media_id: num(t.id), on: wantOn }))
+    if wantOn then where.text = "Added to your favorites" else where.text = "Removed from your favorites"
+end sub
+
+' ---------- search ----------
+sub openSearch()
+    d = CreateObject("roSGNode", "StandardKeyboardDialog")
+    if d = invalid then d = CreateObject("roSGNode", "KeyboardDialog")
+    if d = invalid then return
+    d.title = "Search your library"
+    d.buttons = ["Search", "Cancel"]
+    d.observeField("buttonSelected", "onSearchButton")
+    m.searchDlg = d
+    m.top.dialog = d
+end sub
+
+sub onSearchButton()
+    d = m.searchDlg
+    if d = invalid then return
+    words = ""
+    if d.buttonSelected = 0 then words = d.text
+    d.close = true
+    m.searchDlg = invalid
+    m.rows.setFocus(true)
+    if words = "" then return
+    m.top.findNode("libTitle").text = "Searching for " + words + "..."
+    api("/api/ondemand?q=" + esc(words), "onSearch")
+end sub
+
+sub onSearch(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if not m.lib.visible then return
+    if t.error <> ""
+        m.top.findNode("libTitle").text = t.error
+        return
+    end if
+    m.libResults = invalid
+    if isArr(t.result.rows) and t.result.rows.count() > 0
+        r = t.result.rows[0]
+        if isAA(r)
+            if isArr(r.items) and r.items.count() > 0
+                m.libResults = r
+            else
+                m.top.findNode("libTitle").text = txt(r.title)
+                m.top.findNode("libLine").text = "Try fewer letters, or another name."
+                return
+            end if
+        end if
+    end if
+    buildLib(1)
+end sub
+
+' ---------- the episodes of a show ----------
+sub onEps(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if not m.lib.visible then return
+    if t.error <> "" or not isArr(t.result.items) or t.result.items.count() = 0
+        m.top.findNode("libLine").text = "Could not open that show right now."
+        return
+    end if
+    m.epData = t.result.items
+    content = CreateObject("roSGNode", "ContentNode")
+    at = 0
+    for i = 0 to m.epData.count() - 1
+        e = m.epData[i]
+        n = content.createChild("ContentNode")
+        n.title = txt(e.title)
+        if num(e.id) = num(t.result["next"]) then at = i
+    end for
+    m.top.findNode("epShow").text = txt(t.result.series)
+    m.epList.content = content
+    m.epList.jumpToItem = at
+    m.eps.visible = true
+    m.epList.setFocus(true)
+    onEpFocus()
+end sub
+
+sub onEpFocus()
+    i = m.epList.itemFocused
+    if i < 0 or i >= m.epData.count() then return
+    e = m.epData[i]
+    m.top.findNode("epTitle").text = txt(e.title)
+    m.top.findNode("epLine").text = tileTag(e)
+    m.top.findNode("epPlot").text = txt(e.plot)
+    m.top.findNode("epPic").uri = m.cfg.server + txt(e.thumb) + "?k=" + m.cfg.mk
+end sub
+
+sub onEpSelect()
+    i = m.epList.itemSelected
+    if i >= 0 and i < m.epData.count() then startVod(num(m.epData[i].id))
+end sub
+
+' ---------- watching on demand ----------
+sub startVod(id as integer)
+    m.seq = m.seq + 1
+    api("/api/play/" + id.ToStr(), "onPlay")
+end sub
+
+sub onPlay(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if t.tag <> m.seq.ToStr() then return
+    r = t.result
+    if t.error <> "" or not isAA(r) or r.id = invalid
+        where = m.top.findNode("libLine")
+        if m.eps.visible then where = m.top.findNode("epLine")
+        if t.error <> "" then where.text = t.error else where.text = "That video is not available any more."
+        if not m.lib.visible then showMsg("That video is not available any more. Press Back.")
+        return
+    end if
+    if m.mode = "vod" then saveVod(false)
+    m.mode = "vod"
+    m.vod = r
+    m.live = false
+    m.slot = invalid
+    m.nextSlot = invalid
+    m.wx.visible = false
+    m.wxTimer.control = "stop"
+    m.upNext.visible = false
+    m.lib.visible = false
+    m.eps.visible = false
+    m.top.setFocus(true)
+    hideMsg()
+    play({ media_id: r.id, ext: r.ext, subs: r.subs, title: r.title }, num(r.resume))
+    m.top.findNode("bnNum").text = ""
+    m.top.findNode("bnChan").text = "ON DEMAND"
+    m.top.findNode("bnTitle").text = txt(r.title)
+    m.top.findNode("bnNext").text = ""
+    m.top.findNode("bnHelp").text = "Left/Right: 10 s    Rew/Fwd: 30 s    Replay: from the start    Back: library"
+    if num(r.resume) > 0
+        flash("Going on where you left off  -  press Replay to start from the beginning")
+    else
+        flash(txt(r.line))
+    end if
+end sub
+
+sub onVodState(s as string)
+    if s = "finished"
+        saveVod(true)
+        nx = invalid
+        if isAA(m.vod) then nx = m.vod["next"]
+        if isAA(nx)
+            showMsg("Up next: " + txt(nx.title))
+            startVod(num(nx.id))
+        else
+            stopVod()
+        end if
+    else if s = "error"
+        title = ""
+        if isAA(m.vod) then title = txt(m.vod.title)
+        showMsg("This TV cannot play " + title + " (" + m.video.errorMsg + ")." + Chr(10) + "On the PC, Settings > Tools makes copies that play here." + Chr(10) + Chr(10) + "Press Back for the library.")
+    else if s = "playing"
+        hideMsg()
+    end if
+end sub
+
+' remember where you are, so Continue watching (on every screen) picks up from here
+sub saveVod(finished as boolean)
+    if m.mode <> "vod" or not isAA(m.vod) then return
+    at = Int(m.video.position)
+    length = Int(m.video.duration)
+    if length <= 0 then length = num(m.vod.runtime)
+    done = finished or (length > 0 and at > length * 0.93)
+    if at < 5 and not done then return
+    api("/api/progress", "onQuiet", "POST", FormatJson({ media_id: num(m.vod.id), position: at, completed: done }))
+end sub
+
+sub leaveVod()
+    if m.mode <> "vod" then return
+    saveVod(false)
+    m.vod = invalid
+    m.mode = "live"
+end sub
+
+' Back while watching on demand: stop and return to the library (Back there returns to live TV)
+sub stopVod()
+    saveVod(false)
+    m.seq = m.seq + 1
+    m.video.control = "stop"
+    hideMsg()
+    m.banner.visible = false
+    openLib()
+end sub
+
+sub seekBy(secs as integer)
+    at = m.video.position + secs
+    if at < 0 then at = 0
+    if m.video.duration > 0 and at > m.video.duration - 3 then at = m.video.duration - 3
+    m.video.seek = at
+    flash(clockLen(Int(at)) + " of " + clockLen(Int(m.video.duration)))
+end sub
+
+function clockLen(s as integer) as string
+    if s < 0 then s = 0
+    h = s \ 3600
+    mm = (s mod 3600) \ 60
+    ss = s mod 60
+    out = ""
+    if h > 0 then out = h.ToStr() + ":"
+    if h > 0 and mm < 10 then out = out + "0"
+    out = out + mm.ToStr() + ":"
+    if ss < 10 then out = out + "0"
+    return out + ss.ToStr()
+end function
+
+function vodKey(key as string) as boolean
+    if key = "back"
+        stopVod()
+    else if key = "left"
+        seekBy(-10)
+    else if key = "right"
+        seekBy(10)
+    else if key = "rev"
+        seekBy(-30)
+    else if key = "fwd"
+        seekBy(30)
+    else if key = "replay"
+        m.video.seek = 0
+        flash("From the beginning")
+    else if key = "play"
+        if m.video.state = "playing" then m.video.control = "pause" else m.video.control = "resume"
+    else if key = "options"
+        cycleSubs()
+    else if key = "OK" or key = "up" or key = "down"
+        flash(clockLen(Int(m.video.position)) + " of " + clockLen(Int(m.video.duration)) + "    Back: library")
+    else
+        return false
+    end if
+    return true
+end function
+
+' ---------- the Weather channel ----------
+sub loadWeather()
+    if m.mode = "weather" then api("/api/weather", "onWeather")
+end sub
+
+sub onWeather(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if m.mode <> "weather" then return
+    w = t.result
+    for each l in m.wxHours
+        l.text = ""
+    end for
+    for each l in m.wxDays
+        l.text = ""
+    end for
+    m.top.findNode("wxAlert").text = ""
+    if t.error <> ""
+        m.top.findNode("wxPlace").text = ""
+        m.top.findNode("wxTemp").text = ""
+        m.top.findNode("wxCond").text = "Weather is not available right now"
+        m.top.findNode("wxDetail").text = t.error
+        return
+    end if
+    if not isTrue(w.configured)
+        m.top.findNode("wxPlace").text = ""
+        m.top.findNode("wxTemp").text = ""
+        m.top.findNode("wxCond").text = "No town chosen yet"
+        m.top.findNode("wxDetail").text = "On the PC: Settings > Weather, type your town and press Save."
+        return
+    end if
+    unitT = "°"
+    unitW = ""
+    if isAA(w.units)
+        unitT = txt(w.units.temp)
+        unitW = txt(w.units.wind)
+    end if
+    off = num(w.utc_offset)
+    m.top.findNode("wxPlace").text = txt(w.location)
+    c = w.current
+    if isAA(c)
+        m.top.findNode("wxTemp").text = deg(c.temp) + unitT
+        m.top.findNode("wxCond").text = wmoText(c.code)
+        d = ""
+        if c.feels <> invalid then d = "Feels like " + deg(c.feels) + "°"
+        if c.humidity <> invalid then d = d + "    Humidity " + deg(c.humidity) + "%"
+        if c.wind <> invalid then d = d + Chr(10) + "Wind " + compass(c.wind_dir) + " " + deg(c.wind) + " " + unitW
+        if isArr(w.daily) and w.daily.count() > 0 and isAA(w.daily[0])
+            d = d + Chr(10) + "Today: high " + deg(w.daily[0].hi) + "°, low " + deg(w.daily[0].lo) + "°"
+        end if
+        m.top.findNode("wxDetail").text = d
+    else
+        m.top.findNode("wxTemp").text = ""
+        m.top.findNode("wxCond").text = "No forecast right now"
+        m.top.findNode("wxDetail").text = txt(w.error)
+    end if
+    if isArr(w.alerts) and w.alerts.count() > 0
+        a = ""
+        n = 0
+        for each x in w.alerts
+            if isAA(x) and n < 2
+                if a <> "" then a = a + Chr(10)
+                a = a + "ALERT: " + txt(x.headline)
+                n = n + 1
+            end if
+        end for
+        m.top.findNode("wxAlert").text = a
+    end if
+    if isArr(w.hourly)
+        i = 0
+        for each h in w.hourly
+            if isAA(h) and i < m.wxHours.count()
+                hr = ((num(h.t) + off) mod 86400) \ 3600
+                rain = ""
+                if num(h.pop) > 0 then rain = num(h.pop).ToStr() + "%"
+                m.wxHours[i].text = hour12(hr) + Chr(10) + deg(h.temp) + "°" + Chr(10) + rain
+                i = i + 1
+            end if
+        end for
+    end if
+    if isArr(w.daily)
+        names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        i = 0
+        for each dy in w.daily
+            if isAA(dy) and i < m.wxDays.count()
+                day = "Today"
+                if i > 0 then day = names[(((num(dy.t) + off) \ 86400) + 4) mod 7]
+                m.wxDays[i].text = day + Chr(10) + deg(dy.hi) + "° / " + deg(dy.lo) + "°" + Chr(10) + wmoShort(dy.code)
+                i = i + 1
+            end if
+        end for
+    end if
+end sub
+
+function deg(v as dynamic) as string
+    if v = invalid then return "-"
+    if GetInterface(v, "ifFloat") <> invalid or GetInterface(v, "ifDouble") <> invalid then return Int(v + 0.5).ToStr()
+    return num(v).ToStr()
+end function
+
+function hour12(h as integer) as string
+    ampm = "AM"
+    if h >= 12 then ampm = "PM"
+    h = h mod 12
+    if h = 0 then h = 12
+    return h.ToStr() + " " + ampm
+end function
+
+function compass(d as dynamic) as string
+    if d = invalid then return ""
+    names = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+    return names[((num(d) + 22) mod 360) \ 45]
+end function
+
+function wmoText(code as dynamic) as string
+    if code = invalid then return ""
+    c = num(code)
+    if c = 0 then return "Clear"
+    if c = 1 then return "Mostly clear"
+    if c = 2 then return "Partly cloudy"
+    if c = 3 then return "Cloudy"
+    if c = 45 or c = 48 then return "Fog"
+    if c >= 51 and c <= 55 then return "Drizzle"
+    if c = 56 or c = 57 or c = 66 or c = 67 then return "Freezing rain"
+    if c >= 61 and c <= 65 then return "Rain"
+    if c >= 71 and c <= 77 then return "Snow"
+    if c >= 80 and c <= 82 then return "Rain showers"
+    if c = 85 or c = 86 then return "Snow showers"
+    if c = 95 then return "Thunderstorms"
+    if c = 96 or c = 99 then return "Thunderstorms with hail"
+    return ""
+end function
+
+function wmoShort(code as dynamic) as string
+    t = wmoText(code)
+    if t = "Thunderstorms with hail" then return "Storms, hail"
+    if t = "Thunderstorms" then return "Storms"
+    return t
 end function

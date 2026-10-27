@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.20.0": [
+        "Roku app: ON DEMAND - press Left for your whole library: Continue watching, Favorites, New, every folder, and Search. Pick any movie or episode and watch it.",
+        "On demand on the Roku goes on where you left off (on any screen), plays the next episode by itself, and Left/Right skip 10 seconds.",
+        "Roku app: the Weather channel now works on the TV too.",
+        "The PC no longer falls asleep while a TV is watching. 'Keep this PC awake' (Settings > Other devices > Always on) keeps the TVs able to find it.",
+    ],
     "1.19.2": [
         "Every Roku TV in the house: set up as many as you like (Settings > Other devices > HERO TV on your Roku TVs) - each keeps its own access and is updated by itself.",
         "Roku app: a video the TV cannot play is skipped and the channel goes on with the next show, like real TV.",

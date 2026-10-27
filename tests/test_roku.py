@@ -240,6 +240,22 @@ class TvEndpointTests(unittest.TestCase):
         self.addCleanup(c.close)
         self.assertEqual(c.execute("SELECT secs FROM seen WHERE media_id=?", (mid,)).fetchone()[0], 30)
 
+    def test_the_tv_can_browse_and_play(self):
+        j = json.loads(self.get("/api/ondemand"))
+        mcu = [r for r in j["rows"] if r["title"] == "MCU"][0]["items"][0]
+        self.assertEqual(mcu["title"], "Iron Man")
+        p = json.loads(self.get(f"/api/play/{mcu['id']}"))
+        self.assertEqual((p["ext"], p["resume"]), ("mkv", 0))
+        self.assertEqual(p["subs"][0]["url"], f"/sub/{mcu['id']}/x0.vtt")
+        self.assertIn("Iron Man", json.loads(self.get("/api/ondemand?q=iron"))["rows"][0]["items"][0]["title"])
+        r = urllib.request.Request(self.lan + "/api/progress", json.dumps({"media_id": mcu["id"], "position": 300}).encode(),
+                                   {"Content-Type": "application/json", "Cookie": f"{R.COOKIE}={self.tok}"})
+        urllib.request.urlopen(r, timeout=10).read()
+        self.assertEqual(json.loads(self.get(f"/api/play/{mcu['id']}"))["resume"], 300)
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.get("/api/play/99999")
+        self.assertEqual(cm.exception.code, 404)
+
 
 if __name__ == "__main__":
     unittest.main()

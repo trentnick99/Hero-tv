@@ -223,6 +223,9 @@ ALWAYS ON (for the Roku app and phones)
   Startup folder; it starts in the background with no window. "Keep HERO TV running when the TV window is closed" is
   on by default once a phone or the Roku TV is set up. If HERO TV stops with an error in the background, it starts
   itself again (up to 3 times in 10 minutes). Turn it off completely: Settings > Backup and about > Quit HERO TV.
+  "Keep this PC awake so the TVs always find it" (on by default once a Roku TV is set up) stops Windows from going
+  to sleep while HERO TV runs - the screen can still switch off. A TV cannot wake a sleeping PC. Even with it off,
+  the PC stays awake while a TV or phone is playing something, and for 15 minutes after.
 
 HERO TV ON YOUR ROKU TV (a real app on the TV)
   Once, on the TV: press Home 3 times, Up 2 times, then Right, Left, Right, Left, Right on the Roku remote. Choose
@@ -231,6 +234,12 @@ HERO TV ON YOUR ROKU TV (a real app on the TV)
   press Install on the TV. The app arrives already linked to this PC (its own watch-only key, listed under Paired
   devices) and starts. On the TV: Up/Down = channel, OK = TV guide grid, Right = quick channel list, Replay (the
   curved arrow) = last channel, Rew = start the show over, Fwd = back to live, * = subtitles on/off, Back = leave.
+  Left = ON DEMAND: your whole library in rows (Continue watching, Favorites, New, then one row per folder), a show
+  is one tile that opens its episodes at the next one to watch, Search at the top. While watching on demand:
+  Left/Right = 10 seconds, Rew/Fwd = 30 seconds, Replay = from the beginning, * = subtitles, Back = the library
+  (Back again = live TV). Where you stop is remembered on every screen, the next episode starts by itself, and
+  * in the library adds a video to your favorites.
+  The Weather channel works on the TV too (the town is chosen in Settings > Weather on the PC).
   The PC must be on with HERO TV open. HERO TV updates the TV app by itself after HERO TV updates, or when this PC
   gets a new network address (the TV must be on). The password is kept in HERO TV's settings on this PC.
   More TVs: do the same on each Roku TV in the house - every TV gets its own key and can watch its own channel.

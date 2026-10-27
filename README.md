@@ -26,8 +26,9 @@ The full guide is in [`README_WINDOWS.txt`](README_WINDOWS.txt).
   weekend mornings, hero films in prime time, scary films late at night) and has seasonal specials.
 - **Library** - search, resume, favorites, "continue watching", next episode, missing episodes, duplicates.
 - **Other screens** - phones and laptops on your WiFi (paired once, watch-only), and a **HERO TV app for Roku TVs**
-  that HERO TV installs on the TV for you (guide grid, last channel, start over, reminders).
-- **Always on** - can start with Windows and keep running in the background for the Roku app and phones.
+  that HERO TV installs on the TV for you (guide grid, on-demand library with resume and search, Weather, last channel,
+  start over, reminders).
+- **Always on** - can start with Windows, keep running in the background and keep the PC awake for the TVs.
 - **Help built in** - press `?` for what is wrong and how to fix it; *Report a problem* makes a report to paste into
   a Claude chat; *Check the connection* fixes the usual phone/firewall problems.
 
@@ -39,7 +40,8 @@ The full guide is in [`README_WINDOWS.txt`](README_WINDOWS.txt).
 | H or Esc | home menu · L library · D details · O settings · ? help |
 | R | start this show over · C subtitles · S sleep timer · M mute · F fullscreen |
 
-On the Roku remote: Up/Down channel, OK guide, Replay last channel, Rew start over, Fwd back to live, * subtitles.
+On the Roku remote: Up/Down channel, OK guide, Left on demand, Replay last channel, Rew start over, Fwd back to live,
+* subtitles.
 
 ## Your videos
 ```

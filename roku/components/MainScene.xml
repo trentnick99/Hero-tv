@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- The whole app: full-screen live TV, a channel banner, and a channel list (OK). -->
+<!-- The whole app: full-screen live TV, a channel banner, the TV guide, the channel list, the on-demand library
+     (Left), the Weather channel, reminders and "up next". -->
 <component name="MainScene" extends="Scene">
   <interface>
     <field id="exitApp" type="boolean" alwaysNotify="true" />
@@ -11,6 +12,23 @@
     <Rectangle id="bg" width="1920" height="1080" color="0x0b0e17FF" />
     <Video id="video" width="1920" height="1080" translation="[0,0]" enableUI="false" />
 
+    <Group id="wx" visible="false">
+      <Rectangle width="1920" height="1080" color="0x0d2340FF" />
+      <Rectangle width="1920" height="380" translation="[0,700]" color="0x0a1a30FF" />
+      <Label id="wxHead" translation="[120,70]" width="1100" font="font:MediumBoldSystemFont" color="0x2fa4ffFF" text="WEATHER" />
+      <Label id="wxPlace" translation="[120,115]" width="1100" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="wxTemp" translation="[110,190]" width="560" color="0xFFFFFFFF">
+        <Font role="font" uri="font:BoldSystemFontFile" size="190" />
+      </Label>
+      <Label id="wxCond" translation="[700,230]" width="1100" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="wxDetail" translation="[700,310]" width="1100" wrap="true" maxLines="3" font="font:MediumSystemFont" color="0xC8CDD8FF" />
+      <Label id="wxAlert" translation="[120,450]" width="1680" wrap="true" maxLines="4" font="font:MediumBoldSystemFont" color="0xFF6B6BFF" />
+      <Label translation="[120,600]" width="800" font="font:SmallBoldSystemFont" color="0x9AA3B5FF" text="NEXT HOURS" />
+      <Group id="wxHours" translation="[120,640]" />
+      <Label translation="[120,830]" width="800" font="font:SmallBoldSystemFont" color="0x9AA3B5FF" text="THE WEEK" />
+      <Group id="wxDays" translation="[120,870]" />
+    </Group>
+
     <Group id="banner" visible="false" translation="[0,780]">
       <Rectangle width="1920" height="300" color="0x000000C8" />
       <Rectangle id="bnBar" width="12" height="220" translation="[90,40]" color="0xffcf1fFF" />
@@ -20,7 +38,7 @@
       <Label id="bnTime" translation="[130,175]" width="1500" font="font:SmallSystemFont" color="0xC8CDD8FF" />
       <Label id="bnNext" translation="[130,215]" width="1500" font="font:SmallSystemFont" color="0x9AA3B5FF" />
       <Label id="bnHelp" translation="[1030,48]" width="800" horizAlign="right" font="font:SmallestSystemFont" color="0x9AA3B5FF"
-             text="OK guide    Up/Down channel    Replay: last channel    Rew: start over    *: subtitles" />
+             text="OK guide    Left: on demand    Replay: last channel    Rew: start over    *: subtitles" />
     </Group>
 
     <Group id="guide" visible="false">
@@ -45,6 +63,32 @@
       <Label id="tgHint" translation="[90,225]" width="1740" font="font:SmallestSystemFont" color="0x9AA3B5FF"
              text="Arrows: move    OK: watch that channel (or set a reminder for a later show)    Back: return to TV" />
       <TimeGrid id="tg" translation="[90,290]" numRows="7" duration="9000" channelInfoWidth="380" />
+    </Group>
+
+    <Group id="lib" visible="false">
+      <Rectangle width="1920" height="1080" color="0x0b0e17F8" />
+      <Rectangle id="libBar" width="12" height="70" translation="[90,45]" color="0xffcf1fFF" />
+      <Label id="libHead" translation="[125,40]" width="900" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" text="On demand" />
+      <Label id="libHint" translation="[960,58]" width="870" horizAlign="right" font="font:SmallestSystemFont" color="0x9AA3B5FF"
+             text="OK: watch    *: favorite    Back: return to TV" />
+      <Label id="libTitle" translation="[90,150]" width="1740" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="libLine" translation="[90,205]" width="1740" font="font:SmallSystemFont" color="0xC8CDD8FF" />
+      <Label id="libPlot" translation="[90,250]" width="1740" wrap="true" maxLines="2" font="font:SmallestSystemFont" color="0x9AA3B5FF" />
+      <RowList id="rows" translation="[90,350]" itemComponentName="LibItem" numRows="2" itemSize="[1830,310]"
+               rowItemSize="[[400,225]]" rowItemSpacing="[[24,0]]" itemSpacing="[0,30]" showRowLabel="[true]"
+               rowLabelOffset="[[0,10]]" rowLabelColor="0xC8CDD8FF" rowFocusAnimationStyle="floatingFocus" />
+    </Group>
+
+    <Group id="eps" visible="false">
+      <Rectangle width="1920" height="1080" color="0x0b0e17FA" />
+      <Label id="epShow" translation="[100,60]" width="900" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label translation="[100,125]" width="900" font="font:SmallestSystemFont" color="0x9AA3B5FF"
+             text="Up/Down: choose    OK: watch    *: favorite    Back: return" />
+      <LabelList id="epList" translation="[100,190]" itemSize="[900,72]" numRows="11" vertFocusAnimationStyle="floatingFocus" />
+      <Poster id="epPic" translation="[1080,190]" width="740" height="416" loadDisplayMode="scaleToFit" />
+      <Label id="epTitle" translation="[1080,630]" width="740" wrap="true" maxLines="2" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="epLine" translation="[1080,730]" width="740" font="font:SmallSystemFont" color="0xC8CDD8FF" />
+      <Label id="epPlot" translation="[1080,790]" width="740" wrap="true" maxLines="5" font="font:SmallestSystemFont" color="0x9AA3B5FF" />
     </Group>
 
     <Group id="upNext" visible="false" translation="[1240,60]">
@@ -76,5 +120,6 @@
     <Timer id="tickTimer" duration="5" repeat="true" />
     <Timer id="remTimer" duration="20" repeat="true" />
     <Timer id="remHide" duration="120" />
+    <Timer id="wxTimer" duration="600" repeat="true" />
   </children>
 </component>

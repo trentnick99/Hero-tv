@@ -405,7 +405,8 @@ def make_handler(app):
             self.end_headers()
             if self.command == "HEAD":
                 return
-            with open(path, "rb") as fh:
+            from . import awake
+            with open(path, "rb") as fh, awake.streaming():      # a TV is watching: the PC must not go to sleep
                 fh.seek(start)
                 left = end - start + 1
                 try:
