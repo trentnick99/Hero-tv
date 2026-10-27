@@ -90,7 +90,32 @@ class SelfUpdateTests(unittest.TestCase):
             raise OSError("down")
         st = selfupdate.check(gj=boom, now=5)
         self.assertFalse(st["available"])
-        self.assertIn("Could not reach GitHub", st["error"])
+        self.assertIn("Could not check GitHub", st["error"])
+        self.assertIn("no connection", selfupdate._why(__import__("urllib.error").error.URLError("down")))
+
+    def test_api_limit_falls_back_to_the_releases_page(self):
+        import urllib.error
+        from unittest import mock
+
+        class R:
+            def geturl(self):
+                return "https://github.com/trentnick99/Hero-tv/releases/tag/v9.9.9"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+        self.addCleanup(selfupdate._state.update, {"checked": 0, "info": None, "error": ""})
+        limited = urllib.error.HTTPError(selfupdate.LATEST, 403, "rate limit exceeded", {}, None)
+        with mock.patch.object(selfupdate, "_get_json", side_effect=limited), \
+                mock.patch.object(selfupdate, "_get_text", side_effect=OSError("no notes")), \
+                mock.patch.object(selfupdate.net, "urlopen", return_value=R()):
+            st = selfupdate.check(force=True, now=7)
+        self.assertEqual((st["latest"], st["available"], st["error"]), ("9.9.9", True, ""))
+        self.assertEqual(selfupdate._state["info"]["zip_url"],
+                         "https://github.com/trentnick99/Hero-tv/releases/download/v9.9.9/HERO-TV-v9.9.9-windows.zip")
+        self.assertIn("limiting", selfupdate._why(limited))
 
     def test_setting_switches_automatic_checks_off(self):
         self.assertTrue(selfupdate.enabled())

@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.20.2": [
+        "Updates: when GitHub limits update checks from your Internet address (common with T-Mobile and other shared home internet), HERO TV asks GitHub's releases page instead.",
+        "If checking still fails, the message now says why (no connection, a refused certificate, or GitHub's limit).",
+    ],
     "1.20.1": [
         "Roku guide: the key help no longer hides behind the time bar, the top shows what is on now, and the Weather channel shows a forecast block instead of 'No Data Available'.",
         "Roku on demand: shows without season numbers no longer say 'S0 E0', and folder names typed in lower case look tidy ('South Park').",

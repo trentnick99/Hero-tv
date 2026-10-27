@@ -7,10 +7,13 @@ was offered (and carry the ready-made application) before anything is installed.
 import ast
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -19,6 +22,8 @@ from . import __version__, config, net, updater
 REPO = "trentnick99/Hero-tv"
 LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
 RAW = f"https://api.github.com/repos/{REPO}/contents/herotv/whatsnew.py?ref={{tag}}"
+WEB_LATEST = f"https://github.com/{REPO}/releases/latest"          # no API limit: GitHub answers with the newest tag
+RAW_WEB = f"https://raw.githubusercontent.com/{REPO}/{{tag}}/herotv/whatsnew.py"
 DOWNLOAD_HOSTS = ("https://github.com/", "https://objects.githubusercontent.com/", "https://release-assets.githubusercontent.com/")
 CHECK_EVERY = 6 * 3600
 MAX_ZIP = 400 * 1024 ** 2
@@ -48,6 +53,37 @@ def _get_text(url, timeout=20):
         return r.read(512_000).decode("utf-8", "replace")
 
 
+def _latest_from_web(timeout=20):
+    """The newest release without GitHub's API: the releases page sends you on to the newest tag. Used when the API
+    says no - it allows only 60 questions an hour per Internet address, and home internet that shares one address
+    between many homes (T-Mobile, Starlink and other mobile/satellite internet) often uses those up."""
+    req = urllib.request.Request(WEB_LATEST, headers={"User-Agent": UA}, method="HEAD")
+    with net.urlopen(req, timeout=timeout) as r:
+        final = r.geturl()
+    m = re.search(r"/releases/tag/([^/?#]+)$", final or "")
+    if not m:
+        raise ValueError("GitHub did not name a newest version")
+    tag = urllib.parse.unquote(m.group(1))
+    name = f"HERO-TV-{tag}-windows.zip"
+    return {"tag_name": tag, "html_url": final, "assets": [
+        {"name": name, "size": 0, "browser_download_url": f"https://github.com/{REPO}/releases/download/{tag}/{name}"}]}
+
+
+def _why(e):
+    """A short, plain reason for a failed check."""
+    if isinstance(e, urllib.error.HTTPError):
+        if e.code in (403, 429):
+            return "GitHub is limiting update checks from your Internet address right now - try again in an hour"
+        return f"GitHub answered with error {e.code}"
+    if isinstance(e, urllib.error.URLError):
+        r = str(getattr(e, "reason", "") or e)
+        if "CERTIFICATE" in r.upper():
+            return ("a security certificate was refused - antivirus 'HTTPS scanning' / 'web shield' is the usual cause; "
+                    "allow HERO TV in it")
+        return f"no connection ({r[:80]})"
+    return f"{e.__class__.__name__}: {str(e)[:80]}"
+
+
 def notes_from_source(src, version):
     """The 'What's new' lines for one version, read from a whatsnew.py without running it."""
     try:
@@ -71,9 +107,18 @@ def check(force=False, gj=None, gt=None, now=None):
     with _lock:
         if not force and _state["checked"] and now - _state["checked"] < CHECK_EVERY:
             return status()
+    web = gj is None                                   # tests pass their own fake GitHub
     gj, gt = gj or _get_json, gt or _get_text
     try:
-        d = gj(LATEST)
+        try:
+            d = gj(LATEST)
+        except Exception as api_err:
+            if not web:
+                raise
+            try:
+                d = _latest_from_web()
+            except Exception:
+                raise api_err
         tag = str(d.get("tag_name") or "")
         latest = tag.lstrip("vV")
         asset = next((a for a in d.get("assets") or [] if str(a.get("name", "")).lower().endswith("-windows.zip")), None)
@@ -81,13 +126,15 @@ def check(force=False, gj=None, gt=None, now=None):
                 "zip_url": asset.get("browser_download_url") if asset else "", "size": int(asset.get("size") or 0) if asset else 0,
                 "published": d.get("published_at") or "", "notes": []}
         if updater.version_tuple(latest) > updater.version_tuple(__version__):
-            try:
-                info["notes"] = notes_from_source(gt(RAW.format(tag=tag)), latest)
-            except Exception:
-                pass
+            for url in (RAW.format(tag=tag), RAW_WEB.format(tag=tag)):
+                try:
+                    info["notes"] = notes_from_source(gt(url), latest)
+                    break
+                except Exception:
+                    continue
         err = ""
     except Exception as e:
-        info, err = None, f"Could not reach GitHub ({e.__class__.__name__}). Check the Internet connection."
+        info, err = None, f"Could not check GitHub for updates: {_why(e)}."
     with _lock:
         _state["checked"] = now
         if info is not None:
