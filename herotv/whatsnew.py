@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.17.0": [
+        "Roku app: OK now opens a real TV guide grid - move through channels and times, OK to watch.",
+        "Roku app: Replay jumps back to the last channel, Rew starts the show over, Fwd goes back to live, Right shows the quick channel list.",
+    ],
     "1.16.0": [
         "HERO TV on your Roku TV: a real app on the TV - Up/Down changes channel, OK shows the channel list, * turns subtitles on.",
         "Installed from this PC (Settings > Other devices > HERO TV on your Roku TV) - nothing to type on the TV, no pairing code.",

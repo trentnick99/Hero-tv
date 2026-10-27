@@ -327,7 +327,8 @@ HERO TV ON YOUR ROKU TV (a real app on the TV)
   "Enable installer and restart", agree, and pick a password. The TV restarts. (This is Roku's free developer mode.)
   On the PC: Settings > Other devices > HERO TV on your Roku TV > Find my Roku TV, choose it, type that password and
   press Install on the TV. The app arrives already linked to this PC (its own watch-only key, listed under Paired
-  devices) and starts. On the TV: Up/Down = channel, OK = channel list, * = subtitles on/off, Back = leave.
+  devices) and starts. On the TV: Up/Down = channel, OK = TV guide grid, Right = quick channel list, Replay (the
+  curved arrow) = last channel, Rew = start the show over, Fwd = back to live, * = subtitles on/off, Back = leave.
   The PC must be on with HERO TV open. HERO TV updates the TV app by itself after HERO TV updates, or when this PC
   gets a new network address (the TV must be on). The password is kept in HERO TV's settings on this PC.
 

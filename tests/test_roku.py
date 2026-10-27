@@ -174,6 +174,7 @@ class TvEndpointTests(unittest.TestCase):
                   (str(vid), "Iron Man", 2008, "MCU"))
         c.commit()
         S.sync_channels(c, json.load(open(self.cfg.channels_file, encoding="utf-8-sig"))["channels"], tz="UTC")
+        S.extend_all(c, time.time(), 12 * 3600, tz="UTC")                                     # as HERO TV does when it starts
         self.tok, self.mk = R.add_device(c, roku.DEVICE_NAME)
         c.close()
         self.app = SV.App(self.cfg)
@@ -201,6 +202,13 @@ class TvEndpointTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as cm:
             self.get("/api/tv/mcu", cookie=False)                                              # unpaired: refused
         self.assertEqual(cm.exception.code, 401)
+
+    def test_the_tv_can_read_the_guide(self):
+        now = int(time.time())
+        j = json.loads(self.get(f"/api/guide?hours=12&from={now - now % 1800}"))
+        mcu = [c for c in j["channels"] if c["id"] == "mcu"][0]
+        self.assertTrue(mcu["slots"] and mcu["slots"][0]["title"] == "Iron Man")
+        self.assertTrue(all(k in mcu["slots"][0] for k in ("start", "end", "start_local", "end_local")))
 
     def test_seen_from_the_tv_counts(self):
         mid = json.loads(self.get("/api/tv/mcu"))["slot"]["media_id"]
