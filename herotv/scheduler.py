@@ -359,10 +359,51 @@ def _playlist(conn, ch, plan, key, cycle, cache):
         cache[("base", key)] = (rows, mode)
     rows, mode = cache[("base", key)]
     rows = list(rows)
+    rng = random.Random(f"{ch['id']}:{key}:{cycle}")              # deterministic per (channel, block, cycle)
     if mode == "shuffle":
-        random.Random(f"{ch['id']}:{key}:{cycle}").shuffle(rows)   # deterministic per (channel, block, cycle)
+        rng.shuffle(rows)
+    elif mode in ("mixed", "balanced"):
+        rows = mix_shows(rows, rng, cycle, balanced=mode == "balanced")
     cache[(key, cycle)] = (rows, [r["id"] for r in rows])
     return cache[(key, cycle)]
+
+
+def mix_shows(rows, rng, cycle=0, balanced=False):
+    """Shows in a random mix, but each show's episodes still in order (films count as a show of their own).
+    balanced: every show gets about the same number of turns per round - a big show plays its next few episodes
+    each round (as many as a typical show on the channel has, at least 3) instead of swamping the small ones."""
+    groups, order = {}, []
+    for r in rows:
+        k = ("s", str(r["franchise"] or "").lower(), str(r["series"]).lower()) if r["series"] else ("m", r["id"])
+        if k not in groups:
+            groups[k] = []
+            order.append(k)
+        groups[k].append(r)
+    lists = [groups[k] for k in order]
+    if balanced and lists:
+        sizes = sorted(len(g) for g in lists)
+        share = max(3, sizes[len(sizes) // 2])
+        cut = []
+        for g in lists:
+            if len(g) <= share:
+                cut.append(g)
+            else:                              # this round's part of a big show, carrying on round after round
+                a = (cycle * share) % len(g)
+                cut.append([g[(a + i) % len(g)] for i in range(share)])
+        lists = cut
+    out, pos = [], [0] * len(lists)
+    left = sum(len(g) for g in lists)
+    while left:                                # pick a show at random, weighted by what it has left: an even spread
+        x = rng.randrange(left)
+        for i, g in enumerate(lists):
+            n = len(g) - pos[i]
+            if x < n:
+                out.append(g[pos[i]])
+                pos[i] += 1
+                break
+            x -= n
+        left -= 1
+    return out
 
 
 def _next(conn, ch, plan, key, last_media, cycle, cache, skip=frozenset()):
@@ -439,7 +480,7 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
                                  (ch["id"], key)).fetchone()
                 pos[key] = (r["media_id"], r["cycle"]) if r else (None, 0)
                 mode = next((b["mode"] for b in blocks if b["name"] == key), None) or ch["mode"] if key else ch["mode"]
-                if resume and smart and mode != "shuffle":      # start over at the first unwatched episode
+                if resume and smart and mode not in ("shuffle", "mixed", "balanced"):   # back to the first unwatched episode
                     pos[key] = (None, pos[key][1])
             return pos[key]
 

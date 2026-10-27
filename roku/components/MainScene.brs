@@ -120,8 +120,38 @@ sub init()
         m.wxDays.push(l)
     end for
 
+    ' the channel logo in the corner (Settings > Appearance > Channel logo on the PC)
+    m.bug = m.top.findNode("bug")
+    m.logoMode = "sometimes"
+    m.tunedAt = 0
+    api("/api/theme", "onTheme")
+
     m.top.setFocus(true)
     loadChannels()
+end sub
+
+sub onTheme(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if t.error = "" and isStr(t.result.logo) then m.logoMode = t.result.logo
+end sub
+
+sub updateBug()
+    show = false
+    if m.logoMode <> "off" and m.mode = "live" and not m.isCard and isAA(m.slot) and m.current >= 0 and m.current < m.channels.count()
+        if not m.banner.visible and not m.grid.visible and not m.guide.visible and not m.lib.visible and not m.eps.visible and not m.msgBox.visible and not m.upNext.visible and not m.remBox.visible
+            now = serverNow()
+            into = now - num(m.slot.start)
+            show = (m.logoMode = "always") or (now - m.tunedAt < 15) or (into >= 0 and into < 20) or ((now mod 300) < 12)
+        end if
+    end if
+    if show and not m.bug.visible
+        ch = m.channels[m.current]
+        m.top.findNode("bugNum").text = txt(ch.number)
+        m.top.findNode("bugName").text = UCase(txt(ch.name))
+        m.top.findNode("bugPlate").color = hexColor(ch.color, m.cfg.color)
+    end if
+    m.bug.visible = show
 end sub
 
 ' ---------- talking to HERO TV ----------
@@ -152,6 +182,7 @@ sub loadChannels()
 end sub
 
 sub refreshChannels()
+    api("/api/theme", "onTheme")
     ' not while you scroll the channel list (it would jump back to the top)
     if m.channels.count() > 0 and not m.guide.visible then api("/api/channels", "onChannels")
 end sub
@@ -229,6 +260,7 @@ sub tune(idx as integer)
     m.eps.visible = false
     m.top.setFocus(true)
     ch = m.channels[idx]
+    m.tunedAt = serverNow() + 6                        ' after the channel banner has gone
     regWrite("lastChannel", ch.id)
     if ch.kind = "weather"
         m.mode = "weather"
@@ -648,6 +680,7 @@ end sub
 
 ' every few seconds: the "up next" card in the last minute of a show
 sub onTick()
+    updateBug()
     if not m.live or m.isCard or not isAA(m.slot) or not isAA(m.nextSlot) or isTrue(m.nextSlot.card) or m.grid.visible or m.guide.visible
         m.upNext.visible = false
         return

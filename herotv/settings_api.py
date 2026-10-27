@@ -55,6 +55,17 @@ def _last_backup():
 SUB_SIZES, SUB_BGS, SUB_COLORS = ("normal", "large", "xl"), ("box", "none"), ("white", "yellow")
 
 
+LOGO_MODES = ("always", "sometimes", "off")
+
+
+def logo_mode(d=None):
+    """The channel logo in the corner of the picture: always, now and then (when a show starts and every few
+    minutes), or off."""
+    d = _load() if d is None else d
+    v = d.get("logo")
+    return v if v in LOGO_MODES else "sometimes"
+
+
 def subs_style(d=None):
     """How subtitles look on every screen: size, black box or outline only, white or yellow."""
     d = _load() if d is None else d
@@ -80,6 +91,7 @@ def read(cfg):
         "auto_inbox": inbox.enabled(),
         "windowed": bool(d.get("windowed")),
         "subs_style": subs_style(d),
+        "logo": logo_mode(d),
         "auto_backup": d.get("auto_backup", True) is not False,
         "seasonal": d.get("seasonal", True) is not False,
         "smart_sort": d.get("smart_sort", True) is not False,
@@ -154,6 +166,11 @@ def update(changes, geocode=None):
             raise ValueError("auto_backup must be on or off")
         data["auto_backup"] = changes["auto_backup"]
         saved.append("auto_backup")
+    if "logo" in changes:
+        if changes["logo"] not in LOGO_MODES:
+            raise ValueError("The channel logo can be always on, now and then, or off.")
+        data["logo"] = changes["logo"]
+        saved.append("logo")
     if "subs_style" in changes:
         st = changes["subs_style"]
         if not isinstance(st, dict) or st.get("size") not in SUB_SIZES or st.get("bg") not in SUB_BGS or st.get("color") not in SUB_COLORS:

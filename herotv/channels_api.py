@@ -12,7 +12,7 @@ from pathlib import Path
 
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
 BAD_FOLDER = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
-MODES = ("sequential", "shuffle")
+MODES = ("sequential", "shuffle", "mixed", "balanced")
 SIMPLE_KEYS = {"franchise"}
 
 
@@ -245,7 +245,7 @@ def _apply_basic(c, ch, channels):
             c.pop("starts", None)
     if "mode" in ch and c.get("kind") != "weather":
         if ch["mode"] not in MODES:
-            raise ValueError("Play order must be 'in order' or 'shuffled'.")
+            raise ValueError("Play order must be in order, shuffled, mixed shows or fair share.")
         c["mode"] = ch["mode"]
 
 

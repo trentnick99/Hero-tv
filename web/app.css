@@ -272,3 +272,11 @@ body.cue-yellow video::cue{color:#ffe14d}
 #upcard .uc-at{font-size:3vh;color:#c9d6f2}
 #upcard p{margin:0;font-size:2.3vh;color:#9aa3b5;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 #upcard .uc-left{font-size:2.6vh;font-weight:600;margin-top:1vh}
+
+/* channel logo in the corner of the picture, like a TV network's */
+#bug{position:fixed;right:3.2vw;top:4.5vh;display:flex;align-items:center;gap:.7vw;padding:.7vh 1vw .7vh .7vw;border-radius:1vh;
+ background:rgba(0,0,0,.45);opacity:0;transition:opacity .8s ease;pointer-events:none;font-weight:700;letter-spacing:.02em}
+#bug.on{opacity:.8}
+#bug b{background:var(--accent,#ffcf1f);color:var(--on,#0b0d16);border-radius:.6vh;padding:.15vh .55vw;font-size:2.4vh;transform:skewX(-8deg)}
+#bug span{font-size:2vh;color:#fff;text-shadow:0 0 .6vh rgba(0,0,0,.7);text-transform:uppercase}
+#osd.on~#bug{opacity:0}

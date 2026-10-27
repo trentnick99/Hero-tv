@@ -40,6 +40,13 @@
       <Label id="cdLeft" translation="[1200,790]" width="640" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
     </Group>
 
+    <Group id="bug" visible="false" opacity="0.8" translation="[1400,50]">
+      <Rectangle width="460" height="60" color="0x00000073" />
+      <Rectangle id="bugPlate" translation="[8,8]" width="84" height="44" color="0xffcf1fFF" />
+      <Label id="bugNum" translation="[8,8]" width="84" height="44" horizAlign="center" vertAlign="center" font="font:SmallBoldSystemFont" color="0x0b0d16FF" />
+      <Label id="bugName" translation="[106,8]" width="340" height="44" vertAlign="center" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" />
+    </Group>
+
     <Group id="banner" visible="false" translation="[0,780]">
       <Rectangle width="1920" height="300" color="0x000000C8" />
       <Rectangle id="bnBar" width="12" height="220" translation="[90,40]" color="0xffcf1fFF" />

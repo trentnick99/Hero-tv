@@ -66,7 +66,7 @@ v.addEventListener("pause",()=>{if(vod)osd(true)});v.addEventListener("play",()=
 function startOver(){if(!slot||vod||slot.card)return;startVod({id:slot.media_id,title:slot.title,series:slot.series,season:slot.season,episode:slot.episode,
  franchise:slot.franchise,year:slot.year,runtime_s:slot.runtime_s,position:0,completed:0,startOver:true})}
 async function sync(){const a=Date.now(),j=await api("/api/now");off=j.now-(a+Date.now())/2e3;cfg=j}
-async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;if(started&&ni!==ci)prevCi=ci;started=true;ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
+async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;if(started&&ni!==ci)prevCi=ci;started=true;tunedAt=nowS();ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
  const wx=chans[ci].kind==="weather";show("#wx",wx);show("#upcard",false);clearTimeout(cardT);document.body.classList.toggle("novideo",wx);
  if(wx){slot=nextSlot=null;v.pause();v.removeAttribute("src");v.load();loadWx();return osd()}
  let j;try{j=await api(`/api/channel/${chans[ci].id}/now`)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open. Trying again."),setTimeout(()=>tune(ci),3e3)}
@@ -74,6 +74,14 @@ async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels hav
  slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Press O for Settings, then Tools > Free movies > Download."):msg("Nothing is scheduled on "+chans[ci].name,"Drag videos onto this window, or put them in this channel's folder. They appear by themselves.")}
  if(slot.card)return upCard(my);
  play(withK(`/media/${slot.media_id}`),()=>Math.min(nowS()-slot.start,(v.duration||1e9)-.5));loadSubs(slot.media_id);osd()}
+/* the channel logo in the corner: always, now and then (when a show starts, after changing channel, and briefly
+   every five minutes), or off - Settings > Appearance */
+let tunedAt=0;
+function updateBug(){const b=$("#bug"),c=chans[ci],m=theme.logo||"sometimes";
+ const live=c&&slot&&!vod&&!slot.card&&c.kind!=="weather"&&layer===""&&!sleeping;
+ const t=nowS(),on=live&&m!=="off"&&(m==="always"||t-tunedAt<12||(slot&&t-slot.start<15&&t-slot.start>=0)||t%300<10);
+ if(on&&c){$("#bug-n").textContent=c.number;$("#bug-t").textContent=c.name;paint(b,c.color)}b.classList.toggle("on",!!on)}
+setInterval(updateBug,1000);
 /* "Up next" card: fills the minute or two before a show that starts at a clean time (no video) */
 let cardT=0;
 function upCard(my){const c=chans[ci],box=$("#upcard");v.pause();v.removeAttribute("src");v.load();clearSub();document.body.classList.add("novideo");
@@ -546,6 +554,9 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
      sel.onchange=()=>{st[key]=sel.value;applyCues(st);sSave({subs_style:st},"Subtitle style saved.",async()=>{await loadTheme()})};sel.dataset.k=key;return sel};
     row.append(pick([["normal","Normal size"],["large","Large"],["xl","Extra large"]],"size"),pick([["box","On a dark box"],["none","Outline only"]],"bg"),pick([["white","White"],["yellow","Yellow"]],"color"));
     row.id="cue-style";main.append(sField("Subtitles","How subtitles look on the TV and on paired phones. Press C while watching to turn them on.",row))}
+  { const lg=el("select");for(const[v,t]of[["sometimes","Now and then (when a show starts, and briefly every 5 minutes)"],["always","Always"],["off","Off"]]){const o=el("option",0,t);o.value=v;if((d.logo||"sometimes")===v)o.selected=true;lg.append(o)}
+    lg.onchange=()=>sSave({logo:lg.value},"Channel logo saved.",async()=>{await loadTheme()});
+    main.append(sField("Channel logo","The channel's number and name in the corner of the picture, like a TV network's logo. Also on the Roku app.",lg))}
 }
  else if(sCat==="chan"){drawChannelsCfg(main,msg)}
  else if(sCat==="tools"){drawTools(main,msg)}
@@ -797,7 +808,7 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  hex.addEventListener("input",()=>{if(/^#[0-9a-fA-F]{6}$/.test(hex.value))pick(hex.value)});
  for(const x of SW){const b=el("button",x.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=x;b.style.background=x;b.title=x;b.setAttribute("aria-label","Color "+x);b.onclick=()=>pick(x);sw.append(b)}
  main.append(sField("Channel name","Shown in the guide and when you change channel.",name),sField("Channel number","The number you type to tune it. Each channel needs its own.",num),sField("Color",null,sw),sField("",null,hex,true));
- let mode=null;if(c.kind!=="weather"){mode=el("select");for(const[v,t]of[["sequential","In order (episodes and movies one after another)"],["shuffle","Shuffled (a different order each time)"]]){const o=el("option",0,t);o.value=v;if(v===c.mode)o.selected=true;mode.append(o)}mode.onchange=()=>{sDirty=true;sLeave=false};main.append(sField("Play order",null,mode))}
+ let mode=null;if(c.kind!=="weather"){mode=el("select");for(const[v,t]of[["sequential","In order (episodes and movies one after another)"],["mixed","Mixed shows, each in order (shows take turns, episodes stay in order)"],["balanced","Mixed shows, fair share (like Mixed, and a big show no longer crowds out small ones)"],["shuffle","Shuffled (everything in a random order)"]]){const o=el("option",0,t);o.value=v;if(v===c.mode)o.selected=true;mode.append(o)}mode.onchange=()=>{sDirty=true;sLeave=false};main.append(sField("Play order",null,mode))}
  let starts=null;if(c.kind!=="weather"){starts=el("select");for(const[v,t]of[[0,"Any time (one show straight after the other)"],[15,"On the quarter hour (:00, :15, :30, :45)"],[30,"On the half hour (:00 and :30)"],[60,"On the hour"]]){const o=el("option",0,t);o.value=v;if(v===(c.starts||0))o.selected=true;starts.append(o)}starts.onchange=()=>{sDirty=true;sLeave=false};
   main.append(sField("Start times",`Like real TV: shows start at clean times, and the gap before them is filled with whole short cartoons from your Shorts folder (put them in a folder called Shorts in your media folder - Tools > Free movies > Superhero-era cartoons gets some free ones) and an "Up next" card for the last minute or two. You have ${chShorts} short${chShorts===1?"":"s"} right now`+(chShorts<10?" - with few or none, the gaps are mostly the Up next card, so quarter hours work best.":"."),starts))}
  let folder=null,words=null,desc=null;

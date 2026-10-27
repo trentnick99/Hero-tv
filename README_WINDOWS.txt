@@ -218,6 +218,15 @@ REMINDERS
   again removes it); when it starts the TV shows the reminder - OK to watch, Back for not now. Reminders are shared
   by the PC, phones and the Roku app, and clear themselves after the show.
 
+PLAY ORDER AND THE CHANNEL LOGO
+  Settings > Channels > a channel > Play order: "In order"; "Mixed shows, each in order" (shows take turns at
+  random, but every show's episodes stay in order - good for channels with several shows); "Mixed shows, fair share"
+  (the same, and a show with many episodes plays only its next few each round, so small shows get a fair turn);
+  "Shuffled" (everything in a random order, episodes too).
+  Settings > Appearance > Channel logo: the channel's number and name in the top corner of the picture, like a TV
+  network's logo - now and then (when a show starts, after changing channel, and briefly every 5 minutes), always,
+  or off. The Roku app follows the same setting.
+
 CLEAN START TIMES AND SHORTS (like real TV)
   Settings > Channels > a channel > Start times: "On the quarter hour", "On the half hour" or "On the hour". Shows
   then start at clean times, and the gap before each one is filled with whole short cartoons - never cut off - from

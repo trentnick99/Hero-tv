@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.22.0": [
+        "New play orders (Settings > Channels > a channel > Play order): 'Mixed shows, each in order' - shows take turns but episodes never jump around - and 'Mixed shows, fair share', so a big show no longer crowds out the small ones.",
+        "Channel logo in the corner of the picture, like a TV network's (Settings > Appearance > Channel logo): now and then, always, or off. On the Roku too.",
+    ],
     "1.21.0": [
         "Clean start times, like real TV: Settings > Channels > a channel > Start times - on the quarter hour, half hour or hour.",
         "The gap before each show is filled with whole short cartoons from a Shorts folder in your media folder (free classic cartoons from Tools > Free movies count too) - never cut off.",
