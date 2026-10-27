@@ -105,7 +105,7 @@ function cycleSub(){
  const n=subI+1>=subs.length?-1:subI+1;setSub(n);subPref=n>=0?(subs[n].language||"*"):"";post("/api/prefs",{subs:subPref})}
 function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
 async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);show("#upcard",false);clearTimeout(cardT);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
- it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series))}catch(e){}if(vod!==it)return}
+ it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series)+"&media_id="+it.id)}catch(e){}if(vod!==it)return}
  play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
   const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0});loadSubs(it.id);osd()}
 v.addEventListener("ended",()=>{if(vod){post("/api/progress",{media_id:vod.id,position:0,completed:true});if(sleepAfter)return goToSleep();if(vod.series)return nextEpisode(vod);return tune(ci)}
@@ -119,6 +119,10 @@ v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(
 setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall watchdog, progress
  sleepCheck();if(sleeping)return;
  if(vod&&vod.skip&&vod.skip.outro>0&&!vod.credDone&&v.duration&&v.currentTime>30&&v.duration-v.currentTime<=vod.skip.outro){vod.credDone=true;toast("Skipped the credits");v.dispatchEvent(new Event("ended"))}
+ /* found by HERO TV itself (when you have not set the show's points with J / E): this episode's own intro and credits */
+ const fd=vod&&vod.skip&&vod.skip.found;
+ if(fd&&!(vod.skip.intro>0)&&fd.intro_end>0&&!vod.introDone&&v.currentTime>=fd.intro_start-.3&&v.currentTime<fd.intro_end-2){vod.introDone=true;toast("Skipped the intro. Press ← to go back.");v.currentTime=fd.intro_end}
+ if(fd&&!(vod.skip.outro>0)&&fd.credits>0&&!vod.credDone&&v.currentTime>=fd.credits&&v.duration&&v.duration-v.currentTime>5){vod.credDone=true;toast("Skipped the credits");v.dispatchEvent(new Event("ended"))}
  upNext();
  if(slot&&!vod&&nowS()>=slot.end)tune(ci);
  if(slot&&!vod&&!v.paused&&v.readyState>2){const e=nowS()-slot.start;if(Math.abs(v.currentTime-e)>4&&e<v.duration-1)v.currentTime=e}
@@ -640,10 +644,20 @@ function drawJob(j){const b=$("#jobbox");if(!b)return;b.textContent="";if(!j){b.
 async function runJob(body,btn){if(btn)btn.disabled=true;sMsg("");try{const r=await pj("/api/job",body);drawJob(r.job);jobPoll()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}if(btn)btn.disabled=false}
 function tCard(title,help){const c=el("div","tcard");c.append(el("h4",0,title));if(help)c.append(el("small",0,help));return c}
 const gb=n=>n>=1e9?(n/1e9).toFixed(1)+" GB":Math.round(n/1e6)+" MB";
+/* intros and credits that HERO TV finds by itself (Settings > Tools) */
+let nData=null;
+function introsCard(){const c=tCard("Skip intros and credits by themselves","HERO TV listens to the episodes of each show and finds the theme song and the credits they have in common. Watching on demand (PC, phones, Roku), the intro is skipped (← goes back) and the credits go straight on to the next episode. Points you set yourself with J and E always win.");
+ if(!nData){c.append(el("small",0,"Loading..."));api("/api/intros").then(j=>{nData=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return c}
+ const d=nData;c.append(el("small",0,`Checked ${d.checked} of ${d.episodes} episodes - found intros or credits in ${d.found}.`+(d.running?" Checking now...":"")));
+ const cb=el("input");cb.type="checkbox";cb.checked=d.on;const l=el("label","lb");l.append(cb," Check new episodes in the background (a few at a time, at low priority)");l.style.display="flex";l.style.gap="1vw";
+ cb.onchange=async()=>{try{nData=await pj("/api/intros",{auto:cb.checked});toast("Saved.")}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}};
+ const go=sBtn("Check everything now",async()=>{try{nData=await pj("/api/intros",{op:"now"});sMsg("Checking in the background - this page shows the progress when you come back.","ok");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}});
+ const bar=el("div","sbar");bar.append(go);c.append(l,bar);return c}
 function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");jb.id="jobbox";jb.style.display="none";main.append(jb,msg);
  if(!tData){main.append(el("div","empty","Loading..."));api("/api/tools").then(j=>{tData=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return}
  drawJob(tData.job);if(tData.job&&tData.job.state==="running")jobPoll();
  const t=tData;
+ main.append(introsCard());
  { const c=tCard("Free movies","Public-domain films and cartoons from the Internet Archive, saved into your Free Movies folder.");const box=el("div","chk"),cbs=[];
    t.free_sources.forEach((n,i)=>{const l=el("label"),cb=el("input");cb.type="checkbox";cb.checked=true;cbs.push(cb);l.append(cb,n);box.append(l)});
    const cnt=el("select");for(const n of[1,3,5,10]){const o=el("option",0,n+" from each list");o.value=n;if(n===3)o.selected=true;cnt.append(o)}
@@ -864,7 +878,7 @@ function slotsField(c){const box=el("div","slots"),ORD={sequential:"in order",mi
   post({op:"add_block",id:c.id,days:days.value,from:a.value,to:z.value,mode:ord.value,what:{[k]:x}},"Time slot added.")});
  const form=el("div","sbar");form.append(days,a,el("span",0,"to"),z,what,ord,add);box.append(form);
  return sField("Time slots","Like real TV: during these hours this channel plays only what you pick - for example cartoons on Saturday mornings. Outside them it plays as usual. A slot can run past midnight (22:00 to 02:00).",box)}
-function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null;aData=null;iData=null}drawSettings();$("#st-main").scrollTop=0}
+function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools"){tData=null;nData=null}if(k==="devices"){dData=null;rData=null;rFound=null;aData=null;iData=null}drawSettings();$("#st-main").scrollTop=0}
 /* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
 function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;
  if(k==="ArrowUp")return q.bottom<=r.bottom-r.height*.5&&q.top+q.height/2<r.top+r.height/2;

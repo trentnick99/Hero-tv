@@ -33,10 +33,10 @@ class UiFeatureServerTests(unittest.TestCase):
         return json.load(urllib.request.urlopen(r))
 
     def test_skip_settings_roundtrip(self):
-        self.assertEqual(self.get("/api/skip?series=Naruto"), {"series": "Naruto", "intro": 0, "outro": 0})
+        self.assertEqual(self.get("/api/skip?series=Naruto"), {"series": "Naruto", "intro": 0, "outro": 0, "found": None})
         self.post("/api/skip", {"series": "Naruto", "intro": 82.5})
         self.post("/api/skip", {"series": "Naruto", "outro": 95})
-        self.assertEqual(self.get("/api/skip?series=Naruto"), {"series": "Naruto", "intro": 82.5, "outro": 95})
+        self.assertEqual(self.get("/api/skip?series=Naruto"), {"series": "Naruto", "intro": 82.5, "outro": 95, "found": None})
         self.post("/api/skip", {"series": "Naruto", "intro": 0})          # turning it off keeps the other setting
         self.assertEqual(self.get("/api/skip?series=Naruto")["outro"], 95)
         self.assertEqual(self.get("/api/skip?series=Naruto")["intro"], 0)

@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.26.0": [
+        "Intros and credits are found by themselves: HERO TV listens to the episodes of each show and finds the theme song and the credits. On demand (PC, phones, Roku) the intro is skipped and the credits go straight on to the next episode.",
+        "Progress and a 'Check everything now' button: Settings > Tools. Points you set with J and E still win.",
+    ],
     "1.25.1": [
         "Live TV in other apps: streams stop cleanly when HERO TV quits or other devices are switched off.",
     ],

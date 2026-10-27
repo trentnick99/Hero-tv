@@ -260,6 +260,14 @@ ALWAYS ON (for the Roku app and phones)
   to sleep while HERO TV runs - the screen can still switch off. A TV cannot wake a sleeping PC. Even with it off,
   the PC stays awake while a TV or phone is playing something, and for 15 minutes after.
 
+SKIPPING INTROS AND CREDITS BY ITSELF
+  HERO TV listens to the episodes of each show (in the background, a few at a time, at low priority) and finds the
+  theme song and the credits they have in common. Watching on demand - on the PC, phones and the Roku app - the intro
+  is skipped (Left / the left arrow goes back) and the credits go straight on to the next episode. Live channels are
+  never skipped (they keep to the schedule). Points you set yourself with J (intro ends here) and E (credits start
+  here) always win. Settings > Tools > Skip intros and credits by themselves shows the progress, has "Check
+  everything now", and switches the background checking off. Needs ffmpeg.
+
 LIVE TV IN OTHER APPS (Plex, Jellyfin, Emby, Channels, IPTV apps)
   Settings > Other devices > Live TV in other apps (needs "Let other devices watch" on, and ffmpeg). Off by default:
   when it is on, any app on your home network that knows the address can watch your channels (watch-only, no

@@ -38,6 +38,7 @@ sub init()
     m.top.findNode("gStation").text = m.cfg.station
 
     m.video.observeField("state", "onVideoState")
+    m.video.observeField("position", "onVodPosition")
     m.list.observeField("itemFocused", "onListFocus")
     m.list.observeField("itemSelected", "onListSelect")
     m.tg.observeField("programSelected", "onGridSelect")
@@ -69,6 +70,8 @@ sub init()
 
     ' on demand
     m.mode = "live"                                    ' live, weather or vod
+    m.introDone = false
+    m.credDone = false
     m.vod = invalid
     m.lib = m.top.findNode("lib")
     m.rows = m.top.findNode("rows")
@@ -1131,10 +1134,32 @@ sub onPlay(event as object)
     m.top.findNode("bnTitle").text = txt(r.title)
     m.top.findNode("bnNext").text = ""
     m.top.findNode("bnHelp").text = "Left/Right: 10 s    Rew/Fwd: 30 s    Replay: from the start    Back: library"
+    m.introDone = false
+    m.credDone = false
     if num(r.resume) > 0
         flash("Going on where you left off  -  press Replay to start from the beginning")
     else
         flash(txt(r.line))
+    end if
+end sub
+
+' skip the intro and the credits (found by HERO TV, or set with J / E on the PC)
+sub onVodPosition()
+    if m.mode <> "vod" or not isAA(m.vod) or not isAA(m.vod.skip) then return
+    sk = m.vod.skip
+    at = m.video.position
+    a = num(sk.intro_start)
+    b = num(sk.intro_end)
+    if b > 0 and not m.introDone and at >= a - 0.3 and at < b - 2
+        m.introDone = true
+        m.video.seek = b
+        flash("Skipped the intro  -  Left goes back")
+        return
+    cr = num(sk.credits)
+    if cr > 0 and not m.credDone and at >= cr and m.video.duration - at > 5
+        m.credDone = true
+        flash("Skipped the credits")
+        onVodState("finished")
     end if
 end sub
 

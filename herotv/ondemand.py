@@ -172,5 +172,18 @@ def play(c, mid):
     resume = int(r["position"]) if r["position"] > 30 and not r["completed"] else 0
     if r["runtime_s"] and resume > r["runtime_s"] - 60:
         resume = 0                                     # practically finished: start again
-    return {"id": r["id"], "title": t["title"], "line": t["line"], "ext": ext, "subs": subs, "resume": resume,
+    skip = {"intro_start": 0, "intro_end": 0, "credits": 0}
+    if r["series"]:
+        from . import intros
+        sk = c.execute("SELECT intro,outro FROM skips WHERE series=?", (r["series"],)).fetchone()
+        found = intros.for_media(c, r["id"]) or {}
+        if sk and sk["intro"]:                         # your own points (J / E on the PC) win
+            skip.update(intro_start=0, intro_end=sk["intro"])
+        elif found.get("intro_end"):
+            skip.update(intro_start=found["intro_start"], intro_end=found["intro_end"])
+        if sk and sk["outro"] and r["runtime_s"]:
+            skip["credits"] = max(0, r["runtime_s"] - sk["outro"])
+        elif found.get("credits"):
+            skip["credits"] = found["credits"]
+    return {"id": r["id"], "title": t["title"], "line": t["line"], "ext": ext, "subs": subs, "resume": resume, "skip": skip,
             "runtime": int(r["runtime_s"] or 0), "favorite": bool(r["favorite"]), "next": nxt}
