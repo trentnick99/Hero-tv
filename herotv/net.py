@@ -65,9 +65,15 @@ def urlopen(req, timeout=30, _win=_windows_check, _roots=_bundled_roots):
             if not is_cert_error(e):
                 raise
     roots = _roots()
+    ctx = None
     if roots:
         try:
-            return urllib.request.urlopen(req, timeout=timeout, context=ssl_context(roots))
+            ctx = ssl_context(roots)
+        except (ssl.SSLError, OSError):                  # an unreadable list: skip this try
+            ctx = None
+    if ctx is not None:
+        try:
+            return urllib.request.urlopen(req, timeout=timeout, context=ctx)
         except urllib.error.URLError as e:
             if not is_cert_error(e):
                 raise

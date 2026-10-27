@@ -191,12 +191,12 @@ class NetTests(unittest.TestCase):
 
         def fake_open(req, timeout=None, context=None):
             calls.append(context)
-            if len(calls) < 3:
+            if len(calls) < 2:
                 raise urllib.error.URLError(ssl.SSLCertVerificationError("CERTIFICATE_VERIFY_FAILED"))
             return "ok"
         with mock.patch.object(urllib.request, "urlopen", fake_open):
-            r = net.urlopen("https://api.github.com/x", _win=lambda u: True, _roots=lambda: ssl.get_default_verify_paths().cafile or __file__)
-        self.assertEqual(r, "ok")
+            r = net.urlopen("https://api.github.com/x", _win=lambda u: True, _roots=lambda: os.path.abspath(__file__))
+        self.assertEqual(r, "ok")                       # not a certificate list: that try is skipped safely
         self.assertTrue(all(c.verify_mode == ssl.CERT_REQUIRED and c.check_hostname for c in calls))
         with mock.patch.object(urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(urllib.error.URLError("no route"))):
             with self.assertRaises(urllib.error.URLError):
