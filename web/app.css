@@ -315,3 +315,6 @@ body[data-theme="retro"] .plate{border-radius:0;transform:none}
 #guide>*{position:relative;z-index:1}
 #detail.withpic{flex-direction:row;align-items:stretch;gap:1.6vw}
 #detail.withpic .txt{display:flex;flex-direction:column;justify-content:center;min-width:0;flex:1}
+
+#hp-l .where{margin-top:1vh;border-collapse:collapse;font-size:calc(2vh*var(--tx))}#hp-l .where td{padding:.7vh 1vw .7vh 0;vertical-align:top}#hp-l .where td:first-child{white-space:nowrap;font-weight:700;color:var(--text)}#hp-l .where td+td{color:var(--mute)}
+#hp-r table{font-size:calc(1.85vh*var(--tx))}#hp-r td{padding:.25vh 1vw .25vh 0}#hp-r{overflow:auto}

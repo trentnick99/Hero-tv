@@ -294,7 +294,14 @@ function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent
   row(true,"Your videos are in: "+h.media_dir,"Settings > Media library > Open media folder.")}
  R.append(el("h3",0,"Keys"));const t=el("table");
  for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles: off / each language"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"],["R (in the guide)","Remind me when that show starts"],["M (in Details)","Move a video to another channel"],["? or F1","This help"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
- R.append(t)}
+ R.append(t);
+ L.append(el("h3",0,"Where to find things"));const w=el("table");w.className="where";
+ for(const[a,b]of[["Settings > Channels > a channel","Play order, start times (with shorts and Up next), breaks inside shows, time slots"],
+   ["Settings > Appearance","Look, channel logo, subtitles, even volume, night mode, screensaver, TV edge margin"],
+   ["Settings > Tools","Skip intros and credits, Inbox, free movies and cartoons, fixing videos that are skipped"],
+   ["Settings > Other devices","Phones, Roku TVs, always on, live TV in other apps (Plex, Jellyfin, IPTV)"],
+   ["Settings > Backup and about","Updates, backup, problem report, quit HERO TV"]]){const r=el("tr");r.append(el("td",0,a),el("td",0,b));w.append(r)}
+ L.append(w)}
 
 /* ---- guide ---- */
 let g={t0:0,t:0,row:0,data:[]};const WIN=3*3600;

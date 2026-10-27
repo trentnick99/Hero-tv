@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.28.2": [
+        "Cover art: titles that differ a little from TMDB's (Spiderman 3 / Spider-Man 3, X Men / X-Men) now find their poster and details. Titles that found nothing before are looked up again once.",
+        "'Phone can't connect?' no longer says the firewall has no rule for HERO TV when Windows saved the rule with a differently written path.",
+        "Help (?): a new 'Where to find things' list, and the keys list fits on the screen again.",
+    ],
     "1.28.1": [
         "Update checks that fail with 'a security certificate was refused' try again the safe way: Windows is asked to check GitHub once (it then fetches a root certificate it was missing), then HERO TV's own up-to-date list of trusted certificates. Nothing is ever left unchecked.",
         "Roku TVs: the HERO TV app on them is brought up to date every half hour until it is done (no longer only every 6 hours), and never while you are watching HERO TV on that TV.",

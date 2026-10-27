@@ -66,6 +66,15 @@ class ArtTests(unittest.TestCase):
         self.assertIsNone(art.lookup("movie", "Iron Man", 1990, "k" * 32, canned()))   # wrong year -> no match
         self.assertEqual(art.lookup("movie", "The Iron Man", 2009, "k" * 32, canned())["tmdb_id"], 1)
 
+    def test_small_title_differences_still_match(self):
+        r = [{"id": 1, "title": "Spider-Man 2", "release_date": "2004-06-30"},
+             {"id": 2, "title": "Spider-Man 3", "release_date": "2007-05-01"}]
+        self.assertEqual(art._pick(r, "Spiderman 3", None, "movie")["id"], 2)
+        self.assertIsNone(art._pick(r, "Spider-Man 4", None, "movie"))            # sequel numbers must agree
+        w = [{"id": 5, "title": "X-Men Origins: Wolverine", "release_date": "2009-04-28"}]
+        self.assertEqual(art._pick(w, "Xmen Origins Wolverine", 2009, "movie")["id"], 5)
+        self.assertIsNone(art._pick([{"id": 7, "title": "Batman Begins", "release_date": "2005"}], "Batman Returns", None, "movie"))
+
     def test_only_title_and_year_are_sent(self):
         calls = []
         art.lookup("movie", "Iron Man", 2008, "k" * 32, canned(calls))

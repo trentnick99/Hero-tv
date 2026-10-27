@@ -21,7 +21,7 @@ def _ps_quote(s):
     return "'" + str(s).replace("'", "''") + "'"
 
 
-def _powershell(script, timeout=25):
+def _powershell(script, timeout=45):
     from . import tools
     r = tools.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script], timeout=timeout)
     return r.stdout or ""
@@ -32,7 +32,10 @@ $ErrorActionPreference = 'SilentlyContinue'
 $exe = %s
 $prof = @(Get-NetConnectionProfile | ForEach-Object { [pscustomobject]@{ alias = "$($_.InterfaceAlias)"; category = "$($_.NetworkCategory)"; name = "$($_.Name)" } })
 $ips = @(Get-NetIPAddress -AddressFamily IPv4 | ForEach-Object { [pscustomobject]@{ alias = "$($_.InterfaceAlias)"; ip = "$($_.IPAddress)" } })
-$rules = @(Get-NetFirewallApplicationFilter -Program $exe | Get-NetFirewallRule | Where-Object { "$($_.Direction)" -eq 'Inbound' -and "$($_.Enabled)" -eq 'True' } |
+$want = [Environment]::ExpandEnvironmentVariables($exe).ToLower()
+# every rule for this program - also ones Windows saved with %%USERPROFILE%% or different capital letters in the path
+$filters = @(Get-NetFirewallApplicationFilter -All | Where-Object { [Environment]::ExpandEnvironmentVariables("$($_.Program)").ToLower() -eq $want })
+$rules = @($filters | Get-NetFirewallRule | Where-Object { "$($_.Direction)" -eq 'Inbound' -and "$($_.Enabled)" -eq 'True' } |
   ForEach-Object { [pscustomobject]@{ name = "$($_.DisplayName)"; action = "$($_.Action)"; profile = "$($_.Profile)" } })
 [pscustomobject]@{ profiles = $prof; ips = $ips; rules = $rules } | ConvertTo-Json -Depth 4 -Compress
 """

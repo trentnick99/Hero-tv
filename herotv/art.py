@@ -72,21 +72,39 @@ def poster_file(cfg, key):
 
 
 # ---------- lookup ----------
+MATCH_VERSION = 2                    # older misses are tried again once after the matching got better
+
+
+def _close(a, b):
+    """Two normalised titles that are the same apart from small differences: 'spider man 3' / 'spiderman 3',
+    'x men origins wolverine' / 'x men origins   wolverine', 'the dark knight rises' / 'dark knight rises'."""
+    if a == b:
+        return True
+    if a.replace(" ", "") == b.replace(" ", ""):
+        return True
+    if not a or not b or re.findall(r"\d+", a) != re.findall(r"\d+", b):   # sequel numbers must agree
+        return False
+    from difflib import SequenceMatcher
+    return SequenceMatcher(None, a, b).ratio() >= 0.88
+
+
 def _pick(results, title, year, kind):
+    """TMDB's best result that is really this title: the same name (small differences allowed, sequel numbers must
+    match) and, when the file says a year, within a year of it. TMDB lists the likeliest first."""
     want = norm(title)
     date_key = "release_date" if kind == "movie" else "first_air_date"
-    best = None
+    exact = close = None
     for r in results or []:
         name = r.get("title") if kind == "movie" else r.get("name")
         names = {norm(name), norm(r.get("original_title" if kind == "movie" else "original_name"))}
-        if want not in names:
-            continue
         y = int((r.get(date_key) or "0000")[:4] or 0)
         if year and y and abs(y - year) > 1:
             continue
-        if best is None:
-            best = r
-    return best
+        if want in names:
+            exact = exact or r
+        elif close is None and any(_close(want, n) for n in names if n):
+            close = r
+    return exact or close
 
 
 def lookup(kind, title, year, key, fj=None):
@@ -173,6 +191,11 @@ def release_ord(conn, title, year):
 
 def pending(conn):
     """[(key, kind, title, year)] for titles with no answer yet (or a miss older than a week)."""
+    v = conn.execute("SELECT value FROM prefs WHERE key='art_match'").fetchone()
+    if not v or v["value"] != str(MATCH_VERSION):          # better matching: give every earlier miss another go
+        conn.execute("DELETE FROM art WHERE miss=1")
+        conn.execute("INSERT OR REPLACE INTO prefs(key,value) VALUES('art_match',?)", (str(MATCH_VERSION),))
+        conn.commit()
     have = {r["key"]: r for r in conn.execute("SELECT key,miss,fetched FROM art")}
     out, seen = [], set()
     for r in conn.execute("SELECT title,year,series FROM media WHERE available=1 AND verified=1 ORDER BY series,title"):
