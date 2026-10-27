@@ -547,6 +547,9 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
    const cp=sBtn("Copy",async()=>{try{await navigator.clipboard.writeText(out.value);toast("Report copied - paste it into the chat (Ctrl+V).")}catch(e){out.focus();out.select();document.execCommand&&document.execCommand("copy");toast("Report selected and copied.")}});cp.style.display="none";
    const of=sBtn("Open reports folder",()=>sAct("open-reports",of));
    bar.append(mk,cp,of);c.append(note,bar,info,out);main.append(c)}
+  {const c=tCard("Quit HERO TV","Turns HERO TV off completely on this PC - also when it runs in the background for the Roku app and phones. Click the HERO TV icon to start it again.");
+   const b=sBtn("Quit HERO TV",async()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to quit";return}try{await pj("/api/quit",{});document.body.textContent="";const m=el("div","quitmsg","HERO TV is off. Click the HERO TV icon to start it again.");document.body.append(m)}catch(e){sMsg("Could not quit.","err")}},"warn");
+   const r=el("div","sbar");r.append(b);c.append(r);main.append(c)}
   main.append(el("h3",0,"Backup"));
   const bar=el("div","sbar"),b1=sBtn("Back up my settings now",()=>sAct("backup",b1),"pri"),b2=sBtn("Open backups folder",()=>sAct("open-backups",b2)),b3=sBtn("Open log folder",()=>sAct("open-logs",b3));bar.append(b1,b2,b3);
   main.append(sField("","A backup keeps your favorites, resume points, channel settings and look - not the videos themselves.",null),bar,msg);
@@ -644,6 +647,16 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
    if(!t.ffmpeg){const b=sBtn("Install video tools",()=>runJob({name:"ffmpeg"},b),"pri");row.append(b)}
    const b2=sBtn("Check setup",()=>runJob({name:"check"},b2));row.append(b2);
    if(t.windows){const b3=sBtn("Make a desktop shortcut",()=>runJob({name:"shortcut"},b3));row.append(b3)}c.append(row);main.append(c)}}
+/* ---- always on: start with Windows, keep running without the TV window (Roku app and phones need it) ---- */
+let aData=null;
+function alwaysCard(){const c=tCard("Always on","So your Roku TV and phones always find HERO TV: it can start by itself when you sign in to Windows and keep running quietly when the TV window is closed. Clicking the HERO TV icon still opens the TV.");
+ if(!aData){c.append(el("small",0,"Loading..."));api("/api/alwayson").then(j=>{aData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return c}
+ const mk=(key,text,on,dis)=>{const i=el("input");i.type="checkbox";i.checked=on;i.disabled=!!dis;const l=el("label","lb");l.append(i," "+text);l.style.display="flex";l.style.gap="1vw";
+  i.onchange=async()=>{i.disabled=true;try{aData=await pj("/api/alwayson",{[key]:i.checked});toast("Saved.")}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");i.checked=!i.checked}i.disabled=false;drawSettings()};return l};
+ if(aData.windows)c.append(mk("startup","Start HERO TV when I sign in to Windows (in the background, no window)",aData.startup));
+ c.append(mk("background","Keep HERO TV running when the TV window is closed",aData.background,aData.startup));
+ c.append(el("small",0,aData.startup?"Starting with Windows also keeps it running. To stop it: Settings > Backup and about > Quit HERO TV.":"If it ever stops with an error while running in the background, it starts itself again."));
+ return c}
 /* ---- the HERO TV app on a Roku TV: found and installed from here, nothing to type on the TV ---- */
 let rData=null,rFound=null,rPick="";
 function rokuCard(){const c=tCard("HERO TV on your Roku TV","Puts a real HERO TV app on the TV: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK shows the channel list. This PC does the work, so it must be on with HERO TV open.");
@@ -682,6 +695,7 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
    on.onchange=()=>devOp({op:on.checked?"enable":"disable"});c.append(l);
    if(d.enabled)c.append(el("small",0,"The first time, Windows may ask whether HERO TV may use the network: choose Allow (private networks only)."));
    main.append(c)}
+ main.append(alwaysCard());
  main.append(rokuCard());
  if(d.enabled){
   { const c=tCard("Phone can't connect?","Checks this PC for the usual reasons (Windows Firewall, a network marked Public, a VPN) and fixes what it can. Ethernet on the PC and WiFi on the phone is fine - they only need the same router.");
@@ -763,7 +777,7 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  bar.append(sBtn(isNew?"Create channel":"Save",()=>isNew?chPost(Object.assign({op:"add"},payload()),"Channel created.",true):chPost(Object.assign({op:"save",id:c.id},payload()),"Saved."),"pri"),sBtn("Back to the list",()=>{if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}chBack()}));
  if(!isNew)bar.append(sBtn("Delete this channel",()=>{if(!bar.dataset.sure){bar.dataset.sure=1;sMsg("Press Delete again to remove this channel from the guide. Your videos are not touched.","err");return}chPost({op:"delete",id:c.id},"Channel deleted.",true)},"warn"));
  main.append(bar,msg)}
-function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null}drawSettings();$("#st-main").scrollTop=0}
+function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null;aData=null}drawSettings();$("#st-main").scrollTop=0}
 function closeSettings(){show("#settings",false);layer="";sDirty=false;sLeave=false}
 /* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
 function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;

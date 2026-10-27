@@ -905,6 +905,20 @@ def make_handler(app, remote=False):
                 except OSError:
                     f = ""
                 return self.send_json({"text": text, "file": f})
+            if p == "alwayson":                               # start with Windows / keep running (PC only)
+                from . import alwayson
+                if method == "POST":
+                    b = self.body()
+                    if "startup" in b:
+                        alwayson.set_startup(bool(b["startup"]))
+                        if b["startup"]:
+                            alwayson.set_background(True)
+                    if "background" in b:
+                        alwayson.set_background(bool(b["background"]))
+                return self.send_json(alwayson.status())
+            if p == "quit" and method == "POST":               # Settings > Backup and about > Quit HERO TV
+                threading.Timer(0.5, app.stop).start()
+                return self.send_json({"ok": True})
             if p == "roku":                                   # HERO TV app on a Roku TV (PC only)
                 from . import roku
                 if method == "POST":
@@ -1472,6 +1486,10 @@ def watch_heartbeat(app, idle_s=150, never_s=300):
             prev = now
             quiet_for = now - (app.last_hb if app.last_hb is not None else began)
             if quiet_for > (idle_s if app.last_hb is not None else never_s):
+                from . import alwayson
+                if alwayson.background():               # always on: the Roku app and phones still need it
+                    app.last_hb, began = None, now
+                    continue
                 print("TV window closed - shutting down.", flush=True)
                 app.stop()
                 return

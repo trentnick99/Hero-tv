@@ -435,17 +435,25 @@ def launch(no_browser=False, windowed=False, quiet=False):
     say()
     say("HERO TV is ON.  Leave this window open while you watch; close it (or press Ctrl+C) to turn the TV off.")
     say("Keys: Up/Down = channel, G = guide, L = library, F = fullscreen, M = mute, Esc = exit fullscreen / back")
-    try:
-        serve(cfg)
-    except KeyboardInterrupt:
-        say("HERO TV stopped.")
-    except Exception:
-        import traceback
-        traceback.print_exc()
-        if quiet:
-            _popup(f"HERO TV stopped unexpectedly.\n\nDetails: {log}")
-        return 1
-    return 0
+    tries = []
+    while True:
+        try:
+            serve(cfg)
+        except KeyboardInterrupt:
+            say("HERO TV stopped.")
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            from . import alwayson
+            tries = [t for t in tries if time.time() - t < 600] + [time.time()]
+            if quiet and alwayson.background() and len(tries) <= 3:     # always on: start again by itself
+                say("HERO TV stopped unexpectedly - starting it again in 5 seconds...")
+                time.sleep(5)
+                continue
+            if quiet:
+                _popup(f"HERO TV stopped unexpectedly.\n\nDetails: {log}")
+            return 1
+        return 0
 
 
 CONVERTIBLE = {".avi", ".wmv", ".flv", ".ts", ".m2ts", ".mts", ".mpg", ".mpeg", ".divx", ".ogv", ".3gp"}   # need a remux/re-encode first

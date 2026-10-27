@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.18.0": [
+        "Always on (Settings > Other devices): HERO TV can start by itself when you sign in to Windows, quietly in the background, so the Roku app and phones always find it.",
+        "It keeps running when the TV window is closed (on by default once a phone or the Roku TV is set up), and starts itself again if it ever stops with an error.",
+        "To turn it off completely: Settings > Backup and about > Quit HERO TV.",
+    ],
     "1.17.0": [
         "Roku app: OK now opens a real TV guide grid - move through channels and times, OK to watch.",
         "Roku app: Replay jumps back to the last channel, Rew starts the show over, Fwd goes back to live, Right shows the quick channel list.",

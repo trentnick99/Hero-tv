@@ -322,6 +322,12 @@ FOR YOU, RELEASE ORDER AND TIME-OF-DAY TV
   hero films in prime time (20:00-23:00) and Thriller & Horror late at night (23:00-02:00) - only from what you have.
   Seasonal specials and blocks you add yourself come first. On/off: Settings > Channels > Time-of-day programming.
 
+ALWAYS ON (for the Roku app and phones)
+  Settings > Other devices > Always on: "Start HERO TV when I sign in to Windows" puts a HERO TV shortcut in the
+  Startup folder; it starts in the background with no window. "Keep HERO TV running when the TV window is closed" is
+  on by default once a phone or the Roku TV is set up. If HERO TV stops with an error in the background, it starts
+  itself again (up to 3 times in 10 minutes). Turn it off completely: Settings > Backup and about > Quit HERO TV.
+
 HERO TV ON YOUR ROKU TV (a real app on the TV)
   Once, on the TV: press Home 3 times, Up 2 times, then Right, Left, Right, Left, Right on the Roku remote. Choose
   "Enable installer and restart", agree, and pick a password. The TV restarts. (This is Roku's free developer mode.)
