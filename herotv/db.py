@@ -42,6 +42,9 @@ def connect(path: str) -> sqlite3.Connection:
         conn.execute("ALTER TABLE channels ADD COLUMN kind TEXT DEFAULT 'tv'")
     if "pl" not in [r[1] for r in conn.execute("PRAGMA table_info(slots)")]:
         conn.execute("ALTER TABLE slots ADD COLUMN pl TEXT DEFAULT ''")      # which programming block made the slot
+    if "seek" not in [r[1] for r in conn.execute("PRAGMA table_info(slots)")]:
+        conn.execute("ALTER TABLE slots ADD COLUMN seek INTEGER DEFAULT 0")  # part of a show after a break: starts this far in
+    conn.execute("CREATE TABLE IF NOT EXISTS chapters(media_id INTEGER PRIMARY KEY, marks TEXT DEFAULT '[]')")
     if "facts" not in [r[1] for r in conn.execute("PRAGMA table_info(art)")]:
         conn.execute("ALTER TABLE art ADD COLUMN facts TEXT DEFAULT '{}'")    # studio, genres, keywords (for sorting)
     if "added" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:

@@ -67,13 +67,14 @@ function startOver(){if(!slot||vod||slot.card)return;startVod({id:slot.media_id,
  franchise:slot.franchise,year:slot.year,runtime_s:slot.runtime_s,position:0,completed:0,startOver:true})}
 async function sync(){const a=Date.now(),j=await api("/api/now");off=j.now-(a+Date.now())/2e3;cfg=j}
 async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;if(started&&ni!==ci)prevCi=ci;started=true;tunedAt=nowS();ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
- const wx=chans[ci].kind==="weather";show("#wx",wx);show("#upcard",false);clearTimeout(cardT);document.body.classList.toggle("novideo",wx);
+ const wx=chans[ci].kind==="weather";show("#wx",wx);show("#upcard",false);clearTimeout(cardT);clearTimeout(cutT);document.body.classList.toggle("novideo",wx);
  if(wx){slot=nextSlot=null;v.pause();v.removeAttribute("src");v.load();loadWx();return osd()}
  let j;try{j=await api(`/api/channel/${chans[ci].id}/now`)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open. Trying again."),setTimeout(()=>tune(ci),3e3)}
  if(my!==seq)return; /* a newer tune() superseded this one */
  slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Press O for Settings, then Tools > Free movies > Download."):msg("Nothing is scheduled on "+chans[ci].name,"Drag videos onto this window, or put them in this channel's folder. They appear by themselves.")}
  if(slot.card)return upCard(my);
- play(withK(`/media/${slot.media_id}`),()=>Math.min(nowS()-slot.start,(v.duration||1e9)-.5));loadSubs(slot.media_id);osd()}
+ play(withK(`/media/${slot.media_id}`),()=>Math.min(nowS()-slot.start+(slot.seek||0),(v.duration||1e9)-.5));loadSubs(slot.media_id);osd();
+ if(slot.cut)cutT=setTimeout(()=>{if(my===seq&&!vod)tune(ci)},Math.max(0,(slot.end-nowS())*1e3)+80)}   /* a break (or a time slot) starts before the video ends */
 /* the channel logo in the corner: always, now and then (when a show starts, after changing channel, and briefly
    every five minutes), or off - Settings > Appearance */
 let tunedAt=0;
@@ -83,7 +84,7 @@ function updateBug(){const b=$("#bug"),c=chans[ci],m=theme.logo||"sometimes";
  if(on&&c){$("#bug-n").textContent=c.number;$("#bug-t").textContent=c.name;paint(b,c.color)}b.classList.toggle("on",!!on)}
 setInterval(updateBug,1000);
 /* "Up next" card: fills the minute or two before a show that starts at a clean time (no video) */
-let cardT=0;
+let cardT=0,cutT=0;
 function upCard(my){const c=chans[ci],box=$("#upcard");v.pause();v.removeAttribute("src");v.load();clearSub();document.body.classList.add("novideo");
  box.textContent="";const img=el("img");img.alt="";img.src=withK(`/thumb/${slot.media_id}`);img.onerror=()=>img.remove();
  const t=el("div","uc-t");t.append(el("small",0,"UP NEXT ON "+c.name.toUpperCase()),el("h2",0,slot.next_title||""),el("div","uc-at",`at ${T(slot.end)}`));
@@ -809,8 +810,10 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  for(const x of SW){const b=el("button",x.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=x;b.style.background=x;b.title=x;b.setAttribute("aria-label","Color "+x);b.onclick=()=>pick(x);sw.append(b)}
  main.append(sField("Channel name","Shown in the guide and when you change channel.",name),sField("Channel number","The number you type to tune it. Each channel needs its own.",num),sField("Color",null,sw),sField("",null,hex,true));
  let mode=null;if(c.kind!=="weather"){mode=el("select");for(const[v,t]of[["sequential","In order (episodes and movies one after another)"],["mixed","Mixed shows, each in order (shows take turns, episodes stay in order)"],["balanced","Mixed shows, fair share (like Mixed, and a big show no longer crowds out small ones)"],["shuffle","Shuffled (everything in a random order)"]]){const o=el("option",0,t);o.value=v;if(v===c.mode)o.selected=true;mode.append(o)}mode.onchange=()=>{sDirty=true;sLeave=false};main.append(sField("Play order",null,mode))}
- let starts=null;if(c.kind!=="weather"){starts=el("select");for(const[v,t]of[[0,"Any time (one show straight after the other)"],[15,"On the quarter hour (:00, :15, :30, :45)"],[30,"On the half hour (:00 and :30)"],[60,"On the hour"]]){const o=el("option",0,t);o.value=v;if(v===(c.starts||0))o.selected=true;starts.append(o)}starts.onchange=()=>{sDirty=true;sLeave=false};
-  main.append(sField("Start times",`Like real TV: shows start at clean times, and the gap before them is filled with whole short cartoons from your Shorts folder (put them in a folder called Shorts in your media folder - Tools > Free movies > Superhero-era cartoons gets some free ones) and an "Up next" card for the last minute or two. You have ${chShorts} short${chShorts===1?"":"s"} right now`+(chShorts<10?" - with few or none, the gaps are mostly the Up next card, so quarter hours work best.":"."),starts))}
+ let starts=null,brk=null;if(c.kind!=="weather"){starts=el("select");for(const[v,t]of[[0,"Any time (one show straight after the other)"],[15,"On the quarter hour (:00, :15, :30, :45)"],[30,"On the half hour (:00 and :30)"],[60,"On the hour"]]){const o=el("option",0,t);o.value=v;if(v===(c.starts||0))o.selected=true;starts.append(o)}starts.onchange=()=>{sDirty=true;sLeave=false};
+  main.append(sField("Start times",`Like real TV: shows start at clean times, and the gap before them is filled with whole short cartoons from your Shorts folder (put them in a folder called Shorts in your media folder - Tools > Free movies > Superhero-era cartoons gets some free ones) and an "Up next" card for the last minute or two. You have ${chShorts} short${chShorts===1?"":"s"} right now`+(chShorts<10?" - with few or none, the gaps are mostly the Up next card, so quarter hours work best.":"."),starts));
+  brk=el("input");brk.type="checkbox";brk.checked=!!c.breaks;brk.onchange=()=>{sDirty=true;sLeave=false};const bl=el("label","lb");bl.append(brk," Breaks inside shows");bl.style.display="flex";bl.style.gap="1vw";
+  main.append(sField("","With clean start times on: part of the time before the next show becomes a break of shorts in the middle of each show (two in shows of 50 minutes or more), at a chapter mark of the video when there is one nearby. The guide still lists the show as one.",bl))}
  if(!isNew&&c.kind!=="weather"&&c.kind!=="foryou")main.append(slotsField(c));
  let folder=null,words=null,desc=null;
  if(c.kind!=="weather"){
@@ -822,7 +825,7 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
   if(c.smart&&c.smart.length)main.append(sField("Smart sorting",`With a TMDB key, this channel automatically gets: ${c.smart.join("; ")}. The keywords below are then only used for titles TMDB does not know.`,null));
   main.append(sField("Keywords","When new videos arrive in the Inbox (or you press Sort the Inbox now in Tools), a file whose name contains one of these words goes on this channel. One per line."+(c.shared_keywords?` ${c.shared_keywords} more keywords are shared with other channels and are not shown here.`:""),words))}
  desc=sInput(c.description);desc.style.width="50vw";main.append(sField("Description","One line shown in the guide.",desc));
- const bar=el("div","sbar"),payload=()=>{const b={name:name.value,color:col,description:desc.value};if(num.value.trim()!=="")b.number=num.value.trim();if(mode)b.mode=mode.value;if(starts)b.starts=Number(starts.value);if(folder&&(isNew||folder.value.trim()))b.folder=folder.value;if(words)b.keywords=words.value;return b};
+ const bar=el("div","sbar"),payload=()=>{const b={name:name.value,color:col,description:desc.value};if(num.value.trim()!=="")b.number=num.value.trim();if(mode)b.mode=mode.value;if(starts)b.starts=Number(starts.value);if(brk)b.breaks=brk.checked;if(folder&&(isNew||folder.value.trim()))b.folder=folder.value;if(words)b.keywords=words.value;return b};
  bar.append(sBtn(isNew?"Create channel":"Save",()=>isNew?chPost(Object.assign({op:"add"},payload()),"Channel created.",true):chPost(Object.assign({op:"save",id:c.id},payload()),"Saved."),"pri"),sBtn("Back to the list",()=>{if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}chBack()}));
  if(!isNew)bar.append(sBtn("Delete this channel",()=>{if(!bar.dataset.sure){bar.dataset.sure=1;sMsg("Press Delete again to remove this channel from the guide. Your videos are not touched.","err");return}chPost({op:"delete",id:c.id},"Channel deleted.",true)},"warn"));
  main.append(bar,msg)}

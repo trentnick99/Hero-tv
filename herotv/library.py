@@ -75,6 +75,20 @@ def probe(path):
             "comment": str((j["format"].get("tags") or {}).get("comment", "") or (j["format"].get("tags") or {}).get("COMMENT", ""))}
 
 
+def chapter_starts(path):
+    """Start times (seconds) of the chapters inside a video - natural places for a break. [] when there are none or
+    ffprobe is missing; None when the file could not be read."""
+    exe = tools.find_tool("ffprobe")
+    if not exe:
+        return None
+    try:
+        out = tools.run([exe, "-v", "error", "-print_format", "json", "-show_chapters", path], timeout=60)
+        j = json.loads(out.stdout or "{}")
+        return sorted(float(c["start_time"]) for c in j.get("chapters", []) if float(c.get("start_time", 0)) > 0)
+    except (OSError, subprocess.SubprocessError, ValueError, KeyError, TypeError):
+        return None
+
+
 LANG_NAMES = {"eng": "English", "jpn": "Japanese", "spa": "Spanish", "fre": "French", "fra": "French", "ger": "German", "deu": "German",
               "ita": "Italian", "por": "Portuguese", "kor": "Korean", "chi": "Chinese", "zho": "Chinese", "rus": "Russian",
               "hin": "Hindi", "ara": "Arabic", "und": "Unknown language", "": "Unknown language"}

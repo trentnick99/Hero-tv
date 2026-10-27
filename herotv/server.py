@@ -1008,7 +1008,7 @@ def make_handler(app, remote=False):
                     d["ext"], d["subs"] = ondemand.extras(c, d["media_id"])
                     return d
                 return self.send_json({"now": now, "slot": tv_slot(cur), "next": tv_slot(nxt),     # next: the app may play it directly
-                                       "offset": (now - cur["start"]) if cur else None})
+                                       "offset": (now - cur["start"] + (cur["seek"] or 0)) if cur else None})
             if p == "ondemand":                               # the Roku app's on-demand library
                 if q.get("series"):
                     return self.send_json(ondemand.episodes(c, q.get("franchise", ""), q["series"]))
@@ -1029,7 +1029,7 @@ def make_handler(app, remote=False):
                     cur = S.current(c, cid, now)
                 nxt = S.following(c, cid, cur["end"] if cur else now)
                 return self.send_json({"now": now, "slot": S.slot_dict(cur, tz), "next": S.slot_dict(nxt, tz),
-                                       "offset": (now - cur["start"]) if cur else None})
+                                       "offset": (now - cur["start"] + (cur["seek"] or 0)) if cur else None})
             if p == "guide":
                 if "date" in q:
                     try:
@@ -1048,6 +1048,7 @@ def make_handler(app, remote=False):
                 by = {}
                 for r in S.window(c, t0, t1):
                     by.setdefault(r["channel_id"], []).append(S.slot_dict(r, tz))
+                by = {k: S.merge_breaks(v) for k, v in by.items()}      # a show with breaks is one entry in the guide
                 chans = [{"id": ch["id"], "number": ch["number"], "name": ch["name"], "color": ch["color"], "kind": ch["kind"] or "tv", "slots": by.get(ch["id"], [])}
                          for ch in S.channels(c)]
                 return self.send_json({"source": "generated", "notice": NOTICE, "tz": js_zone(tz), "from": t0, "to": t1, "channels": chans})

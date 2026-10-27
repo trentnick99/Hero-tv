@@ -247,6 +247,9 @@ CLEAN START TIMES AND SHORTS (like real TV)
   phones and the Roku app. With no shorts at all the card fills the whole gap, so quarter hours work best then.
   A channel can keep to some shorts only: add "filler": ["Superhero"] to it in config\channels.json (subfolder
   names or tags).
+  "Breaks inside shows" (a tick box under Start times): part of that time becomes a break of shorts in the middle
+  of each show - two in shows of 50 minutes or more - placed at a chapter mark of the video when there is one
+  nearby, never in the first or last tenth. The guide still lists the show as one. Off unless you tick it.
 
 ALWAYS ON (for the Roku app and phones)
   Settings > Other devices > Always on: "Start HERO TV when I sign in to Windows" puts a HERO TV shortcut in the

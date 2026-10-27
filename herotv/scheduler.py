@@ -24,6 +24,8 @@ SHORT_MAX_S = 15 * 60          # longer videos are never used as filler
 LATE_OK_S = 60                 # a show that runs up to a minute past the hour: the next one simply starts then
 CARD_MIN_S = 5                 # a smaller leftover is added to the last item instead
 ALIGN_CHOICES = (15, 30, 60)
+BREAK_MIN_SHOW_S = 15 * 60     # breaks inside shows: only shows at least this long get one
+BREAK_MIN_GAP_S = 120          # ...and only when there are at least two minutes to share out
 _lock = threading.RLock()
 
 
@@ -38,6 +40,8 @@ def load_channels(conn, channels):
                 rules["_smart"] = False                   # opt out of "prefer what you have not seen"
             if c.get("starts") in ALIGN_CHOICES:
                 rules["_align"] = int(c["starts"])        # shows start on the quarter/half hour or the hour
+                if c.get("breaks"):
+                    rules["_breaks"] = True               # ...with breaks of shorts inside the shows
             if isinstance(c.get("filler"), list) and c["filler"]:
                 rules["_filler"] = [str(x) for x in c["filler"]]   # only these Shorts subfolders / tags
             conn.execute(
@@ -312,6 +316,56 @@ def next_start(t, minutes, z):
     return t + step - late
 
 
+def chapter_marks(conn, m):
+    """Chapter starts of a video (cached in the database; read with ffprobe the first time)."""
+    r = conn.execute("SELECT marks FROM chapters WHERE media_id=?", (m["id"],)).fetchone()
+    if r is not None:
+        try:
+            return json.loads(r["marks"] or "[]")
+        except ValueError:
+            return []
+    from . import library
+    marks = library.chapter_starts(m["path"]) if m["path"] else None
+    if marks is None:
+        return []                               # no ffprobe / unreadable: midpoints are used, nothing is cached
+    conn.execute("INSERT OR REPLACE INTO chapters(media_id,marks) VALUES(?,?)", (m["id"], json.dumps(marks)))
+    return marks
+
+
+def break_points(runtime, marks):
+    """Where the breaks go inside a show: one in the middle (two for shows of 50 minutes or more), moved to the
+    nearest chapter start when there is one close by, never in the first or last 10%."""
+    n = 2 if runtime >= 50 * 60 else 1
+    out = []
+    for k in range(1, n + 1):
+        want = runtime * k / (n + 1)
+        near = [c for c in marks if runtime * 0.1 <= c <= runtime * 0.9 and abs(c - want) <= runtime * 0.15]
+        t = min(near, key=lambda c: abs(c - want)) if near else want
+        t = int(round(t))
+        if not out or t - out[-1] >= 120:
+            out.append(t)
+    return out
+
+
+def pick_shorts(pool, budget, after):
+    """Whole shorts (going round the pool after `after`) that fit in `budget` seconds: (list, last id used)."""
+    if not pool or budget <= 0:
+        return [], after
+    ids = [r["id"] for r in pool]
+    first = ids.index(after) + 1 if after in ids else 0
+    got = []
+    for k in range(len(pool)):
+        m = pool[(first + k) % len(pool)]
+        d = max(1, math.ceil(m["runtime_s"]))
+        if d <= budget:
+            got.append(m)
+            budget -= d
+            after = m["id"]
+        if budget < CARD_MIN_S:
+            break
+    return got, after
+
+
 def fill_gap(conn, ch_id, start, until, pool, after, card_media):
     """Fill [start, until) with whole shorts that fit (going round the pool, starting after `after`), then an
     "Up next" card for `card_media`. Returns the id of the last short used (or `after`)."""
@@ -471,6 +525,7 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
             start = last["end"]
         cache, added, pos = {}, 0, {}
         align = plan[0].get("_align") if plan[0].get("_align") in ALIGN_CHOICES else None
+        breaks = bool(plan[0].get("_breaks"))
         fill_state = {"pool": None, "last": None}
 
         def load_pool():
@@ -480,6 +535,36 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
                                   (ch["id"], SHORTS)).fetchone()
                 fill_state["last"] = r0["media_id"] if r0 else None
             return fill_state["pool"]
+
+        def split_for_breaks(s0, e0, m):
+            """The show cut into parts with shorts in between, using part of the time up to the clean start
+            (the rest stays for the shorts and card after it). None when no break fits."""
+            dur = e0 - s0
+            gap = next_start(e0, align, z) - e0
+            if dur < BREAK_MIN_SHOW_S or gap < BREAK_MIN_GAP_S:
+                return None
+            pool = load_pool()
+            if not pool:
+                return None
+            cuts = break_points(dur, chapter_marks(conn, m))
+            share = gap // (len(cuts) + 1)          # each break gets an equal share; what is left goes after the show
+            parts, t, seek, last = [], s0, 0, fill_state["last"]
+            for c in cuts:
+                shorts, last2 = pick_shorts(pool, share, last)
+                if not shorts:
+                    continue
+                parts.append((t, t + (c - seek), seek, ""))
+                t += c - seek
+                for sm in shorts:
+                    d = max(1, math.ceil(sm["runtime_s"]))
+                    parts.append((t, t + d, sm["id"], SHORTS))   # for a short, the 3rd value is its media id
+                    t += d
+                seek, last = c, last2
+            if not parts:
+                return None
+            parts.append((t, t + (dur - seek), seek, ""))
+            fill_state["last"] = last
+            return parts
 
         def pad(t, fallback_media):
             """Fill from t to the next clean start time; returns that time."""
@@ -537,8 +622,16 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
                 cut = _block_start_within(blocks, start, end, z)
                 if cut:
                     end = cut
-            conn.execute("INSERT INTO slots(channel_id,start,end,media_id,cycle,pl) VALUES(?,?,?,?,?,?)",
-                         (ch["id"], start, end, m["id"], cycle, key))
+            parts = split_for_breaks(start, end, m) if align and breaks and end - start == dur else None
+            if parts:
+                for p_start, p_end, p_seek, p_pl in parts:
+                    conn.execute("INSERT INTO slots(channel_id,start,end,media_id,cycle,pl,seek) VALUES(?,?,?,?,?,?,?)",
+                                 (ch["id"], p_start, p_end, p_seek if p_pl == SHORTS else m["id"],
+                                  0 if p_pl == SHORTS else cycle, key if p_pl != SHORTS else SHORTS, 0 if p_pl == SHORTS else p_seek))
+                end = parts[-1][1]
+            else:
+                conn.execute("INSERT INTO slots(channel_id,start,end,media_id,cycle,pl) VALUES(?,?,?,?,?,?)",
+                             (ch["id"], start, end, m["id"], cycle, key))
             pos[key] = (m["id"], cycle)
             if smart:
                 skip.add(m["id"])
@@ -580,7 +673,7 @@ def extend_all(conn, now, horizon_s=48 * 3600, rebuild=False, tz="local", resume
 
 # ---------- queries ----------
 _SEL = ("SELECT s.channel_id,s.start,s.end,s.media_id,m.title,m.year,m.franchise,m.series,m.season,m.episode,"
-        "m.plot,m.runtime_s,s.pl FROM slots s JOIN media m ON m.id=s.media_id ")
+        "m.plot,m.runtime_s,s.pl,s.seek FROM slots s JOIN media m ON m.id=s.media_id ")
 
 
 def slot_dict(row, tz):
@@ -593,6 +686,9 @@ def slot_dict(row, tz):
     pl = d.get("pl") or ""
     d["block"] = "" if pl.startswith("~") else pl   # "~filler" = slots made by an older version
     d["filler"] = "short" if pl == SHORTS else "card" if pl == CARD else ""
+    d["seek"] = int(d.get("seek") or 0)                 # a part after a break starts this far into the video
+    # the slot ends before the video does (a break follows): players must switch over at the end of the slot
+    d["cut"] = bool(d["seek"]) or (not pl.startswith("~") and (d["end"] - d["start"]) < (d.get("runtime_s") or 0) - 2)
     if pl == CARD:                       # an "Up next" card: no video, a picture and the name of what is next
         d["card"] = True
         nl = d.get("title") or ""
@@ -603,6 +699,23 @@ def slot_dict(row, tz):
         d["series"], d["season"], d["episode"] = "", 0, 0
     d["source"] = "generated"   # virtual-channel schedule, never an official broadcast listing
     return d
+
+
+def merge_breaks(slots):
+    """For the guide: a show cut by breaks is listed once, from its first part to its last (the shorts in between
+    are inside it), like a real TV guide. `slots` are slot dicts of one channel in time order."""
+    out = []
+    for d in slots:
+        if d.get("seek"):
+            i = len(out) - 1
+            while i >= 0 and out[i].get("filler") == "short":
+                i -= 1
+            if i >= 0 and out[i]["media_id"] == d["media_id"] and not out[i].get("filler"):
+                show = dict(out[i], end=d["end"], end_local=d["end_local"], cut=False)
+                out[i:] = [show]
+                continue
+        out.append(d)
+    return out
 
 
 def current(conn, ch_id, t):

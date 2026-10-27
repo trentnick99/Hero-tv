@@ -85,6 +85,42 @@ class StartTimes(unittest.TestCase):
         self.assertEqual((d["card"], d["title"], d["next_title"], d["filler"]), (True, "Up next", "Ep1", "card"))
 
 
+class Breaks(unittest.TestCase):
+    def setUp(self):
+        self.c = make_db()
+        self.ep = [add(self.c, f"Ep{i}", 40 * 60 + 30) for i in range(3)]       # 40.5 min shows on a 15-min grid
+        self.sh = [add(self.c, f"Short{i}", 2 * 60, franchise="Shorts") for i in range(4)]
+        S.load_channels(self.c, [{"id": "mcu", "number": 1, "name": "MCU", "mode": "sequential",
+                                  "match": {"franchise": ["MCU"]}, "starts": 15, "breaks": True}])
+        self.ch = self.c.execute("SELECT * FROM channels WHERE id='mcu'").fetchone()
+
+    def test_a_break_in_the_middle_and_the_show_carries_on(self):
+        from unittest import mock
+        with mock.patch.object(S, "chapter_marks", return_value=[1150.0]):     # a chapter mark near the middle
+            S.extend(self.c, self.ch, T0, 2 * H, tz="UTC")
+        s = [tuple(r) for r in self.c.execute("SELECT start,end,media_id,pl,seek FROM slots ORDER BY start")]
+        for x, y in zip(s, s[1:]):
+            self.assertEqual(x[1], y[0])
+        first = [x for x in s if x[2] == self.ep[0] and x[3] == ""]
+        self.assertEqual(len(first), 2)
+        self.assertEqual((first[0][4], first[0][1] - first[0][0]), (0, 1150))     # part 1 ends at the chapter mark
+        self.assertEqual(first[1][4], 1150)                                         # part 2 starts there
+        between = [x for x in s if first[0][1] <= x[0] < first[1][0]]
+        self.assertTrue(between and all(x[3] == S.SHORTS for x in between))
+        nxt = [x for x in s if x[2] == self.ep[1] and x[3] == ""][0]
+        self.assertEqual(nxt[0] % 900, 0)                                           # next show still on the quarter hour
+        d = [S.slot_dict(r, "UTC") for r in S.window(self.c, T0, T0 + H) if r["channel_id"] == "mcu"]
+        self.assertTrue(d[0]["cut"])
+        merged = S.merge_breaks(d)
+        self.assertEqual((merged[0]["media_id"], merged[0]["end"]), (self.ep[0], first[1][1]))
+
+    def test_break_points(self):
+        self.assertEqual(S.break_points(1800, []), [900])
+        self.assertEqual(S.break_points(1800, [100, 1000]), [1000])
+        self.assertEqual(S.break_points(3600, []), [1200, 2400])
+        self.assertEqual(S.break_points(1800, [1700]), [900])               # not in the last 10%
+
+
 class SeasonalFolders(unittest.TestCase):
     def test_month_folders_play_only_in_their_month(self):
         import datetime as dt

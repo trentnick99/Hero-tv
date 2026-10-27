@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.24.0": [
+        "Breaks inside shows, like real TV: tick 'Breaks inside shows' under Start times on a channel. Shorts play in the middle of each show (two breaks in longer ones), at a chapter mark when the video has one.",
+        "A show cut short by a time slot now switches over on time on every screen.",
+    ],
     "1.23.0": [
         "Time slots (Settings > Channels > a channel > Time slots): pick days and hours and what plays then - like cartoons on Saturday mornings.",
         "Seasonal folders: videos in a folder named December, Halloween, Christmas (or any month) only play on the channels in that month.",

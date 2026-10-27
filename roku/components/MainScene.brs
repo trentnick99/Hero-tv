@@ -92,6 +92,7 @@ sub init()
     m.top.findNode("cdBar").color = accent
     m.top.findNode("cardTimer").observeField("fire", "onCardEnd")
     m.top.findNode("cardTick").observeField("fire", "onCardTick")
+    m.top.findNode("cutTimer").observeField("fire", "onCut")
 
     ' the Weather channel
     m.wx = m.top.findNode("wx")
@@ -295,11 +296,11 @@ sub onNow(event as object)
     offset = num(r.offset)
     if m.afterFinish and isAA(slot) and isAA(m.slot) and num(slot.start) = num(m.slot.start) and isAA(r.next)
         slot = r.next                                  ' the video ended a little early: go straight on
-        offset = 0
+        offset = num(slot.seek)
     end if
     if isAA(slot) and m.failedIds.DoesExist(txt(slot.media_id)) and isAA(r.next)
         slot = r.next                                  ' this TV could not play it before: on to the next show
-        offset = 0
+        offset = num(slot.seek)
     end if
     m.afterFinish = false
     hideCard()
@@ -389,6 +390,22 @@ sub play(slot as object, offset as integer)
     m.subIndex = -1
     m.video.content = c
     m.video.control = "play"
+    ' a break (or a time slot) starts before this video ends: switch over at the end of the slot
+    ct = m.top.findNode("cutTimer")
+    ct.control = "stop"
+    if isTrue(slot.cut) and m.mode = "live"
+        left = num(slot["end"]) - serverNow()
+        if left < 1 then left = 1
+        ct.duration = left
+        ct.control = "start"
+    end if
+end sub
+
+sub onCut()
+    if m.mode <> "live" or m.current < 0 then return
+    m.afterFinish = false
+    m.seq = m.seq + 1
+    api("/api/tv/" + m.channels[m.current].id, "onNow")
 end sub
 
 sub onVideoState()

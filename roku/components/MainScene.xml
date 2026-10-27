@@ -140,6 +140,7 @@
     <Timer id="remHide" duration="120" />
     <Timer id="wxTimer" duration="600" repeat="true" />
     <Timer id="cardTimer" duration="60" />
+    <Timer id="cutTimer" duration="60" />
     <Timer id="cardTick" duration="1" repeat="true" />
   </children>
 </component>
