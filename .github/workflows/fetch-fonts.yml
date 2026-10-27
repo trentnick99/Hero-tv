@@ -2,23 +2,27 @@ name: Fetch fonts (one-off)
 on:
   push:
     paths: [".github/workflows/fetch-fonts.yml"]
+permissions:
+  contents: write
 jobs:
   fonts:
     runs-on: ubuntu-latest
     steps:
-      - name: Download the open-licence fonts from Google Fonts' GitHub
+      - uses: actions/checkout@v5
+      - name: Download the open-licence fonts from Google Fonts' GitHub and add them to web/fonts
         run: |
           set -e
-          mkdir fonts
+          mkdir -p web/fonts
           base=https://raw.githubusercontent.com/google/fonts/main/ofl
-          for f in atkinsonhyperlegible/AtkinsonHyperlegible-Regular.ttf atkinsonhyperlegible/AtkinsonHyperlegible-Bold.ttf \
-                   atkinsonhyperlegible/OFL.txt barlowcondensed/BarlowCondensed-SemiBold.ttf barlowcondensed/BarlowCondensed-Bold.ttf \
-                   barlowcondensed/OFL.txt; do
-            out="fonts/$(dirname $f)-$(basename $f)"
-            curl -fsSL -o "$out" "$base/$f" || echo "::warning::missing $f"
-          done
-          ls -la fonts; sha256sum fonts/*
-      - uses: actions/upload-artifact@v4
-        with:
-          name: fonts
-          path: fonts
+          curl -fsSL -o web/fonts/AtkinsonHyperlegible-Regular.ttf "$base/atkinsonhyperlegible/AtkinsonHyperlegible-Regular.ttf"
+          curl -fsSL -o web/fonts/AtkinsonHyperlegible-Bold.ttf "$base/atkinsonhyperlegible/AtkinsonHyperlegible-Bold.ttf"
+          curl -fsSL -o web/fonts/OFL-AtkinsonHyperlegible.txt "$base/atkinsonhyperlegible/OFL.txt"
+          curl -fsSL -o web/fonts/BarlowCondensed-SemiBold.ttf "$base/barlowcondensed/BarlowCondensed-SemiBold.ttf"
+          curl -fsSL -o web/fonts/BarlowCondensed-Bold.ttf "$base/barlowcondensed/BarlowCondensed-Bold.ttf"
+          curl -fsSL -o web/fonts/OFL-BarlowCondensed.txt "$base/barlowcondensed/OFL.txt"
+          ls -la web/fonts; sha256sum web/fonts/*
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/fonts
+          git commit -m "Add open-licence fonts (Atkinson Hyperlegible, Barlow Condensed; SIL OFL 1.1) from github.com/google/fonts"
+          git push
