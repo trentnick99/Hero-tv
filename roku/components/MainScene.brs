@@ -424,7 +424,14 @@ sub onGuide(event as object)
         row = root.createChild("ContentNode")
         row.title = txt(c.number) + "  " + txt(c.name)
         g = byId[c.id]
-        if isAA(g) and isArr(g.slots)
+        if c.kind = "weather"
+            ' no shows on the Weather channel: one long block instead of "No Data Available"
+            p = row.createChild("ContentNode")
+            p.title = "Local forecast and weather alerts"
+            p.playStart = num(t.result.from)
+            p.playDuration = num(t.result["to"]) - num(t.result.from)
+            p.description = "All day"
+        else if isAA(g) and isArr(g.slots)
             for each sl in g.slots
                 if isAA(sl)
                     p = row.createChild("ContentNode")
@@ -441,7 +448,21 @@ sub onGuide(event as object)
     if m.current >= 0 then m.tg.jumpToChannel = m.current
     m.tg.setFocus(true)
     m.top.findNode("tgClock").text = clock(nowIso())
-    if m.current >= 0 then showGridInfo(m.channels[m.current], invalid)
+    if m.current >= 0
+        ' what is on now on your channel (the grid only reports focus once you move)
+        cur = invalid
+        rowNode = root.getChild(m.current)
+        now = serverNow()
+        if rowNode <> invalid
+            for k = 0 to rowNode.getChildCount() - 1
+                p = rowNode.getChild(k)
+                if p.playStart <= now and p.playStart + p.playDuration > now then cur = p
+            end for
+        end if
+        m.gridCi = m.current
+        m.gridProg = cur
+        showGridInfo(m.channels[m.current], cur)
+    end if
 end sub
 
 function nowIso() as string

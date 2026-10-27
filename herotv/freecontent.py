@@ -105,6 +105,21 @@ def license_ok(value):
     return isinstance(v, str) and any(w in v.lower() for w in LICENSE_WORDS)
 
 
+LAST_LAPSED_YEAR = 1977
+_EPISODE = re.compile(r"(?i)\bS\d{1,2}\s*E\d{1,3}\b|\bseason\s*\d+")
+
+
+def plausibly_public_domain(title, year, ident=""):
+    """A second check on top of the licence, because anyone can upload to the Internet Archive and mark a modern TV
+    rip as public domain. Works from 1978 on are protected without any notice, so they are skipped; so are TV-episode
+    files with no year to go by."""
+    if year and year > LAST_LAPSED_YEAR:
+        return False
+    if not year and (_EPISODE.search(str(title or "")) or _EPISODE.search(str(ident or "").replace("_", " "))):
+        return False
+    return True
+
+
 def build_query(source):
     return f"({source['query']}) AND mediatype:movies AND ({_LICENSES})"
 
@@ -221,6 +236,10 @@ def fetch(sources, media_dir, count=3, max_gb=1.5, say=print, progress=None):
                 meta = fetch_json(META_URL + urllib.parse.quote(ident))
                 if not license_ok((meta.get("metadata") or {}).get("licenseurl")):
                     out["skipped"] += 1          # never trust the search alone
+                    continue
+                title0 = d.get("title") or (meta.get("metadata") or {}).get("title") or ident
+                if not plausibly_public_domain(title0[0] if isinstance(title0, list) else title0, _year(d, meta), ident):
+                    out["skipped"] += 1          # too new to be public domain, whatever the upload says
                     continue
                 pick = pick_file(meta, max_bytes)
                 if not pick:

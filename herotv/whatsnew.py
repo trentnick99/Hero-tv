@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.20.1": [
+        "Roku guide: the key help no longer hides behind the time bar, the top shows what is on now, and the Weather channel shows a forecast block instead of 'No Data Available'.",
+        "Roku on demand: shows without season numbers no longer say 'S0 E0', and folder names typed in lower case look tidy ('South Park').",
+        "Videos whose built-in title was a download site's label (like 'PSArips.com | ...') are named from the file again.",
+        "Get Free Movies skips uploads that are too new to be public domain (from 1978 on), whatever the upload claims.",
+    ],
     "1.20.0": [
         "Roku app: ON DEMAND - press Left for your whole library: Continue watching, Favorites, New, every folder, and Search. Pick any movie or episode and watch it.",
         "On demand on the Roku goes on where you left off (on any screen), plays the next episode by itself, and Left/Right skip 10 seconds.",

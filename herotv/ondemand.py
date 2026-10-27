@@ -19,14 +19,22 @@ def _mins(s):
     return (f"{h} h {m} min" if h else f"{m} min") if m else f"{h} h"
 
 
+def _nice(name):
+    """'south park' (a folder typed in lower case) -> 'South Park'; anything else as it is."""
+    name = name or ""
+    return name.title() if name.islower() else name
+
+
 def _ep(r):
-    return f"S{r['season'] or 0} E{r['episode'] or 0}"
+    """'S2 E5'; 'E5' without a season number; '' when the file name gave neither."""
+    s, e = r["season"] or 0, r["episode"] or 0
+    return f"S{s} E{e}" if s and e else f"E{e}" if e else ""
 
 
 def video(r):
     """One tile for one video."""
     if r["series"]:
-        title = f"{r['series']}  {_ep(r)}"
+        title = f"{_nice(r['series'])}  {_ep(r)}".strip()
         line = r["title"] or ""
     else:
         title = r["title"] or "Untitled"
@@ -56,7 +64,7 @@ def series_tile(name, eps):
     nx = next_up(eps)
     watched = sum(1 for e in eps if e["completed"])
     line = f"{len(eps)} episodes" + (f"  -  {watched} watched" if watched else "")
-    return {"type": "series", "id": nx["id"], "title": name, "line": f"Next: {_ep(nx)}  -  " + line,
+    return {"type": "series", "id": nx["id"], "title": _nice(name), "line": f"Next: {_ep(nx) or nx['title'] or 'episode'}  -  " + line,
             "plot": nx["plot"] or "", "franchise": nx["franchise"] or "", "series": name,
             "favorite": any(e["favorite"] for e in eps), "thumb": f"/thumb/{nx['id']}"}
 
@@ -124,11 +132,11 @@ def episodes(c, franchise, series):
     items = []
     for e in eps:
         t = video(e)
-        t["title"] = f"{_ep(e)}  {e['title'] or ''}".strip()
+        t["title"] = f"{_ep(e)}  {e['title'] or ''}".strip() or "Episode"
         if e["completed"]:
             t["line"] = (t["line"] + "  -  " if t["line"] else "") + "watched"
         items.append(t)
-    return {"series": series, "items": items, "next": nx["id"]}
+    return {"series": _nice(series), "items": items, "next": nx["id"]}
 
 
 def extras(c, mid):
@@ -159,7 +167,7 @@ def play(c, mid):
                       "ORDER BY m.season,m.episode LIMIT 1",
                       (r["series"], r["franchise"] or "", r["season"] or 0, r["episode"] or 0)).fetchone()
         if n:
-            nxt = {"id": n["id"], "title": f"{r['series']}  {_ep(n)}" + (f"  {n['title']}" if n["title"] else "")}
+            nxt = {"id": n["id"], "title": " ".join(x for x in (_nice(r["series"]), _ep(n), n["title"] or "") if x)}
     t = video(r)
     resume = int(r["position"]) if r["position"] > 30 and not r["completed"] else 0
     if r["runtime_s"] and resume > r["runtime_s"] - 60:

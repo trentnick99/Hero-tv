@@ -131,6 +131,51 @@ def tidy(text, year=None, dotted_name=False):
     return (cut or t), year
 
 
+_SITE = re.compile(r"(?i)(?:www\.|https?://|\b[a-z0-9-]+\.(?:com|net|org|to|io|me|tv|cc|xyz|info|ws|se|ru|link|club|site|app)\b)")
+
+
+def tag_title(text):
+    """The title stored inside a video file, cleaned - or "" when it is only a download site's label.
+    'PSArips.com | South.Park.S17E07.720p' -> 'South Park S17E07'; 'www.site.org' -> ''."""
+    t = str(text or "").strip()
+    if not t:
+        return ""
+    parts = [x for x in re.split(r"\s*[|\u2022]\s*|\s+-\s+(?=\S*(?:www\.|\.com|\.net|\.org))", t) if x.strip()]
+    parts = [x for x in parts if not _SITE.search(x)]
+    if not parts:
+        return ""
+    t = tidy(" ".join(parts))[0]
+    t = _SITE.sub("", t).strip(" ._-|")
+    return t if len(t) >= 2 else ""
+
+
+def fix_site_titles(conn, root):
+    """Titles that are a download site's label (found inside the file by older versions) are named again from the
+    file name. Videos with a title in their .hero.json keep it. Returns how many were fixed."""
+    n = 0
+    for r in conn.execute("SELECT id,path,title FROM media WHERE title LIKE '%.%' OR title LIKE '%|%'").fetchall():
+        if not _SITE.search(r["title"] or ""):
+            continue
+        side = sidecar_path(r["path"])
+        try:
+            with open(side, encoding="utf-8-sig") as fh:
+                if "title" in (json.load(fh) or {}):
+                    continue
+        except (OSError, ValueError, TypeError):
+            pass
+        try:
+            rel = os.path.relpath(r["path"], root)
+        except ValueError:
+            continue
+        stem = os.path.splitext(os.path.basename(r["path"]))[0]
+        guess = _guess(rel.split(os.sep), stem)
+        new = tag_title(guess["title"]) or tag_title(r["title"])          # the file name, unless that is a site label too
+        if new and new != r["title"]:
+            conn.execute("UPDATE media SET title=? WHERE id=?", (new, r["id"]))
+            n += 1
+    return n
+
+
 def _guess(parts, stem):
     d = _guess_raw(parts, stem)
     d["title"], d["year"] = tidy(d["title"], d["year"], " " not in stem and bool(re.search(r"[._]", stem)))
@@ -222,8 +267,8 @@ def scan(conn, root, probe_fn=probe):
                 except (OSError, ValueError):
                     sc = {}
             p = probe_fn(path)
-            if p and p["title"] and meta["title"] == stem:
-                meta["title"] = p["title"]
+            if p and tag_title(p["title"]) and meta["title"] == stem:
+                meta["title"] = tag_title(p["title"])
             meta.update({k: sc[k] for k in ("title", "year", "franchise", "series", "season", "episode") if k in sc})
             # Year first; episodes of one series then follow in season/episode order (see the ORDER BY in scheduler.py).
             ordv = sc.get("order", (meta["year"] or 9999) * 10_000_000)
@@ -258,6 +303,7 @@ def scan(conn, root, probe_fn=probe):
             conn.execute("UPDATE media SET available=0 WHERE id=?", (r["id"],))
             stats["missing"] += 1
     stats["relinked"] = relink(conn, added_paths)
+    stats["renamed"] = fix_site_titles(conn, root)
     conn.commit()
     return stats
 

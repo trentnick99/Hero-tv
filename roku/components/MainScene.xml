@@ -60,7 +60,7 @@
       <Label id="tgClock" translation="[1130,40]" width="700" horizAlign="right" font="font:SmallSystemFont" color="0x9AA3B5FF" />
       <Label id="tgTitle" translation="[90,110]" width="1740" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
       <Label id="tgTime" translation="[90,180]" width="1740" font="font:SmallSystemFont" color="0xC8CDD8FF" />
-      <Label id="tgHint" translation="[90,225]" width="1740" font="font:SmallestSystemFont" color="0x9AA3B5FF"
+      <Label id="tgHint" translation="[90,1010]" width="1740" font="font:SmallestSystemFont" color="0x9AA3B5FF"
              text="Arrows: move    OK: watch that channel (or set a reminder for a later show)    Back: return to TV" />
       <TimeGrid id="tg" translation="[90,290]" numRows="7" duration="9000" channelInfoWidth="380" />
     </Group>

@@ -101,3 +101,31 @@ class AwakeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NamesTests(unittest.TestCase):
+    def test_episode_labels_without_numbers(self):
+        r = {"season": 0, "episode": 7}
+        self.assertEqual(ondemand._ep(r), "E7")
+        self.assertEqual(ondemand._ep({"season": 0, "episode": 0}), "")
+        self.assertEqual(ondemand._nice("south park"), "South Park")
+        self.assertEqual(ondemand._nice("DC's Legends"), "DC's Legends")
+
+    def test_site_labels_are_not_titles(self):
+        import tempfile
+        from herotv import freecontent, library as L
+        self.assertEqual(L.tag_title("PSArips.com | South.Park.S17E07.720p.WEB"), "South Park S17E07")
+        self.assertEqual(L.tag_title("www.YTS.MX"), "")
+        self.assertEqual(L.tag_title("Dr. Strange"), "Dr. Strange")
+        d = tempfile.mkdtemp()
+        c = connect(":memory:")
+        self.addCleanup(c.close)
+        add(c, os.path.join(d, "South Park", "The Streaming Wars.mkv"), title="PSArips.com | South.Park.The.Streaming.Wars",
+            franchise="South Park")
+        add(c, os.path.join(d, "MCU", "x.mp4"), title="Iron Man")
+        self.assertEqual(L.fix_site_titles(c, d), 1)
+        self.assertEqual(c.execute("SELECT title FROM media ORDER BY id").fetchall()[0][0], "The Streaming Wars")
+        self.assertTrue(freecontent.plausibly_public_domain("Popeye the Sailor", 1936))
+        self.assertTrue(freecontent.plausibly_public_domain("Gulliver's Travels", None))
+        self.assertFalse(freecontent.plausibly_public_domain("Medicinal Fried Chicken", 2010))
+        self.assertFalse(freecontent.plausibly_public_domain("South Park S14E03", None))
