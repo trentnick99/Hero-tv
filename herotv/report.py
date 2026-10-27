@@ -33,6 +33,13 @@ def _hide(text):
     return SECRET.sub(lambda m: m.group(1) + "<hidden>", text)
 
 
+def _mask(v):
+    """Hide passwords at any depth (the Roku TVs' developer passwords)."""
+    if isinstance(v, dict):
+        return {k: ("<set>" if k == "password" and x else _mask(x)) for k, x in v.items()}
+    return v
+
+
 def _settings():
     from . import settings_api
     d = settings_api._load()
@@ -40,8 +47,8 @@ def _settings():
     for k, v in sorted(d.items()):
         if any(k == s or k.endswith("_" + s) for s in SECRET_KEYS):
             out[k] = "<set>" if v else "<empty>"
-        elif k == "roku" and isinstance(v, dict):
-            out[k] = {kk: ("<set>" if kk in ("password",) else vv) for kk, vv in v.items()}
+        elif k in ("roku", "rokus") and isinstance(v, dict):
+            out[k] = _mask(v)
         elif k == "weather" and isinstance(v, dict):
             out[k] = {"name": v.get("name", ""), "units": v.get("units", "")}       # not the exact coordinates
         else:

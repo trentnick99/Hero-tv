@@ -227,12 +227,14 @@ ALWAYS ON (for the Roku app and phones)
 HERO TV ON YOUR ROKU TV (a real app on the TV)
   Once, on the TV: press Home 3 times, Up 2 times, then Right, Left, Right, Left, Right on the Roku remote. Choose
   "Enable installer and restart", agree, and pick a password. The TV restarts. (This is Roku's free developer mode.)
-  On the PC: Settings > Other devices > HERO TV on your Roku TV > Find my Roku TV, choose it, type that password and
+  On the PC: Settings > Other devices > HERO TV on your Roku TVs > Find my Roku TVs, choose it, type that password and
   press Install on the TV. The app arrives already linked to this PC (its own watch-only key, listed under Paired
   devices) and starts. On the TV: Up/Down = channel, OK = TV guide grid, Right = quick channel list, Replay (the
   curved arrow) = last channel, Rew = start the show over, Fwd = back to live, * = subtitles on/off, Back = leave.
   The PC must be on with HERO TV open. HERO TV updates the TV app by itself after HERO TV updates, or when this PC
   gets a new network address (the TV must be on). The password is kept in HERO TV's settings on this PC.
+  More TVs: do the same on each Roku TV in the house - every TV gets its own key and can watch its own channel.
+  A video a TV cannot play is skipped and the channel goes on with the next show.
 
 PHONE WON'T CONNECT (keeps loading)
   Settings > Other devices > "Check the connection". It looks at Windows Firewall (a canceled "Allow access?" question

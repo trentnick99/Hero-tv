@@ -682,25 +682,27 @@ function alwaysCard(){const c=tCard("Always on","So your Roku TV and phones alwa
  return c}
 /* ---- the HERO TV app on a Roku TV: found and installed from here, nothing to type on the TV ---- */
 let rData=null,rFound=null,rPick="";
-function rokuCard(){const c=tCard("HERO TV on your Roku TV","Puts a real HERO TV app on the TV: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK opens the TV guide. This PC does the work, so it must be on with HERO TV open.");
+function rokuCard(){const c=tCard("HERO TV on your Roku TVs","Puts a real HERO TV app on each Roku TV in the house: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK opens the TV guide. Every TV can watch its own channel. This PC does the work, so it must be on with HERO TV open.");
  if(!rData){c.append(el("small",0,"Loading..."));api("/api/roku").then(j=>{rData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return c}
- const r=rData,sv=r.saved;
+ const r=rData,err=t=>sMsg(String(t.message||t).replace(/^Error: /,""),"err");
  if(!r.app_files){c.append(el("small","err","The Roku app files are missing from this HERO TV folder. Reinstall HERO TV."));return c}
- if(sv&&sv.ip){c.append(el("b",0,`Installed on ${sv.name||"your Roku TV"} (${sv.ip}) - version ${sv.installed||"?"}`));
-  c.append(el("small",0,r.needs_update?`It will be updated by itself (${r.needs_update}) the next time the TV is on - or press Update now.`:"HERO TV keeps it up to date by itself when HERO TV updates."))}
- else{const ol=el("ol","rsteps");for(const t of["On the TV's remote press: Home 3 times, Up 2 times, then Right, Left, Right, Left, Right.","On the screen that opens, choose Enable installer and restart, agree, and pick a password (write it down). The TV restarts.","Back here: press Find my Roku TV, choose it, type that password and press Install on the TV."])ol.append(el("li",0,t));c.append(ol)}
+ for(const tv of r.tvs){const row=el("div","ibx"),t=el("div","ibt");t.append(el("b",0,`${tv.name} (${tv.ip})`),el("small",0,`HERO TV app ${tv.installed||"?"}`+(tv.needs_update?` - will be updated by itself (${tv.needs_update}) the next time the TV is on, or press Update now.`:" - kept up to date by itself.")));
+  const bar=el("div","sbar"),up=sBtn("Update now",async()=>{up.disabled=true;sMsg(`Sending the app to ${tv.name}...`);try{const j=await pj("/api/roku",{op:"install",ip:tv.ip,name:tv.name});rData=j;dData=null;sMsg(`Done - ${tv.name}: ${j.done.result}.`,"ok");drawSettings()}catch(e){err(e);up.disabled=false}});
+  const rm=sBtn("Remove",async()=>{if(!row.dataset.sure){row.dataset.sure=1;rm.textContent="Press again to remove";return}try{rData=await pj("/api/roku",{op:"forget",ip:tv.ip});dData=null;sMsg(`Removed ${tv.name}. The app stays on that TV but can no longer watch until you install it again.`,"ok");drawSettings()}catch(e){err(e)}},"warn");
+  bar.append(up,rm);row.append(t,bar);c.append(row)}
+ const add=el("div","ibx");add.append(el("b",0,r.tvs.length?"Add another Roku TV":"Set up a Roku TV"));
+ const ol=el("ol","rsteps");for(const t of["On that TV's remote press: Home 3 times, Up 2 times, then Right, Left, Right, Left, Right.","On the screen that opens, choose Enable installer and restart, agree, and pick a password (write it down). The TV restarts.","Back here: press Find my Roku TVs, choose the TV, type that password and press Install on the TV."])ol.append(el("li",0,t));add.append(ol);
  const row=el("div","sbar");
- const find=sBtn("Find my Roku TV",async()=>{find.disabled=true;sMsg("Looking for Roku TVs on your network...");try{const j=await pj("/api/roku",{op:"find"});rData=j;rFound=j.found;if(rFound.length===1)rPick=rFound[0].ip;sMsg(rFound.length?"":"No Roku TV answered. Is it on? You can also type its address (TV: Settings > Network > About).",rFound.length?"ok":"err");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");find.disabled=false}},sv?"":"pri");row.append(find);c.append(row);
- if(rFound&&rFound.length){const box=el("div","picks");for(const t of rFound){const b=sBtn(`${t.name}${t.model?" - "+t.model:""} (${t.ip})${t.dev===false?" - developer mode is OFF":""}`,()=>{rPick=t.ip;drawSettings()});b.classList.toggle("on",rPick===t.ip);box.append(b)}c.append(box)}
- const ip=el("input");ip.type="text";ip.placeholder="TV address, e.g. 192.168.12.40";ip.value=rPick||(sv&&sv.ip)||"";ip.autocomplete="off";ip.style.width="18vw";
- const pw=el("input");pw.type="password";pw.placeholder=r.has_password?"(remembered)":"developer password from the TV";pw.autocomplete="off";pw.style.width="18vw";
+ const find=sBtn("Find my Roku TVs",async()=>{find.disabled=true;sMsg("Looking for Roku TVs on your network...");try{const j=await pj("/api/roku",{op:"find"});rData=j;rFound=j.found;const fresh=rFound.filter(x=>!r.tvs.some(t=>t.ip===x.ip));if(fresh.length===1)rPick=fresh[0].ip;sMsg(rFound.length?"":"No Roku TV answered. Is it on? You can also type its address (TV: Settings > Network > About).",rFound.length?"ok":"err");drawSettings()}catch(e){err(e);find.disabled=false}},r.tvs.length?"":"pri");row.append(find);add.append(row);
+ if(rFound&&rFound.length){const box=el("div","picks");for(const t of rFound){const set=r.tvs.some(x=>x.ip===t.ip);const b=sBtn(`${t.name}${t.model?" - "+t.model:""} (${t.ip})${set?" - already set up":t.dev===false?" - developer mode is OFF":""}`,()=>{rPick=t.ip;drawSettings()});b.classList.toggle("on",rPick===t.ip);box.append(b)}add.append(box)}
+ const ip=el("input");ip.type="text";ip.placeholder="TV address, e.g. 192.168.12.40";ip.value=rPick||"";ip.autocomplete="off";ip.style.width="18vw";
+ const pw=el("input");pw.type="password";pw.placeholder="developer password from that TV";pw.autocomplete="off";pw.style.width="18vw";
  const form=el("div","sbar");form.append(ip,pw);
- const go=sBtn(sv&&sv.ip?"Update now":"Install on the TV",async()=>{go.disabled=true;sMsg("Building the app and sending it to the TV (about 10 seconds)...");
-  try{const j=await pj("/api/roku",{op:"install",ip:ip.value.trim(),password:pw.value||(r.has_password&&sv&&sv.ip===ip.value.trim()?"__saved__":""),name:(rFound||[]).find(x=>x.ip===ip.value.trim())?.name||""});
-   rData=j;dData=null;sMsg(`Done - the HERO TV app is ${j.done.result} on the TV`+(j.done.started?" and starting now.":". Open it from the TV's home screen (it is called HERO TV)."),"ok");drawSettings()}
-  catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");go.disabled=false}},"pri");form.append(go);c.append(form);
- c.append(el("small",0,"The password is remembered on this PC so HERO TV can update the TV app by itself. The TV gets its own watch-only key (listed under Paired devices)."));
- if(sv&&sv.ip){const f=sBtn("Remove the TV from HERO TV",async()=>{if(!c.dataset.sure){c.dataset.sure=1;f.textContent="Press again to remove";return}try{rData=await pj("/api/roku",{op:"forget"});dData=null;sMsg("Removed. The app stays on the TV but can no longer watch until you install it again.","ok");drawSettings()}catch(e){sMsg(String(e.message||e),"err")}},"warn");const r2=el("div","sbar");r2.append(f);c.append(r2)}
+ const go=sBtn("Install on the TV",async()=>{go.disabled=true;sMsg("Building the app and sending it to the TV (about 10 seconds)...");
+  try{const a=ip.value.trim(),j=await pj("/api/roku",{op:"install",ip:a,password:pw.value,name:(rFound||[]).find(x=>x.ip===a)?.name||""});
+   rData=j;dData=null;rPick="";sMsg(`Done - the HERO TV app is ${j.done.result} on the TV`+(j.done.started?" and starting now.":". Open it from the TV's home screen (it is called HERO TV)."),"ok");drawSettings()}
+  catch(e){err(e);go.disabled=false}},"pri");form.append(go);add.append(form);c.append(add);
+ c.append(el("small",0,"Each TV's password is remembered on this PC so HERO TV can update its app by itself. Each TV gets its own watch-only key (listed under Paired devices)."));
  return c}
 /* ---- Other devices: watch on a phone/laptop on the home WiFi (paired, watch-only) ---- */
 let dData=null,devT=null;

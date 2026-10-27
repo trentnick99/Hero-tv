@@ -12,6 +12,8 @@ sub init()
     m.afterFinish = false
     m.failed = false
     m.subIndex = -1
+    m.errors = 0
+    m.failedIds = {}
 
     m.video = m.top.findNode("video")
     m.banner = m.top.findNode("banner")
@@ -165,6 +167,7 @@ sub tune(idx as integer)
     m.current = idx
     m.seq = m.seq + 1
     m.afterFinish = false
+    m.errors = 0
     ch = m.channels[idx]
     regWrite("lastChannel", ch.id)
     showBanner(ch, invalid)
@@ -184,6 +187,10 @@ sub onNow(event as object)
     offset = num(r.offset)
     if m.afterFinish and isAA(slot) and isAA(m.slot) and num(slot.start) = num(m.slot.start) and isAA(r.next)
         slot = r.next                                  ' the video ended a little early: go straight on
+        offset = 0
+    end if
+    if isAA(slot) and m.failedIds.DoesExist(txt(slot.media_id)) and isAA(r.next)
+        slot = r.next                                  ' this TV could not play it before: on to the next show
         offset = 0
     end if
     m.afterFinish = false
@@ -232,8 +239,23 @@ sub onVideoState()
         m.seq = m.seq + 1
         if m.current >= 0 then api("/api/tv/" + m.channels[m.current].id, "onNow")
     else if s = "error"
-        showMsg("The TV could not play this video (" + m.video.errorMsg + ")." + Chr(10) + "Change channel, or make an iPhone-friendly copy of it on the PC (Settings > Tools).")
+        ' like real TV: skip what this TV cannot play and go on with the next show
+        m.errors = m.errors + 1
+        title = ""
+        if isAA(m.slot)
+            title = txt(m.slot.title)
+            m.failedIds[txt(m.slot.media_id)] = true
+        end if
+        if m.errors >= 3
+            showMsg("Several videos on this channel cannot play on this TV (" + m.video.errorMsg + ")." + Chr(10) + "Change channel. On the PC, Settings > Tools > iPhone-friendly copies makes versions that play here.")
+            return
+        end if
+        showMsg("This TV cannot play " + title + "." + Chr(10) + "Going on with the next show...")
+        m.afterFinish = true
+        m.seq = m.seq + 1
+        if m.current >= 0 then api("/api/tv/" + m.channels[m.current].id, "onNow")
     else if s = "playing"
+        m.errors = 0
         hideMsg()
     end if
 end sub

@@ -186,26 +186,45 @@ def launch(ip, opener=None):
         return False
 
 
-# ---------- remembered TV (settings.json "roku") ----------
-def saved():
+# ---------- remembered TVs (settings.json "rokus": {ip: {...}}) - every Roku TV in the house ----------
+def _all(d):
+    """The remembered TVs from settings, moving an older single-TV "roku" entry over."""
+    tvs = d.get("rokus") if isinstance(d.get("rokus"), dict) else {}
+    old = d.get("roku")
+    if isinstance(old, dict) and old.get("ip") and old["ip"] not in tvs:
+        tvs[old["ip"]] = old
+    return {ip: t for ip, t in tvs.items() if isinstance(t, dict)}
+
+
+def tvs():
     from . import settings_api
-    r = settings_api._load().get("roku")
-    return r if isinstance(r, dict) else {}
+    return sorted(_all(settings_api._load()).values(), key=lambda t: (str(t.get("name", "")).lower(), t.get("ip", "")))
 
 
-def remember(**kw):
+def saved(ip):
+    from . import settings_api
+    return dict(_all(settings_api._load()).get(ip, {}))
+
+
+def remember(ip, **kw):
     from . import settings_api
     d = settings_api._load()
-    r = d.get("roku") if isinstance(d.get("roku"), dict) else {}
-    r.update({k: v for k, v in kw.items() if v is not None})
-    d["roku"] = r
+    all_ = _all(d)
+    t = all_.get(ip, {})
+    t.update({k: v for k, v in kw.items() if v is not None}, ip=ip)
+    all_[ip] = t
+    d["rokus"] = all_
+    d.pop("roku", None)
     settings_api._save(d)
-    return r
+    return t
 
 
-def forget():
+def forget(ip):
     from . import settings_api
     d = settings_api._load()
+    all_ = _all(d)
+    all_.pop(ip, None)
+    d["rokus"] = all_
     d.pop("roku", None)
     settings_api._save(d)
 
@@ -224,7 +243,7 @@ def install_on_tv(conn, cfg, ip, password, name="", opener=None, launcher=None):
     from . import remote as R
     server = server_url(cfg)
     st = config.station()
-    old = saved()
+    old = saved(ip)                                       # this TV only - other TVs keep their keys
     token, mk = R.add_device(conn, DEVICE_NAME + (f" - {name}" if name else ""), ip)
     try:
         result = install(ip, password, build_zip(server, token, mk, st.get("name", "HERO TV"), st.get("color", "#ffcf1f")), opener)
@@ -233,21 +252,20 @@ def install_on_tv(conn, cfg, ip, password, name="", opener=None, launcher=None):
         raise
     if old.get("key_id"):
         R.remove(conn, old["key_id"])
-    remember(ip=ip, name=name or old.get("name") or "Roku TV", password=password, server=server,
+    remember(ip, name=name or old.get("name") or "Roku TV", password=password, server=server,
              installed=__version__, key_id=R.id_for(token), when=int(time.time()))
     started = (launcher or launch)(ip)
     return {"result": result, "server": server, "started": started}
 
 
-def needs_update(cfg):
-    """Why the TV app should be reinstalled now (newer HERO TV, or this PC got a new address), or ""."""
-    r = saved()
-    if not r.get("ip") or not r.get("password"):
+def needs_update(cfg, tv):
+    """Why this TV's app should be reinstalled now (newer HERO TV, or this PC got a new address), or ""."""
+    if not tv.get("ip") or not tv.get("password"):
         return ""
-    if r.get("installed") != __version__:
+    if tv.get("installed") != __version__:
         return "HERO TV was updated"
     try:
-        if r.get("server") != server_url(cfg):
+        if tv.get("server") != server_url(cfg):
             return "this PC's network address changed"
     except ValueError:
         return ""

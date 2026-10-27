@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.19.2": [
+        "Every Roku TV in the house: set up as many as you like (Settings > Other devices > HERO TV on your Roku TVs) - each keeps its own access and is updated by itself.",
+        "Roku app: a video the TV cannot play is skipped and the channel goes on with the next show, like real TV.",
+    ],
     "1.19.1": [
         "Tidy-up: the help screen (?) and messages point to the right places in Settings, and list the newer keys.",
         "Roku app fixes: the next show always plays in the right format, OK in the guide no longer counts twice, and the channel list no longer jumps while you scroll.",

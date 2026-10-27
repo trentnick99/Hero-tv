@@ -504,9 +504,9 @@ def make_handler(app, remote=False):
 
         def roku_info(self):
             from . import roku
-            r = roku.saved()
-            return {"saved": {k: v for k, v in r.items() if k != "password"} if r else None, "has_password": bool(r.get("password")),
-                    "needs_update": roku.needs_update(app.cfg), "lan": R.enabled(), "app_files": (roku.APP_DIR / "manifest").is_file()}
+            return {"tvs": [{"ip": t.get("ip"), "name": t.get("name") or "Roku TV", "installed": t.get("installed", ""),
+                             "has_password": bool(t.get("password")), "needs_update": roku.needs_update(app.cfg, t)} for t in roku.tvs()],
+                    "lan": R.enabled(), "app_files": (roku.APP_DIR / "manifest").is_file()}
 
         def move_channels(self):
             """Channels a video can be put on by hand (ones with their own match rule, not Weather or Hero Marathon)."""
@@ -945,15 +945,18 @@ def make_handler(app, remote=False):
                             R.set_enabled(True)
                         app.start_lan()
                         pw = str(b.get("password") or "")
-                        if pw == "__saved__":                   # "(remembered)": the password kept from last time
-                            pw = roku.saved().get("password", "") if roku.saved().get("ip") == ip else ""
+                        if pw in ("", "__saved__"):              # updating a TV already set up: its remembered password
+                            pw = roku.saved(ip).get("password", "")
                         res = roku.install_on_tv(c, app.cfg, ip, pw, str(b.get("name") or "")[:40])
                         return self.send_json(dict(self.roku_info(), done=res))
                     if op == "forget":
-                        r = roku.saved()
+                        ip = str(b.get("ip") or "").strip()
+                        r = roku.saved(ip)
+                        if not r:
+                            raise ValueError("That TV is not set up in HERO TV.")
                         if r.get("key_id"):
                             R.remove(c, r["key_id"])
-                        roku.forget()
+                        roku.forget(ip)
                         return self.send_json(self.roku_info())
                     raise ValueError("unknown request")
                 return self.send_json(self.roku_info())
@@ -1465,13 +1468,16 @@ def roku_keeper(app, first=90, every=6 * 3600):
         while True:
             try:
                 from . import roku
-                why = roku.needs_update(app.cfg)
-                if why:
-                    r = roku.saved()
+                for tv in roku.tvs():                              # every Roku TV in the house
+                    why = roku.needs_update(app.cfg, tv)
+                    if not why:
+                        continue
                     c = app.db()
                     try:
-                        roku.install_on_tv(c, app.cfg, r["ip"], r["password"], r.get("name", ""), launcher=lambda ip: False)
-                        print(f"Roku TV app updated ({why}).", flush=True)
+                        roku.install_on_tv(c, app.cfg, tv["ip"], tv["password"], tv.get("name", ""), launcher=lambda ip: False)
+                        print(f"Roku TV app updated on {tv.get('name') or tv['ip']} ({why}).", flush=True)
+                    except Exception as e:
+                        print(f"Roku TV app on {tv.get('name') or tv['ip']} not updated yet: {e}", flush=True)
                     finally:
                         c.close()
             except Exception as e:

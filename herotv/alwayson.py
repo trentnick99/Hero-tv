@@ -44,8 +44,8 @@ def background():
         return d["background"] or startup_on()
     if startup_on():
         return True
-    r = d.get("roku")
-    return bool(d.get("lan_share") or (isinstance(r, dict) and r.get("ip")))
+    r, rs = d.get("roku"), d.get("rokus")
+    return bool(d.get("lan_share") or (isinstance(r, dict) and r.get("ip")) or (isinstance(rs, dict) and rs))
 
 
 def set_background(on):

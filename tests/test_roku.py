@@ -135,21 +135,42 @@ class RokuTests(unittest.TestCase):
         devs = R.devices(self.c)
         self.assertEqual(len(devs), 1)
         self.assertIn("Roku TV", devs[0]["name"])
-        sv = roku.saved()
+        sv = roku.saved("192.168.12.40")
         self.assertEqual((sv["ip"], sv["password"], sv["installed"], sv["key_id"]), ("192.168.12.40", "pw", __version__, devs[0]["id"]))
-        self.assertEqual(roku.needs_update(self.cfg), "")
+        self.assertEqual(roku.needs_update(self.cfg, sv), "")
         roku.install_on_tv(self.c, self.cfg, "192.168.12.40", "pw", "", FakeOpener("Install Success"), launcher=lambda ip: True)
         self.assertEqual(len(R.devices(self.c)), 1)                                          # the old key is gone
         with self.assertRaises(ValueError):
             roku.install_on_tv(self.c, self.cfg, "192.168.12.40", "bad", "", FakeOpener(error=urllib.error.HTTPError("u", 401, "no", {}, None)))
         self.assertEqual(len(R.devices(self.c)), 1)                                          # a failed install leaves no key
 
+    def test_every_tv_in_the_house_keeps_its_own_key(self):
+        ok = FakeOpener("Install Success")
+        roku.install_on_tv(self.c, self.cfg, "192.168.12.40", "pw1", "Living Room TV", ok, launcher=lambda ip: True)
+        roku.install_on_tv(self.c, self.cfg, "192.168.12.41", "pw2", "Bedroom TV", ok, launcher=lambda ip: True)
+        self.assertEqual([t["name"] for t in roku.tvs()], ["Bedroom TV", "Living Room TV"])
+        self.assertEqual(len(R.devices(self.c)), 2)                                          # the second TV did not knock out the first
+        roku.install_on_tv(self.c, self.cfg, "192.168.12.41", "pw2", "", ok, launcher=lambda ip: True)
+        self.assertEqual(len(R.devices(self.c)), 2)                                          # updating one replaces only its own key
+        self.assertEqual(roku.saved("192.168.12.41")["name"], "Bedroom TV")
+        roku.forget("192.168.12.41")
+        self.assertEqual([t["ip"] for t in roku.tvs()], ["192.168.12.40"])
+
+    def test_an_older_single_tv_setting_is_moved_over(self):
+        (Path(self.d) / "settings.json").write_text(json.dumps({"roku": {"ip": "192.168.12.40", "name": "Old TV", "password": "pw",
+                                                                         "installed": "1.16.0", "server": "http://192.168.12.20:8788"}}))
+        self.assertEqual([t["name"] for t in roku.tvs()], ["Old TV"])
+        roku.remember("192.168.12.41", name="New TV")
+        d = json.loads((Path(self.d) / "settings.json").read_text())
+        self.assertNotIn("roku", d)
+        self.assertEqual(sorted(d["rokus"]), ["192.168.12.40", "192.168.12.41"])
+
     def test_needs_update(self):
-        self.assertEqual(roku.needs_update(self.cfg), "")
-        roku.remember(ip="192.168.12.40", password="pw", installed="1.0.0", server="http://192.168.12.20:8788")
-        self.assertEqual(roku.needs_update(self.cfg), "HERO TV was updated")
-        roku.remember(installed=__version__, server="http://192.168.12.99:8788")
-        self.assertEqual(roku.needs_update(self.cfg), "this PC's network address changed")
+        tv = {"ip": "192.168.12.40", "password": "pw", "installed": "1.0.0", "server": "http://192.168.12.20:8788"}
+        self.assertEqual(roku.needs_update(self.cfg, {}), "")
+        self.assertEqual(roku.needs_update(self.cfg, tv), "HERO TV was updated")
+        tv.update(installed=__version__, server="http://192.168.12.99:8788")
+        self.assertEqual(roku.needs_update(self.cfg, tv), "this PC's network address changed")
 
 
 class TvEndpointTests(unittest.TestCase):
