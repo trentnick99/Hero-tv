@@ -138,6 +138,20 @@ sub onTheme(event as object)
     t = event.getRoSGNode()
     dropTask(t)
     if t.error = "" and isStr(t.result.logo) then m.logoMode = t.result.logo
+    if t.error = "" and isAA(t.result.comfort) then applyLook(txt(t.result.comfort.theme))
+end sub
+
+' the look chosen on the PC (Settings > Appearance > Look): classic dark, pure black or retro cable blue
+sub applyLook(look as string)
+    base = "0b0e17"
+    if look = "black" then base = "000000"
+    if look = "retro" then base = "0a1650"
+    m.top.findNode("bg").color = "0x" + base + "FF"
+    m.top.findNode("guideBg").color = "0x" + base + "EE"
+    m.top.findNode("gridBg").color = "0x" + base + "F5"
+    m.top.findNode("libBg").color = "0x" + base + "F8"
+    m.top.findNode("epsBg").color = "0x" + base + "FA"
+    m.top.findNode("cardBg").color = "0x" + base + "FF"
 end sub
 
 sub updateBug()
@@ -550,6 +564,7 @@ sub onGuide(event as object)
                     p.playStart = num(sl.start)
                     p.playDuration = num(sl["end"]) - num(sl.start)
                     p.description = clock(sl.start_local) + " - " + clock(sl.end_local)
+                    p.HDPosterUrl = m.cfg.server + "/thumb/" + txt(sl.media_id) + "?k=" + m.cfg.mk
                 end if
             end for
         end if
@@ -599,6 +614,10 @@ end function
 sub showGridInfo(ch as object, prog as dynamic)
     title = txt(ch.name)
     times = "Channel " + txt(ch.number)
+    pic = ""
+    if prog <> invalid then pic = prog.HDPosterUrl
+    m.top.findNode("tgPic").uri = pic                  ' a still of the show, and a faint copy behind the guide
+    m.top.findNode("tgBack").uri = pic
     if prog <> invalid
         title = prog.title
         times = prog.description + "   on " + txt(ch.number) + " " + txt(ch.name)

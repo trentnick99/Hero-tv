@@ -858,6 +858,8 @@ def make_handler(app, remote=False):
                     c.close()
             if p.count("/") == 1:
                 return self.static(p[1:])
+            if p.startswith("/fonts/") and p.count("/") == 2:        # the fonts of the look
+                return self.static(p[1:])
             self.send_json({"error": "not found"}, 404)
 
         def poster(self, mid):
@@ -934,9 +936,14 @@ def make_handler(app, remote=False):
                 return self.send_json({"error": "not found"}, 404)
             b = f.read_bytes()
             self.send_response(200)
-            ctype = {".js": "text/javascript", ".css": "text/css", ".html": "text/html"}.get(os.path.splitext(name)[1].lower())
-            self.send_header("Content-Type", (ctype or mimetypes.guess_type(name)[0] or "application/octet-stream") + "; charset=utf-8")
-            self.send_header("Cache-Control", "no-cache")      # after an update the browser must fetch the new page files
+            ext = os.path.splitext(name)[1].lower()
+            if ext in (".ttf", ".otf", ".woff2"):                # the fonts of the look: binary, and they never change
+                self.send_header("Content-Type", {".ttf": "font/ttf", ".otf": "font/otf", ".woff2": "font/woff2"}[ext])
+                self.send_header("Cache-Control", "max-age=604800")
+            else:
+                ctype = {".js": "text/javascript", ".css": "text/css", ".html": "text/html"}.get(ext)
+                self.send_header("Content-Type", (ctype or mimetypes.guess_type(name)[0] or "application/octet-stream") + "; charset=utf-8")
+                self.send_header("Cache-Control", "no-cache")  # after an update the browser must fetch the new page files
             self.send_header("Content-Length", str(len(b)))
             self.end_headers()
             self.wfile.write(b)

@@ -321,10 +321,16 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
  {const rh=rows.firstChild&&rows.firstChild.offsetHeight;if(rh){rows.style.flex="none";rows.style.height=Math.max(1,Math.floor((grid.getBoundingClientRect().bottom-rows.getBoundingClientRect().top)/rh))*rh+"px"}   /* whole rows only, never a half-cut one */
   const cur=rows.children[g.row];if(cur)cur.scrollIntoView({block:"nearest"})}
  const nl=el("div");nl.id="nowline";const x=(nowS()-g.t0)*pxs;if(x>=0&&x<=WIN*pxs){nl.style.left=left+x+"px";grid.append(nl)}
- const c=g.data[g.row]||{slots:[]},s=inSlot(c,g.t),d=$("#detail");d.textContent="";paint(d,c.color);
+ const c=g.data[g.row]||{slots:[]},s=inSlot(c,g.t),root=$("#detail");root.textContent="";paint(root,c.color);
+ const still=s&&c.kind!=="weather"&&s.media_id?withK(`/thumb/${s.media_id}`):"";
+ const live=g.row===ci&&s&&s.start<=nowS()&&nowS()<s.end;      /* the live preview already shows it */
+ const pic=live?"":still;root.classList.toggle("withpic",!!pic);
+ $("#guide").style.setProperty("--bd",still?`url("${still}")`:"none");
+ if(pic){const p=el("div","pic"),im=el("img");im.alt="";im.src=pic;im.onerror=()=>{p.remove();root.classList.remove("withpic")};p.append(im);root.append(p)}
+ const d=pic?el("div","txt"):root;if(pic)root.append(d);
  const chn=el("div","chn");chn.append(el("span","plate",c.number),el("span",0,c.name));d.append(chn);
  if(c.kind==="weather"){d.append(el("h3",0,"Local weather"),el("p","meta","Live, around the clock"),el("p",0,"Current conditions, the hourly and 7-day forecast, and live weather alerts. Press Enter to watch."))}
- else if(s){d.append(el("h3",0,label(s)),el("p","meta",`${T(s.start)} to ${T(s.end)}, ${mins(s.end-s.start)} min`+(s.start<=nowS()&&nowS()<s.end?", on now":"")+([s.franchise,s.year].filter(Boolean).length?"   ·   "+[s.franchise,s.year].filter(Boolean).join(", "):"")+(s.block?"   ·   "+s.block:"")));if(s.plot)d.append(el("p",0,s.plot))}
+ else if(s){d.append(el("h3",0,s.card?"Up next: "+(s.next_title||""):label(s)),el("p","meta",`${T(s.start)} to ${T(s.end)}, ${mins(s.end-s.start)} min`+(s.start<=nowS()&&nowS()<s.end?", on now":"")+([s.franchise,s.year].filter(Boolean).length?"   ·   "+[s.franchise,s.year].filter(Boolean).join(", "):"")+(s.block?"   ·   "+s.block:"")));if(s.plot)d.append(el("p",0,s.plot))}
  else d.append(el("p",0,"Nothing is scheduled here."))}
 async function openGuide(){show("#settings",false);show("#info",false);const n=nowS();g.t0=Math.floor(n/1800)*1800;g.t=n;g.row=ci;layer="guide";await loadGuide();hints($("#g-hints"),[["↑ ↓","channel"],["← →","time"],["Enter","watch"],["R","remind me"],["G","close"],["L","library"],["F3","rename"]]);
  const nt=el("span",0,"Showtimes are generated on this PC from your own videos. They are not real TV listings.");$("#g-hints").append(nt);nt.style.marginLeft="auto";
@@ -592,6 +598,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
   { const lg=el("select");for(const[v,t]of[["sometimes","Now and then (when a show starts, and briefly every 5 minutes)"],["always","Always"],["off","Off"]]){const o=el("option",0,t);o.value=v;if((d.logo||"sometimes")===v)o.selected=true;lg.append(o)}
     lg.onchange=()=>sSave({logo:lg.value},"Channel logo saved.",async()=>{await loadTheme()});
     main.append(sField("Channel logo","The channel's number and name in the corner of the picture, like a TV network's logo. Also on the Roku app.",lg))}
+  { const th=el("select");for(const[v,t]of[["classic","Classic dark"],["black","Pure black (best on OLED TVs)"],["retro","Retro cable (blue, like a 90s cable box)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).theme||"classic")===v)o.selected=true;th.append(o)}
+    th.onchange=()=>sSave({theme:th.value},"Look saved.",async()=>{await loadTheme()});main.append(sField("Look","The colors of the menus and the guide, here and in the Roku app.",th))}
   { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);
     const box=(key,text,on,save)=>{const i=el("input");i.type="checkbox";i.checked=on;const l=el("label","lb");l.append(i," "+text);l.style.display="flex";l.style.gap="1vw";i.onchange=()=>save(i.checked);return l};
     main.append(sField("Even volume","Quiet videos are turned up and loud ones down, so films, shorts and episodes all play at about the same volume (each video is measured once, in the background). On the TV screen and phones; Roku TVs have their own 'volume leveling' in the TV's sound settings.",

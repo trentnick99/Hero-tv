@@ -260,6 +260,12 @@ ALWAYS ON (for the Roku app and phones)
   to sleep while HERO TV runs - the screen can still switch off. A TV cannot wake a sleeping PC. Even with it off,
   the PC stays awake while a TV or phone is playing something, and for 15 minutes after.
 
+THE LOOK (Settings > Appearance > Look)
+  Classic dark, Pure black (best on OLED TVs) or Retro cable (blue, like a 90s cable box) - on the TV screen, phones
+  and the Roku app. The guide shows a still of the show you are on (for other channels and later shows) with a soft
+  blurred copy behind it. Text uses Atkinson Hyperlegible (made by the Braille Institute to be easy to read) and
+  titles and channel numbers Barlow Condensed; both are free fonts under the SIL Open Font License (web\fonts).
+
 COMFORT: EVEN VOLUME, NIGHT MODE, SCREENSAVER, TV EDGE MARGIN (Settings > Appearance)
   Even volume: each video's loudness is measured once in the background (needs ffmpeg); quiet videos are turned up
   and loud ones down so everything plays at about the same volume, on the TV screen and phones. (The Roku app cannot

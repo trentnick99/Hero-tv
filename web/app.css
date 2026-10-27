@@ -1,5 +1,9 @@
+@font-face{font-family:"Atkinson Hyperlegible";src:url(fonts/AtkinsonHyperlegible-Regular.ttf) format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"Atkinson Hyperlegible";src:url(fonts/AtkinsonHyperlegible-Bold.ttf) format("truetype");font-weight:600 900;font-display:swap}
+@font-face{font-family:"Barlow Condensed";src:url(fonts/BarlowCondensed-SemiBold.ttf) format("truetype");font-weight:400 600;font-display:swap}
+@font-face{font-family:"Barlow Condensed";src:url(fonts/BarlowCondensed-Bold.ttf) format("truetype");font-weight:700 900;font-display:swap}
 :root{--night:#090b13;--panel:#12162a;--panel2:#1c2240;--line:#2b3258;--text:#f2f0ea;--mute:#98a1c2;--accent:#ffcf1f;--on:#0b0d16;
---tx:1;--tt:1;--f:Bahnschrift,"Segoe UI Variable Display","Segoe UI","Arial Narrow","Roboto Condensed","Helvetica Neue",system-ui,sans-serif}
+--tx:1;--tt:1;--fd:"Barlow Condensed",Bahnschrift,"Arial Narrow",sans-serif;--f:"Atkinson Hyperlegible",Bahnschrift,"Segoe UI Variable Display","Segoe UI","Arial Narrow","Roboto Condensed","Helvetica Neue",system-ui,sans-serif}
 *{box-sizing:border-box}
 body.big{--tx:1.28;--tt:1.12}
 html,body{margin:0;height:100%;background:#000;color:var(--text);font-family:var(--f);overflow:hidden}
@@ -297,3 +301,17 @@ body.night .layer:not(#saver):not(#upcard){filter:brightness(.78) sepia(.18)}
 body.safe .layer:not(#saver){transform:scale(calc(1 - var(--safe,0)/50));transform-origin:50% 50%}
 body.safe #bug{right:calc(3.2vw + var(--safe,0) * 1vw);top:calc(4.5vh + var(--safe,0) * 1vh)}
 .sbar>span{align-self:center}
+
+/* the look: easy-to-read text (Atkinson Hyperlegible), TV-style condensed titles and channel numbers (Barlow Condensed) */
+h1,h2,h3,.plate,#bug,#o-clock,.sv-clock,.ghead .chn,.uc-at{font-family:var(--fd);letter-spacing:.005em}
+h1,h2,h3{font-variation-settings:normal}
+/* looks (Settings > Appearance > Look) */
+body[data-theme="black"]{--night:#000;--panel:#0c0c0f;--panel2:#17171c;--line:#2a2a31}
+body[data-theme="retro"]{--night:#081450;--panel:#0f2275;--panel2:#18318f;--line:#3a56c8;--mute:#b9c6f2}
+body[data-theme="retro"] #guide{background:linear-gradient(180deg,#0c1d6b 0%,#061040 100%)}
+body[data-theme="retro"] .plate{border-radius:0;transform:none}
+/* pictures in the guide: a still of the show beside its details, and a soft blurred copy behind the whole guide */
+#guide::before{content:"";position:absolute;inset:0;background:var(--bd,none) center/cover no-repeat;filter:blur(4vh) brightness(.45) saturate(1.2);opacity:.55;transition:background-image .6s ease;pointer-events:none}
+#guide>*{position:relative;z-index:1}
+#detail.withpic{flex-direction:row;align-items:stretch;gap:1.6vw}
+#detail.withpic .txt{display:flex;flex-direction:column;justify-content:center;min-width:0;flex:1}

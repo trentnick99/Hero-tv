@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.28.0": [
+        "A new look: easy-to-read text and TV-style condensed titles and channel numbers (free fonts, built in).",
+        "Pictures in the guide: a still of the show you are on, with a soft blurred copy behind the guide - on the PC, phones and the Roku app.",
+        "Three looks to choose from (Settings > Appearance > Look): Classic dark, Pure black for OLED TVs, and Retro cable blue.",
+    ],
     "1.27.0": [
         "Even volume: quiet videos are turned up and loud ones down, so everything plays at about the same volume (Settings > Appearance).",
         "Night mode: dimmer, warmer menus and gentler sound between the times you choose.",

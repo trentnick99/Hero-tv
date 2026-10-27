@@ -85,3 +85,6 @@ skipped until the next scan.
 - A Raspberry Pi kiosk setup is still included (`scripts/install.sh`), but the Windows app is the main target.
 
 **Not tested on real hardware yet:** the Roku app on an actual Roku TV, AirPlay, and Raspberry Pi playback.
+
+Fonts: Atkinson Hyperlegible (Braille Institute) and Barlow Condensed, both under the SIL Open Font License 1.1
+(licence texts in `web/fonts/`).

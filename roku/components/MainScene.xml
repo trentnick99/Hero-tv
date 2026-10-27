@@ -30,7 +30,7 @@
     </Group>
 
     <Group id="card" visible="false">
-      <Rectangle width="1920" height="1080" color="0x0d1322FF" />
+      <Rectangle id="cardBg" width="1920" height="1080" color="0x0d1322FF" />
       <Poster id="cdPic" translation="[110,259]" width="1000" height="562" loadDisplayMode="scaleToFill" />
       <Rectangle id="cdBar" translation="[1170,300]" width="10" height="70" color="0xffcf1fFF" />
       <Label id="cdHead" translation="[1200,300]" width="640" font="font:SmallBoldSystemFont" color="0xffcf1fFF" />
@@ -60,7 +60,7 @@
     </Group>
 
     <Group id="guide" visible="false">
-      <Rectangle width="1920" height="1080" color="0x0b0e17EE" />
+      <Rectangle id="guideBg" width="1920" height="1080" color="0x0b0e17EE" />
       <Label id="gStation" translation="[100,60]" width="900" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
       <Label id="gHint" translation="[100,125]" width="900" font="font:SmallestSystemFont" color="0x9AA3B5FF"
              text="Up/Down: choose    OK: watch    Back: return to TV" />
@@ -73,18 +73,20 @@
     </Group>
 
     <Group id="grid" visible="false">
-      <Rectangle width="1920" height="1080" color="0x0b0e17F5" />
+      <Rectangle id="gridBg" width="1920" height="1080" color="0x0b0e17F5" />
+      <Poster id="tgBack" width="1920" height="1080" opacity="0.14" loadDisplayMode="scaleToFill" />
+      <Poster id="tgPic" translation="[1450,30]" width="380" height="214" loadDisplayMode="scaleToFill" />
       <Label id="tgStation" translation="[90,40]" width="700" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
-      <Label id="tgClock" translation="[1130,40]" width="700" horizAlign="right" font="font:SmallSystemFont" color="0x9AA3B5FF" />
-      <Label id="tgTitle" translation="[90,110]" width="1740" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
-      <Label id="tgTime" translation="[90,180]" width="1740" font="font:SmallSystemFont" color="0xC8CDD8FF" />
+      <Label id="tgClock" translation="[700,40]" width="700" horizAlign="right" font="font:SmallSystemFont" color="0x9AA3B5FF" />
+      <Label id="tgTitle" translation="[90,110]" width="1320" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="tgTime" translation="[90,180]" width="1320" font="font:SmallSystemFont" color="0xC8CDD8FF" />
       <Label id="tgHint" translation="[90,1010]" width="1740" font="font:SmallestSystemFont" color="0x9AA3B5FF"
              text="Arrows: move    OK: watch that channel (or set a reminder for a later show)    Back: return to TV" />
       <TimeGrid id="tg" translation="[90,290]" numRows="7" duration="9000" channelInfoWidth="380" />
     </Group>
 
     <Group id="lib" visible="false">
-      <Rectangle width="1920" height="1080" color="0x0b0e17F8" />
+      <Rectangle id="libBg" width="1920" height="1080" color="0x0b0e17F8" />
       <Rectangle id="libBar" width="12" height="70" translation="[90,45]" color="0xffcf1fFF" />
       <Label id="libHead" translation="[125,40]" width="900" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" text="On demand" />
       <Label id="libHint" translation="[960,58]" width="870" horizAlign="right" font="font:SmallestSystemFont" color="0x9AA3B5FF"
@@ -98,7 +100,7 @@
     </Group>
 
     <Group id="eps" visible="false">
-      <Rectangle width="1920" height="1080" color="0x0b0e17FA" />
+      <Rectangle id="epsBg" width="1920" height="1080" color="0x0b0e17FA" />
       <Label id="epShow" translation="[100,60]" width="900" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
       <Label translation="[100,125]" width="900" font="font:SmallestSystemFont" color="0x9AA3B5FF"
              text="Up/Down: choose    OK: watch    *: favorite    Back: return" />
