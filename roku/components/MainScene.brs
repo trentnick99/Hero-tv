@@ -1,5 +1,6 @@
 ' HERO TV for Roku: live channels from HERO TV on the PC.
-' Up/Down change channel, OK opens the channel list, * turns subtitles on/off, Back leaves the list (or the app).
+' Up/Down change channel, OK opens the TV guide, Right the channel list, Replay the last channel, Rew starts the show
+' over, Fwd goes back to live, * turns subtitles on/off, Back leaves the guide (or the app).
 
 sub init()
     m.cfg = HeroConfig()
@@ -18,6 +19,10 @@ sub init()
     m.list = m.top.findNode("list")
     m.msgBox = m.top.findNode("msgBox")
     m.msg = m.top.findNode("msg")
+    m.grid = m.top.findNode("grid")
+    m.tg = m.top.findNode("tg")
+    m.prev = -1
+    m.top.findNode("tgStation").text = m.cfg.station + "  -  TV guide"
     m.bannerTimer = m.top.findNode("bannerTimer")
     m.refreshTimer = m.top.findNode("refreshTimer")
     m.seenTimer = m.top.findNode("seenTimer")
@@ -29,6 +34,9 @@ sub init()
     m.video.observeField("state", "onVideoState")
     m.list.observeField("itemFocused", "onListFocus")
     m.list.observeField("itemSelected", "onListSelect")
+    m.tg.observeField("programSelected", "onGridSelect")
+    m.tg.observeField("channelSelected", "onGridSelect")
+    m.tg.observeField("programFocusedDetails", "onGridFocus")
     m.bannerTimer.observeField("fire", "hideBanner")
     m.refreshTimer.observeField("fire", "refreshChannels")
     m.seenTimer.observeField("fire", "reportSeen")
@@ -131,6 +139,7 @@ sub tune(idx as integer)
     if n = 0 then return
     if idx < 0 then idx = n - 1
     if idx >= n then idx = 0
+    if m.current >= 0 and m.current <> idx then m.prev = m.current
     m.current = idx
     m.seq = m.seq + 1
     m.afterFinish = false
@@ -235,6 +244,115 @@ sub cycleSubs()
     flash("Subtitles: " + tr[m.subIndex].Description)
 end sub
 
+' ---------- start over / back to live / last channel ----------
+sub startOver()
+    if not isAA(m.slot) then return
+    m.seq = m.seq + 1
+    play(m.slot, 0)
+    flash("From the start  -  press Fwd to go back to live")
+end sub
+
+sub backToLive()
+    if m.current >= 0 then tune(m.current)
+end sub
+
+sub lastChannel()
+    if m.prev >= 0 and m.prev < m.channels.count()
+        tune(m.prev)
+    else
+        flash("No previous channel yet")
+    end if
+end sub
+
+' ---------- the TV guide grid (OK) ----------
+sub showGrid()
+    if m.channels.count() = 0 then return
+    m.banner.visible = false
+    m.grid.visible = true
+    m.top.findNode("tgTitle").text = "Loading the guide..."
+    m.top.findNode("tgTime").text = ""
+    now = CreateObject("roDateTime").AsSeconds()
+    m.gridFrom = now - (now mod 1800)
+    api("/api/guide?hours=12&from=" + m.gridFrom.ToStr(), "onGuide")
+end sub
+
+sub hideGrid()
+    m.grid.visible = false
+    m.top.setFocus(true)
+end sub
+
+sub onGuide(event as object)
+    t = event.getRoSGNode()
+    dropTask(t)
+    if not m.grid.visible then return
+    if t.error <> ""
+        m.top.findNode("tgTitle").text = t.error
+        return
+    end if
+    byId = {}
+    if isArr(t.result.channels)
+        for each g in t.result.channels
+            if isAA(g) then byId[txt(g.id)] = g
+        end for
+    end if
+    root = CreateObject("roSGNode", "ContentNode")
+    for each c in m.channels
+        row = root.createChild("ContentNode")
+        row.title = txt(c.number) + "  " + txt(c.name)
+        g = byId[c.id]
+        if isAA(g) and isArr(g.slots)
+            for each sl in g.slots
+                if isAA(sl)
+                    p = row.createChild("ContentNode")
+                    p.title = txt(sl.title)
+                    p.playStart = num(sl.start)
+                    p.playDuration = num(sl["end"]) - num(sl.start)
+                    p.description = clock(sl.start_local) + " - " + clock(sl.end_local)
+                end if
+            end for
+        end if
+    end for
+    m.tg.contentStartTime = num(t.result.from) - (num(t.result.from) mod 1800)
+    m.tg.content = root
+    if m.current >= 0 then m.tg.jumpToChannel = m.current
+    m.tg.setFocus(true)
+    m.top.findNode("tgClock").text = clock(nowIso())
+    if m.current >= 0 then showGridInfo(m.channels[m.current], invalid)
+end sub
+
+function nowIso() as string
+    d = CreateObject("roDateTime")
+    d.ToLocalTime()
+    return d.ToISOString()
+end function
+
+sub onGridFocus()
+    d = m.tg.programFocusedDetails
+    if not isAA(d) then return
+    ci = num(d.focusChannelIndex)
+    if ci < 0 or ci >= m.channels.count() then return
+    showGridInfo(m.channels[ci], d.content)
+end sub
+
+sub showGridInfo(ch as object, prog as dynamic)
+    title = txt(ch.name)
+    times = "Channel " + txt(ch.number)
+    if prog <> invalid
+        title = prog.title
+        times = prog.description + "   on " + txt(ch.number) + " " + txt(ch.name)
+    end if
+    m.top.findNode("tgTitle").text = title
+    m.top.findNode("tgTime").text = times
+end sub
+
+sub onGridSelect()
+    i = m.tg.channelFocused
+    hideGrid()
+    if i >= 0 and i < m.channels.count()
+        if i <> m.current then tune(i) else showBanner(m.channels[m.current], invalid)
+    end if
+end sub
+
 ' ---------- banner, list and messages ----------
 sub showBanner(ch as object, r as dynamic)
     m.top.findNode("bnNum").text = txt(ch.number)
@@ -321,6 +439,13 @@ end sub
 ' ---------- the remote ----------
 function onKeyEvent(key as string, press as boolean) as boolean
     if not press then return false
+    if m.grid.visible
+        if key = "back"
+            hideGrid()
+            return true
+        end if
+        return false                                   ' the grid moves itself and selects with OK
+    end if
     if m.guide.visible
         if key = "back" or key = "left"
             hideGuide()
@@ -339,12 +464,24 @@ function onKeyEvent(key as string, press as boolean) as boolean
         tune(m.current - 1)
         return true
     else if key = "OK"
+        showGrid()
+        return true
+    else if key = "right"
         showGuide()
+        return true
+    else if key = "replay"
+        lastChannel()
+        return true
+    else if key = "rev"
+        startOver()
+        return true
+    else if key = "fwd"
+        backToLive()
         return true
     else if key = "options"
         cycleSubs()
         return true
-    else if key = "info" or key = "left" or key = "right"
+    else if key = "left"
         if m.current >= 0 then showBanner(m.channels[m.current], invalid)
         return true
     else if key = "play"
