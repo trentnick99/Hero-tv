@@ -260,6 +260,16 @@ ALWAYS ON (for the Roku app and phones)
   to sleep while HERO TV runs - the screen can still switch off. A TV cannot wake a sleeping PC. Even with it off,
   the PC stays awake while a TV or phone is playing something, and for 15 minutes after.
 
+COMFORT: EVEN VOLUME, NIGHT MODE, SCREENSAVER, TV EDGE MARGIN (Settings > Appearance)
+  Even volume: each video's loudness is measured once in the background (needs ffmpeg); quiet videos are turned up
+  and loud ones down so everything plays at about the same volume, on the TV screen and phones. (The Roku app cannot
+  change a video's volume - Roku TVs have their own "Volume leveling" in the TV's sound settings.)
+  Night mode: between the times you choose, menus are dimmer and warmer, everything is a little quieter and loud
+  bangs are evened out.
+  Screensaver: when an on-demand video is paused for 3 minutes or a menu is left open for 5, pictures from your
+  library drift across the screen; any key brings you back. Never during live TV.
+  TV edge margin: moves menus in from the edges for TVs that cut them off (the picture is not changed).
+
 SKIPPING INTROS AND CREDITS BY ITSELF
   HERO TV listens to the episodes of each show (in the background, a few at a time, at low priority) and finds the
   theme song and the credits they have in common. Watching on demand - on the PC, phones and the Roku app - the intro

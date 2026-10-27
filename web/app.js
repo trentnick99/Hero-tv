@@ -91,6 +91,36 @@ function upCard(my){const c=chans[ci],box=$("#upcard");v.pause();v.removeAttribu
  if(slot.plot)t.append(el("p",0,slot.plot));const left=el("div","uc-left");t.append(left);box.append(img,t);show("#upcard",true);
  const tick=()=>{if(my!==seq||!slot||!slot.card)return;const s=Math.max(0,slot.end-nowS());left.textContent=`Starts in ${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
   if(s<=0)return tune(ci);cardT=setTimeout(tick,1e3)};tick();osd()}
+/* ---- comfort: even volume, night mode, screensaver, TV edge margin, look (Settings > Appearance) ---- */
+let actx=null,gainN=null,compN=null,gainFor="";
+function comfortOf(){return theme.comfort||{level:true,night:{active:false},screensaver:true,safe_margin:0,theme:"classic"}}
+function audioChain(){if(gainN)return true;try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return false}
+ if(actx.state!=="running"){actx.resume().catch(()=>{});return false}   /* never route the sound through a stopped player */
+ try{const src=actx.createMediaElementSource(v);gainN=actx.createGain();compN=actx.createDynamicsCompressor();src.connect(gainN);gainN.connect(compN);compN.connect(actx.destination);nightSound();return true}catch(e){return false}}
+function nightSound(){if(!compN)return;const on=comfortOf().night.active;   /* at night loud bangs are evened out too */
+ compN.threshold.value=on?-30:0;compN.ratio.value=on?4:1;compN.knee.value=on?12:0;compN.attack.value=.01;compN.release.value=.3}
+async function evenVolume(url){const m=/\/media\/(\d+)/.exec(url||"");if(!m)return;const id=m[1];gainFor=id;
+ if(!comfortOf().level){if(gainN)gainN.gain.value=1;return}
+ let g=0;try{const j=await api("/api/gain/"+id);if(gainFor!==id)return;g=j.gain_db||0}catch(e){return}
+ if(!audioChain()&&!(g<0))return;                          /* turning down also works without the sound chain */
+ if(gainN){gainN.gain.setTargetAtTime(Math.pow(10,g/20),actx.currentTime,.4);v.volume=Math.min(1,v.volume||1)}
+ else v.volume=Math.max(.05,Math.min(1,Math.pow(10,g/20)))}
+function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";
+ document.documentElement.style.setProperty("--safe",(c.safe_margin||0)+"");document.body.classList.toggle("safe",(c.safe_margin||0)>0);nightSound()}
+setInterval(()=>{loadTheme()},300000);                         /* night mode starts and ends by itself */
+/* screensaver: when on-demand video is paused, or a menu is left open, for a few minutes (live TV never) */
+let lastInput=Date.now(),saverT=0,saverPics=[];
+for(const ev of["keydown","mousemove","mousedown","touchstart","wheel"])addEventListener(ev,e=>{lastInput=Date.now();if($("#saver").classList.contains("on")){show("#saver",false);clearInterval(saverT);if(ev==="keydown"){e.preventDefault();e.stopImmediatePropagation()}}},true);
+async function saverOn(){const box=$("#saver");if(box.classList.contains("on"))return;
+ if(!saverPics.length){try{const j=await api("/api/library?limit=80");saverPics=(j.items||[]).map(x=>x.id)}catch(e){}}
+ if(!saverPics.length)return;box.textContent="";const clock=el("div","sv-clock");box.append(clock);show("#saver",true);
+ const next=()=>{const id=saverPics[Math.floor(Math.random()*saverPics.length)],img=el("img");img.alt="";img.src=withK(`/thumb/${id}`);
+  img.style.setProperty("--x",(Math.random()*6-3)+"%");img.style.setProperty("--y",(Math.random()*6-3)+"%");img.onload=()=>{img.classList.add("in");
+  const old=[...box.querySelectorAll("img")].slice(0,-1);setTimeout(()=>old.forEach(o=>o.remove()),2500)};box.insertBefore(img,clock);clock.textContent=T(nowS())};
+ next();clearInterval(saverT);saverT=setInterval(next,9000)}
+setInterval(()=>{if(!comfortOf().screensaver||sleeping)return;const idle=(Date.now()-lastInput)/1e3;
+ const paused=vod&&v.paused&&idle>=180,menu=layer!==""&&layer!=="rename"&&idle>=300,blank=!vod&&!slot&&chans.length&&chans[ci]&&chans[ci].kind!=="weather"&&idle>=300;
+ if(paused||menu||blank)saverOn()},5000);
 /* subtitles: files next to the video, or text subtitles inside it (C cycles off / each track) */
 let subs=[],subI=-1,subPref="",subMid=0,subPics=0;
 function clearSub(){for(const t of v.querySelectorAll("track"))t.remove();subI=-1}
@@ -103,7 +133,7 @@ function setSub(i,quiet){clearSub();subI=i;
 function cycleSub(){
  if(!subs.length)return toast(subPics?"This video's subtitles are pictures (Blu-ray style) that a browser cannot show. Use a .srt file instead.":"No subtitles for this video. Put a .srt file next to it with the same name.");
  const n=subI+1>=subs.length?-1:subI+1;setSub(n);subPref=n>=0?(subs[n].language||"*"):"";post("/api/prefs",{subs:subPref})}
-function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
+function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;evenVolume(url);v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
 async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);show("#upcard",false);clearTimeout(cardT);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
  it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series)+"&media_id="+it.id)}catch(e){}if(vod!==it)return}
  play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
@@ -514,7 +544,7 @@ addEventListener("keydown",e=>{const k=e.key;
 /* ---- settings ---- */
 async function pj(path,body){const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});let j={};try{j=await r.json()}catch(e){}
  if(!r.ok)throw new Error(j.error||"That did not work.");return j}
-async function loadTheme(){try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;document.documentElement.style.setProperty("--brand",theme.color);applyCues(theme.subs)}catch(e){}}
+async function loadTheme(){try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;document.documentElement.style.setProperty("--brand",theme.color);applyCues(theme.subs);applyComfort()}catch(e){}}
 function applyCues(st){st=st||{};const b=document.body.classList;b.toggle("cue-l",st.size==="large");b.toggle("cue-xl",st.size==="xl");b.toggle("cue-none",st.bg==="none");b.toggle("cue-yellow",st.color==="yellow")}
 const SW=["#ffcf1f","#ff3b3b","#3d6bff","#3ddc84","#b06bff","#ff8c00","#ff2e88","#1fd1b4"];
 const SCATS=[["look","Appearance"],["chan","Channels"],["lib","Media library"],["weather","Weather"],["art","Cover art"],["tools","Tools"],["devices","Other devices"],["about","Backup and about"]];
@@ -562,6 +592,21 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
   { const lg=el("select");for(const[v,t]of[["sometimes","Now and then (when a show starts, and briefly every 5 minutes)"],["always","Always"],["off","Off"]]){const o=el("option",0,t);o.value=v;if((d.logo||"sometimes")===v)o.selected=true;lg.append(o)}
     lg.onchange=()=>sSave({logo:lg.value},"Channel logo saved.",async()=>{await loadTheme()});
     main.append(sField("Channel logo","The channel's number and name in the corner of the picture, like a TV network's logo. Also on the Roku app.",lg))}
+  { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);
+    const box=(key,text,on,save)=>{const i=el("input");i.type="checkbox";i.checked=on;const l=el("label","lb");l.append(i," "+text);l.style.display="flex";l.style.gap="1vw";i.onchange=()=>save(i.checked);return l};
+    main.append(sField("Even volume","Quiet videos are turned up and loud ones down, so films, shorts and episodes all play at about the same volume (each video is measured once, in the background). On the TV screen and phones; Roku TVs have their own 'volume leveling' in the TV's sound settings.",
+     box("level","Even out the volume between videos",cf.level,on=>sSave({level_volume:on},"Saved.",async()=>{await loadTheme()}))));
+    const tsel=v=>{const i=el("select");for(let q=0;q<48;q++){const h=Math.floor(q/2),mm=q%2?"30":"00",val=String(h).padStart(2,"0")+":"+mm;const o=el("option",0,`${h%12||12}:${mm} ${h<12?"AM":"PM"}`);o.value=val;if(val===v)o.selected=true;i.append(o)}return i};
+    const nf=tsel(cf.night.from),nt=tsel(cf.night.to),nrow=el("div","sbar");
+    const nsave=on=>sSave({night:{on,from:nf.value,to:nt.value}},"Night mode saved.",async()=>{await loadTheme()});
+    const nb=box("night","Night mode",cf.night.on,on=>nsave(on));nf.onchange=nt.onchange=()=>nsave(nb.querySelector("input").checked);
+    nrow.append(nb,el("span",0,"from"),nf,el("span",0,"to"),nt);
+    main.append(sField("Night mode","Between these times menus are dimmer and warmer, everything plays a little quieter and loud bangs are evened out.",nrow));
+    main.append(sField("Screensaver","When an on-demand video is paused for 3 minutes, or a menu is left open for 5, pictures from your library drift across the screen (kind to OLED TVs). Any key brings you back. Never during live TV.",
+     box("saver","Screensaver",cf.screensaver,on=>sSave({screensaver:on},"Saved.",async()=>{await loadTheme()}))));
+    const sm=el("select");for(const[v,t]of[[0,"None"],[2.5,"Small"],[5,"Large"]]){const o=el("option",0,t);o.value=v;if(Number(cf.safe_margin)===v)o.selected=true;sm.append(o)}
+    sm.onchange=()=>sSave({safe_margin:Number(sm.value)},"Saved.",async()=>{await loadTheme()});
+    main.append(sField("TV edge margin","If your TV cuts off the edges of menus, move everything in a little. The picture itself is not changed.",sm))}
 }
  else if(sCat==="chan"){drawChannelsCfg(main,msg)}
  else if(sCat==="tools"){drawTools(main,msg)}
@@ -1012,7 +1057,7 @@ let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();d
 (async()=>{try{const dv=await api("/api/device");REMOTE=!!dv.remote;MK=dv.mk||"";document.body.classList.toggle("remote",REMOTE)}catch(e){}
  try{await sync();setChans((await api("/api/channels")).channels)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open, then press F5.")}
  try{const h=await api("/api/health");if(h.api!==NEED_API)toast(h.frozen?"This HERO TV program is older than its files. Settings > Backup and about > Check now, then Install now, puts the matching version in place (or run the latest HERO TV Setup).":"HERO TV is an older version than this page. Close it completely and start it again to get the newest features.")}catch(e){}
- try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color);applyCues(theme.subs)}catch(e){}
+ try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color);applyCues(theme.subs);applyComfort()}catch(e){}
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
  if(typeof pf.volume==="number")v.volume=pf.volume;if("muted" in pf)v.muted=!!pf.muted;if(pf.bigtext)setBig(true,false);if(typeof pf.subs==="string")subPref=pf.subs;
  let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();

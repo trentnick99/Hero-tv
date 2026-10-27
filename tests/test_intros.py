@@ -67,8 +67,8 @@ class RealSound(unittest.TestCase):
 
         def run(*a):
             subprocess.run([ff, "-v", "error", "-y", *a], check=True)
-        theme = ("aevalsrc=exprs='0.3*sin(2*PI*(220+110*floor(mod(t*2\\,4)))*t)+0.2*sin(2*PI*(330+55*floor(mod(t*3\\,5)))*t)"
-                 "*(0.5+0.5*sin(2*PI*0.7*t))':s=22050:d=25")
+        theme = ("aevalsrc=exprs='0.4*(1-mod(t*4\\,1))*sin(2*PI*220*pow(2\\,floor(mod(floor(t*4)*7.13\\,24))/12)*t)'"
+                 ":s=22050:d=25")                                 # a tune of notes that never repeats itself
         run("-f", "lavfi", "-i", theme, os.path.join(d, "theme.wav"))
         for n, (pre, seed) in enumerate(((50, 1), (20, 2)), 1):
             run("-f", "lavfi", "-i", f"anoisesrc=c=pink:seed={seed}:a=0.3:d={pre}:r=22050", "-i", os.path.join(d, "theme.wav"),

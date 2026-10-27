@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.27.0": [
+        "Even volume: quiet videos are turned up and loud ones down, so everything plays at about the same volume (Settings > Appearance).",
+        "Night mode: dimmer, warmer menus and gentler sound between the times you choose.",
+        "Screensaver: pictures from your library drift across the screen when a video is paused or a menu is left open (never during live TV).",
+        "TV edge margin for TVs that cut off the edges of the menus.",
+    ],
     "1.26.0": [
         "Intros and credits are found by themselves: HERO TV listens to the episodes of each show and finds the theme song and the credits. On demand (PC, phones, Roku) the intro is skipped and the credits go straight on to the next episode.",
         "Progress and a 'Check everything now' button: Settings > Tools. Points you set with J and E still win.",

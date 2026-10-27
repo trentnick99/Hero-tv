@@ -1118,6 +1118,13 @@ def make_handler(app, remote=False):
                 if q.get("series"):
                     return self.send_json(ondemand.episodes(c, q.get("franchise", ""), q["series"]))
                 return self.send_json(ondemand.rows(c, now, q.get("q", "")))
+            if p.startswith("gain/"):                         # even volume: how much to turn this video up or down
+                mid = int(p[5:]) if p[5:].isdigit() else -1
+                cf = settings_api.comfort(tz=get_tz(app.tz))
+                from . import loudness
+                lufs = loudness.for_media(c, mid) if cf["level"] else None
+                return self.send_json({"gain_db": loudness.gain_db(lufs, cf["night"]["active"]), "measured": lufs is not None,
+                                       "night": cf["night"]["active"]})
             if p.startswith("play/"):
                 d = ondemand.play(c, int(p[5:])) if p[5:].isdigit() else None
                 if d is None:
@@ -1419,7 +1426,8 @@ def make_handler(app, remote=False):
                                "SELECT DISTINCT series FROM media WHERE available=1 AND series<>'' ORDER BY series COLLATE NOCASE LIMIT 400")]}
                 return self.send_json(dict(channels_api.read(app.cfg), shorts=len(S.shorts_pool(c)), slot_choices=choices))
             if p == "theme":
-                return self.send_json(dict(station(), subs=settings_api.subs_style(), logo=settings_api.logo_mode()))
+                return self.send_json(dict(station(), subs=settings_api.subs_style(), logo=settings_api.logo_mode(),
+                                           comfort=settings_api.comfort(tz=get_tz(app.tz))))
             if p == "checklist":
                 from . import checklist as CL
                 path = os.path.join(os.path.dirname(app.cfg.channels_file), "checklist.json")
@@ -1658,6 +1666,8 @@ def serve(cfg):
     inbox.watch_forever(cfg)
     awake.start()                                   # the TVs cannot wake a sleeping PC
     intros.start_background(cfg, connect)            # finds intros and credits of episodes, a few at a time
+    from . import loudness
+    loudness.start_background(cfg, connect)          # measures how loud each video is (even volume)
     from . import selfupdate
     app.update_note = selfupdate.take_last_error()
     if os.environ.get("HEROTV_NO_UPDATE_CHECK") != "1":

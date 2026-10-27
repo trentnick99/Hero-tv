@@ -284,3 +284,16 @@ body.cue-yellow video::cue{color:#ffe14d}
 .slots .sbar>span{align-self:center;font-size:calc(2.1vh*var(--tx))}
 
 .ibx code{font-size:calc(2.2vh*var(--tx));color:var(--text)}
+
+/* screensaver: slow drifting pictures from your library */
+#saver{background:#000;z-index:60;overflow:hidden;cursor:none}
+#saver img{position:absolute;inset:-4%;width:108%;height:108%;object-fit:cover;opacity:0;transition:opacity 2.4s ease;animation:drift 18s ease-in-out infinite alternate}
+#saver img.in{opacity:.85}
+@keyframes drift{from{transform:scale(1.02) translate(0,0)}to{transform:scale(1.1) translate(var(--x,2%),var(--y,1%))}}
+#saver .sv-clock{position:absolute;right:4vw;bottom:5vh;font-size:5vh;font-weight:700;color:#fff;text-shadow:0 0 2vh rgba(0,0,0,.8);opacity:.85}
+/* night mode: menus dimmer and warmer */
+body.night .layer:not(#saver):not(#upcard){filter:brightness(.78) sepia(.18)}
+/* TV edge margin: everything except the picture moves in from the edges */
+body.safe .layer:not(#saver){transform:scale(calc(1 - var(--safe,0)/50));transform-origin:50% 50%}
+body.safe #bug{right:calc(3.2vw + var(--safe,0) * 1vw);top:calc(4.5vh + var(--safe,0) * 1vh)}
+.sbar>span{align-self:center}

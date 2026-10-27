@@ -56,6 +56,28 @@ SUB_SIZES, SUB_BGS, SUB_COLORS = ("normal", "large", "xl"), ("box", "none"), ("w
 
 
 LOGO_MODES = ("always", "sometimes", "off")
+THEMES = ("classic", "black", "retro")
+MARGINS = (0, 2.5, 5)
+_HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
+
+
+def comfort(d=None, now=None, tz=None):
+    """Even volume, night mode, screensaver, TV edge margin and the look (theme) - for the TV screen, phones, Roku."""
+    import datetime as dt
+    d = _load() if d is None else d
+    n = d.get("night") if isinstance(d.get("night"), dict) else {}
+    a, z = n.get("from", "22:00"), n.get("to", "07:00")
+    on = bool(n.get("on"))
+    active = False
+    if on and _HHMM.fullmatch(str(a)) and _HHMM.fullmatch(str(z)):
+        t = dt.datetime.fromtimestamp(now, tz) if now else dt.datetime.now(tz)
+        m = t.hour * 60 + t.minute
+        ma, mz = int(a[:2]) * 60 + int(a[3:]), int(z[:2]) * 60 + int(z[3:])
+        active = (ma <= m < mz) if ma < mz else (m >= ma or m < mz)
+    margin = d.get("safe_margin", 0)
+    return {"level": d.get("level_volume", True) is not False, "night": {"on": on, "from": a, "to": z, "active": active},
+            "screensaver": d.get("screensaver", True) is not False, "safe_margin": margin if margin in MARGINS else 0,
+            "theme": d.get("theme") if d.get("theme") in THEMES else "classic"}
 
 
 def logo_mode(d=None):
@@ -92,6 +114,7 @@ def read(cfg):
         "windowed": bool(d.get("windowed")),
         "subs_style": subs_style(d),
         "logo": logo_mode(d),
+        "comfort": comfort(d),
         "auto_backup": d.get("auto_backup", True) is not False,
         "seasonal": d.get("seasonal", True) is not False,
         "smart_sort": d.get("smart_sort", True) is not False,
@@ -166,6 +189,28 @@ def update(changes, geocode=None):
             raise ValueError("auto_backup must be on or off")
         data["auto_backup"] = changes["auto_backup"]
         saved.append("auto_backup")
+    if "level_volume" in changes:
+        data["level_volume"] = bool(changes["level_volume"])
+        saved.append("level_volume")
+    if "screensaver" in changes:
+        data["screensaver"] = bool(changes["screensaver"])
+        saved.append("screensaver")
+    if "safe_margin" in changes:
+        if changes["safe_margin"] not in MARGINS:
+            raise ValueError("The TV edge margin can be none, small or large.")
+        data["safe_margin"] = changes["safe_margin"]
+        saved.append("safe_margin")
+    if "theme" in changes:
+        if changes["theme"] not in THEMES:
+            raise ValueError("Choose a look from the list.")
+        data["theme"] = changes["theme"]
+        saved.append("theme")
+    if "night" in changes:
+        n = changes["night"]
+        if not isinstance(n, dict) or not _HHMM.fullmatch(str(n.get("from", ""))) or not _HHMM.fullmatch(str(n.get("to", ""))):
+            raise ValueError("Night mode needs a start and an end time like 22:00.")
+        data["night"] = {"on": bool(n.get("on")), "from": n["from"], "to": n["to"]}
+        saved.append("night")
     if "logo" in changes:
         if changes["logo"] not in LOGO_MODES:
             raise ValueError("The channel logo can be always on, now and then, or off.")
