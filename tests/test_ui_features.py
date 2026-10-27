@@ -67,7 +67,7 @@ class UiFeatureServerTests(unittest.TestCase):
         p = h["problems"][0]
         self.assertEqual(p["title"], "Anime rip")
         self.assertIn("10-bit", p["why"])
-        self.assertIn("Convert-Video.bat", p["fix"])
+        self.assertIn("Settings > Tools > Fix", p["fix"])
         self.assertIn("media_dir", h)
 
     def test_renaming_a_show_keeps_its_skip_settings(self):

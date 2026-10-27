@@ -5,7 +5,6 @@ Older files that used channel numbers are converted automatically the first time
 kept as auto-sort.json.bak). Numbers typed by hand are still understood.
 """
 import json
-import os
 import re
 from pathlib import Path
 

@@ -15,7 +15,7 @@ const hms=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.f
 function show(id,on){$(id).classList.toggle("on",on)}
 function msg(t,s){$("#m-t").textContent=t;$("#m-s").textContent=s||"";show("#msg",!!t&&layer!=="settings")}   /* never cover the Settings screen: it has buttons and fields to click */
 
-/* ---- channel colours: every channel owns one accent; text colour is picked for contrast ---- */
+/* ---- channel colors: every channel owns one accent; text color is picked for contrast ---- */
 function onColor(hex){const m=/^#?([0-9a-f]{6})$/i.exec(hex||"");if(!m)return"#0b0d16";const n=parseInt(m[1],16),f=c=>{c/=255;return c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4)};
  const L=.2126*f(n>>16)+.7152*f(n>>8&255)+.0722*f(n&255);return L>.3?"#0b0d16":"#ffffff"}
 function paint(node,color){const c=/^#[0-9a-f]{6}$/i.test(color||"")?color:"#ffcf1f";node.style.setProperty("--accent",c);node.style.setProperty("--on",onColor(c))}
@@ -23,7 +23,7 @@ let REMOTE=false,MK="";   /* REMOTE = this is a phone/laptop on the home WiFi (w
 const withK=u=>REMOTE&&MK?u+(u.includes("?")?"&":"?")+"k="+encodeURIComponent(MK):u;
 const COARSE=matchMedia("(pointer:coarse)").matches;
 const thumb=(id,lazy)=>{const i=el("img");i.alt="";i.decoding="async";if(lazy)i.loading="lazy";i.src=withK("/thumb/"+id);i.onerror=()=>i.remove();return i};
-/* one line-icon set (24x24, drawn with the station colour) instead of emoji, which look different on every PC */
+/* one line-icon set (24x24, drawn with the station color) instead of emoji, which look different on every PC */
 const ICONS={live:'<rect x="2.5" y="5.5" width="19" height="12.5" rx="2"/><path d="M8.5 21h7M12 18v3M8.5 2.5 12 5.5l3.5-3"/>',
  resume:'<circle cx="12" cy="12" r="9"/><path d="M10 8.6v6.8l5.6-3.4z"/>',
  new:'<path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9zM18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
@@ -232,16 +232,16 @@ async function openHelp(back){helpBack=back||"";layer="help";show("#settings",fa
 function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent="";
  const row=(good,text,sub)=>{const r=el("div","st "+(good?"good":"bad"));r.append(el("i",0,good?"✓":"!"));const d=el("div");d.append(el("span",0,text));if(sub)d.append(el("small",0,sub));r.append(d);L.append(r)};
  L.append(el("h3",0,"Is anything wrong?"));
- if(!h)row(false,"HERO TV cannot reach its own server.","Make sure the black HERO TV window is still open, then press F5.");
+ if(!h)row(false,"HERO TV is not running on this PC right now.","Click the HERO TV icon to start it again, then press F5 here.");
  else{row(h.playable>0,h.playable?`${h.playable} videos are ready to play.`:"No videos are ready to play yet.",h.playable?"":"Drag videos onto this window, or get free ones in Settings > Tools.");
   row(h.ffmpeg,h.ffmpeg?"Video tools (ffmpeg) are installed.":"Video tools (ffmpeg) were not found.",h.ffmpeg?"":"Settings > Tools > Install video tools.");
   if(h.problem_count){row(false,`${h.problem_count} video(s) are being skipped:`,"");for(const p of h.problems)row(false,p.title,p.why+" "+p.fix);if(h.problem_count>h.problems.length)row(false,"...and more.","Settings > Tools lists them all, with a Fix button.")}
   else row(true,"Every video in your library can play.","");
   if(h.hidden_channels&&h.hidden_channels.length)row(true,`${h.hidden_channels.length} channel(s) are hidden until they have something to show: ${h.hidden_channels.join(", ")}`,"Put a video in that channel's folder, or drop it in the Inbox, and the channel appears by itself.");
-  if(h.inbox_waiting)row(false,`${h.inbox_waiting} video(s) are waiting in the Inbox folder.`,"HERO TV files them by title by itself once they have finished copying. Ones it cannot place stay there: add a keyword for them in Settings > Channels.");
+  if(h.inbox_waiting)row(false,`${h.inbox_waiting} video(s) are waiting in the Inbox folder.`,"HERO TV files them by itself once they have finished copying. Ones it cannot place wait for you in Settings > Tools > Inbox - pick a channel (or make a new one) there.");
   row(true,"Your videos are in: "+h.media_dir,"Settings > Media library > Open media folder.")}
  R.append(el("h3",0,"Keys"));const t=el("table");
- for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles: off / each language"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
+ for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles: off / each language"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"],["R (in the guide)","Remind me when that show starts"],["M (in Details)","Move a video to another channel"],["? or F1","This help"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
  R.append(t)}
 
 /* ---- guide ---- */
@@ -521,11 +521,11 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
   const name=sInput(d.station.name),tag=sInput(d.station.tagline);let col=d.station.color;
   const sw=el("div","sw");const pick=c=>{col=c;sDirty=true;sLeave=false;[...sw.children].forEach(b=>b.classList.toggle("on",b.dataset.c.toLowerCase()===c.toLowerCase()));hex.value=c};
   const hex=sInput(col,"text","#ffcf1f");hex.size=9;hex.addEventListener("input",()=>{if(/^#[0-9a-fA-F]{6}$/.test(hex.value))pick(hex.value)});
-  for(const c of SW){const b=el("button",c.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=c;b.style.background=c;b.title=c;b.setAttribute("aria-label","Colour "+c);b.onclick=()=>pick(c);sw.append(b)}
+  for(const c of SW){const b=el("button",c.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=c;b.style.background=c;b.title=c;b.setAttribute("aria-label","Color "+c);b.onclick=()=>pick(c);sw.append(b)}
   main.append(sField("Station name","Shown on the home screen and the browser tab.",name),sField("Greeting","The line under the name.",tag),
-   sField("Main colour","Pick one, or type a code like #ff3b3b.",sw),sField("",null,hex,true));
+   sField("Main color","Pick one, or type a code like #ff3b3b.",sw),sField("",null,hex,true));
   main.append(el("div","sbar")),main.lastChild.append(sBtn("Save",()=>sSave({station:{name:name.value,tagline:tag.value,color:col}},"Saved.",async()=>{await loadTheme();paint($("#settings"),theme.color);drawSettings()}),"pri"),
-   sBtn("Restore the default look",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press the button again to restore the standard name, greeting and colour.","err");return}
+   sBtn("Restore the default look",()=>{if(!main.dataset.sure){main.dataset.sure=1;sMsg("Press the button again to restore the standard name, greeting and color.","err");return}
     delete main.dataset.sure;sSave({reset_station:true},"Default look restored.",async()=>{await loadTheme();drawSettings()})},"warn"));main.append(msg);
   main.append(el("h3",0,"Viewing"),sField("","These change straight away, no Save needed.",null));
   const big=el("input");big.type="checkbox";big.checked=document.body.classList.contains("big");big.onchange=()=>setBig(big.checked,true);
@@ -682,7 +682,7 @@ function alwaysCard(){const c=tCard("Always on","So your Roku TV and phones alwa
  return c}
 /* ---- the HERO TV app on a Roku TV: found and installed from here, nothing to type on the TV ---- */
 let rData=null,rFound=null,rPick="";
-function rokuCard(){const c=tCard("HERO TV on your Roku TV","Puts a real HERO TV app on the TV: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK shows the channel list. This PC does the work, so it must be on with HERO TV open.");
+function rokuCard(){const c=tCard("HERO TV on your Roku TV","Puts a real HERO TV app on the TV: open it with the Roku remote and flip through your channels like cable - Up/Down changes channel, OK opens the TV guide. This PC does the work, so it must be on with HERO TV open.");
  if(!rData){c.append(el("small",0,"Loading..."));api("/api/roku").then(j=>{rData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return c}
  const r=rData,sv=r.saved;
  if(!r.app_files){c.append(el("small","err","The Roku app files are missing from this HERO TV folder. Reinstall HERO TV."));return c}
@@ -757,7 +757,7 @@ async function chSaved(r,text){chList=r.channels;sDirty=false;sLeave=false;try{l
 async function chPost(body,okText,backToList){sMsg("Saving...");try{const r=await pj("/api/channels-config",body);await chSaved(r,okText);if(backToList){chSel=null;drawSettings();sMsg(okText+(r.note?" "+r.note:""),"ok")}}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}}
 function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  if(!chList){main.append(el("div","empty","Loading channels..."));api("/api/channels-config").then(j=>{chList=j.channels;if(layer==="settings"&&sCat==="chan")drawSettings()}).catch(()=>{main.textContent="";main.append(el("div","empty","Channels could not be loaded."))});return}
- if(chSel===null){main.append(el("small",0,"Click a channel to rename it, change its colour, folder or keywords. Changes show up in the guide straight away."));
+ if(chSel===null){main.append(el("small",0,"Click a channel to rename it, change its color, folder or keywords. Changes show up in the guide straight away."));
   { const sm=el("input");sm.type="checkbox";sm.checked=sData&&sData.smart_sort!==false;
     sm.onchange=async()=>{try{await pj("/api/settings",{smart_sort:sm.checked});sData=await api("/api/settings");chList=null;drawSettings();toast(sm.checked?"Smart sorting on":"Smart sorting off")}catch(e){sMsg(String(e.message||e),"err")}};
     const l=el("label","lb");l.append(sm," Smart sorting");l.style.display="flex";l.style.gap="1vw";
@@ -783,8 +783,8 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  const sw=el("div","sw"),hex=sInput(col,"text","#ffcf1f");hex.size=9;
  const pick=x=>{col=x;sDirty=true;sLeave=false;[...sw.children].forEach(b=>b.classList.toggle("on",b.dataset.c.toLowerCase()===x.toLowerCase()));hex.value=x};
  hex.addEventListener("input",()=>{if(/^#[0-9a-fA-F]{6}$/.test(hex.value))pick(hex.value)});
- for(const x of SW){const b=el("button",x.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=x;b.style.background=x;b.title=x;b.setAttribute("aria-label","Colour "+x);b.onclick=()=>pick(x);sw.append(b)}
- main.append(sField("Channel name","Shown in the guide and when you change channel.",name),sField("Channel number","The number you type to tune it. Each channel needs its own.",num),sField("Colour",null,sw),sField("",null,hex,true));
+ for(const x of SW){const b=el("button",x.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=x;b.style.background=x;b.title=x;b.setAttribute("aria-label","Color "+x);b.onclick=()=>pick(x);sw.append(b)}
+ main.append(sField("Channel name","Shown in the guide and when you change channel.",name),sField("Channel number","The number you type to tune it. Each channel needs its own.",num),sField("Color",null,sw),sField("",null,hex,true));
  let mode=null;if(c.kind!=="weather"){mode=el("select");for(const[v,t]of[["sequential","In order (episodes and movies one after another)"],["shuffle","Shuffled (a different order each time)"]]){const o=el("option",0,t);o.value=v;if(v===c.mode)o.selected=true;mode.append(o)}mode.onchange=()=>{sDirty=true;sLeave=false};main.append(sField("Play order",null,mode))}
  let folder=null,words=null,desc=null;
  if(c.kind!=="weather"){
@@ -794,14 +794,13 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
   else main.append(sField("What it shows",c.summary+" - these special rules are kept as they are. They can be changed in config\\channels.json.",null));
   words=el("textarea");words.value=c.keywords.join("\n");words.placeholder="one per line, for example:\niron man\navengers";words.addEventListener("input",()=>{sDirty=true;sLeave=false});
   if(c.smart&&c.smart.length)main.append(sField("Smart sorting",`With a TMDB key, this channel automatically gets: ${c.smart.join("; ")}. The keywords below are then only used for titles TMDB does not know.`,null));
-  main.append(sField("Keywords","When new videos arrive in the Inbox (or you use Sort-Movies), a file whose name contains one of these words goes on this channel. One per line."+(c.shared_keywords?` ${c.shared_keywords} more keywords are shared with other channels and are not shown here.`:""),words))}
+  main.append(sField("Keywords","When new videos arrive in the Inbox (or you press Sort the Inbox now in Tools), a file whose name contains one of these words goes on this channel. One per line."+(c.shared_keywords?` ${c.shared_keywords} more keywords are shared with other channels and are not shown here.`:""),words))}
  desc=sInput(c.description);desc.style.width="50vw";main.append(sField("Description","One line shown in the guide.",desc));
  const bar=el("div","sbar"),payload=()=>{const b={name:name.value,color:col,description:desc.value};if(num.value.trim()!=="")b.number=num.value.trim();if(mode)b.mode=mode.value;if(folder&&(isNew||folder.value.trim()))b.folder=folder.value;if(words)b.keywords=words.value;return b};
  bar.append(sBtn(isNew?"Create channel":"Save",()=>isNew?chPost(Object.assign({op:"add"},payload()),"Channel created.",true):chPost(Object.assign({op:"save",id:c.id},payload()),"Saved."),"pri"),sBtn("Back to the list",()=>{if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}chBack()}));
  if(!isNew)bar.append(sBtn("Delete this channel",()=>{if(!bar.dataset.sure){bar.dataset.sure=1;sMsg("Press Delete again to remove this channel from the guide. Your videos are not touched.","err");return}chPost({op:"delete",id:c.id},"Channel deleted.",true)},"warn"));
  main.append(bar,msg)}
 function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools")tData=null;if(k==="devices"){dData=null;rData=null;rFound=null;aData=null}drawSettings();$("#st-main").scrollTop=0}
-function closeSettings(){show("#settings",false);layer="";sDirty=false;sLeave=false}
 /* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
 function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;
  if(k==="ArrowUp")return q.bottom<=r.bottom-r.height*.5&&q.top+q.height/2<r.top+r.height/2;
@@ -897,7 +896,7 @@ async function saveLineup(){const nw=$("#news");if([...lineupOff].sort().join()=
 function showWelcome(w){const nw=$("#news");nw.dataset.kind="welcome";paint(nw,theme.color);$("#nw-h").textContent="Welcome to "+theme.name;const ul=$("#nw-l");ul.textContent="";
  for(const l of[w.media?`${w.media} video(s) found so far - they are already on your channels.`:"No videos yet: drag movies or shows onto this window, or put them in the Inbox folder.",
   "Press H (or Esc) for the Home menu, G for the TV guide, L for the library.",
-  "Press O for Settings: name your station, pick its colour, add free movies, posters and more.",
+  "Press O for Settings: name your station, pick its color, add free movies, posters and more.",
   "Want it on your phone too? Settings > Other devices."])ul.append(el("li",0,l));
  $("#nw-ok").textContent="Let's watch";show("#news",true);$("#nw-ok").focus()}
 $("#nw-ok").onclick=closeNews;
@@ -934,7 +933,7 @@ addEventListener("drop",async e=>{if(!hasFiles(e))return;e.preventDefault();drag
 let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();document.body.classList.remove("hide-cursor");clearTimeout(curT);curT=setTimeout(()=>document.body.classList.add("hide-cursor"),3e3)});
 (async()=>{try{const dv=await api("/api/device");REMOTE=!!dv.remote;MK=dv.mk||"";document.body.classList.toggle("remote",REMOTE)}catch(e){}
  try{await sync();setChans((await api("/api/channels")).channels)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open, then press F5.")}
- try{const h=await api("/api/health");if(h.api!==NEED_API)toast(h.frozen?"The HERO TV application is older than its files. Close it, then double-click Build-App.bat in the HERO TV folder (a few minutes) to bring it up to date.":"HERO TV is an older version than this page. Close it completely and start it again to get the newest features.")}catch(e){}
+ try{const h=await api("/api/health");if(h.api!==NEED_API)toast(h.frozen?"This HERO TV program is older than its files. Settings > Backup and about > Check now, then Install now, puts the matching version in place (or run the latest HERO TV Setup).":"HERO TV is an older version than this page. Close it completely and start it again to get the newest features.")}catch(e){}
  try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color);applyCues(theme.subs)}catch(e){}
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
  if(typeof pf.volume==="number")v.volume=pf.volume;if("muted" in pf)v.muted=!!pf.muted;if(pf.bigtext)setBig(true,false);if(typeof pf.subs==="string")subPref=pf.subs;

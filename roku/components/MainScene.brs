@@ -22,6 +22,9 @@ sub init()
     m.grid = m.top.findNode("grid")
     m.tg = m.top.findNode("tg")
     m.prev = -1
+    m.gridCi = -1
+    m.gridProg = invalid
+    m.selClock = invalid
     m.top.findNode("tgStation").text = m.cfg.station + "  -  TV guide"
     m.bannerTimer = m.top.findNode("bannerTimer")
     m.refreshTimer = m.top.findNode("refreshTimer")
@@ -93,7 +96,8 @@ sub loadChannels()
 end sub
 
 sub refreshChannels()
-    if m.channels.count() > 0 then api("/api/channels", "onChannels")
+    ' not while you scroll the channel list (it would jump back to the top)
+    if m.channels.count() > 0 and not m.guide.visible then api("/api/channels", "onChannels")
 end sub
 
 sub onChannels(event as object)
@@ -378,8 +382,16 @@ sub showGridInfo(ch as object, prog as dynamic)
 end sub
 
 sub onGridSelect()
+    ' one OK can arrive twice (program and channel): act once
+    if m.selClock = invalid
+        m.selClock = CreateObject("roTimespan")
+    else if m.selClock.TotalMilliseconds() < 500
+        return
+    end if
+    m.selClock.Mark()
     i = m.tg.channelFocused
     prog = m.gridProg
+    if m.gridCi <> i then prog = invalid                ' focus details from another row
     if prog <> invalid and i >= 0 and i < m.channels.count() and num(prog.playStart) > serverNow() + 60
         ' a later show: set (or clear) a reminder instead of switching
         ch = m.channels[i]

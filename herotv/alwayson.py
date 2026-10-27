@@ -44,7 +44,6 @@ def background():
         return d["background"] or startup_on()
     if startup_on():
         return True
-    from . import remote as R
     r = d.get("roku")
     return bool(d.get("lan_share") or (isinstance(r, dict) and r.get("ip")))
 

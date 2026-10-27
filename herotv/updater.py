@@ -4,7 +4,6 @@ Replaces the program files, but never touches your videos, your data (favorites,
 settings: if a settings file in config/ was changed by you, the new version is saved beside it as <name>.new instead.
 Everything that gets replaced is first copied to .update-backup/<date>/ so an update can be undone by hand.
 """
-import glob
 import os
 import posixpath
 import shutil

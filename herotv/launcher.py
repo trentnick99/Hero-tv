@@ -115,7 +115,7 @@ def port_free(cfg):
 
 
 def find_browser():
-    """A Chromium-family browser (Edge, Chrome, Brave, Chromium) - these honour the kiosk/autoplay flags."""
+    """A Chromium-family browser (Edge, Chrome, Brave, Chromium) - these honor the kiosk/autoplay flags."""
     env = os.environ.get("HEROTV_BROWSER")
     if env and os.path.isfile(env):
         return env
@@ -913,6 +913,8 @@ def move_to(cfg, paths, picked, all_channels):
                 d, nd = os.path.dirname(d), os.path.dirname(nd)
         except OSError:
             pass
+    if bad:
+        say(f"\n[!!] {bad} video(s) were not moved (see above)")
     if not moved:
         say("\n[FAIL] nothing was moved")
         return 1
@@ -1415,7 +1417,7 @@ COLOR_CHOICES = [("Gold", "#ffcf1f"), ("Red", "#ff3b3b"), ("Blue", "#3d6bff"), (
 
 
 def personalize(name=None, color=None, tagline=None):
-    """Make the TV yours: its name, main colour and greeting."""
+    """Make the TV yours: its name, main color and greeting."""
     from .config import settings_file
     import re
     interactive = bool(sys.stdin and sys.stdin.isatty()) and name is None and color is None and tagline is None
@@ -1426,10 +1428,10 @@ def personalize(name=None, color=None, tagline=None):
         say("-------------")
         a = input(f"Name of your TV station [{cur['name']}]  (for example: Nick's Hero TV): ").strip()
         name = a or None
-        say("\nPick a main colour:")
+        say("\nPick a main color:")
         for i, (n, _h) in enumerate(COLOR_CHOICES, 1):
             say(f"  {i}. {n}")
-        a = input(f"Number, or a colour like #ff3b3b [keep {cur['color']}]: ").strip()
+        a = input(f"Number, or a color like #ff3b3b [keep {cur['color']}]: ").strip()
         color = a or None
         a = input(f"The line under the name [{cur['tagline']}]: ").strip()
         tagline = a or None
@@ -1443,7 +1445,7 @@ def personalize(name=None, color=None, tagline=None):
         elif color.lower() in {n.lower() for n, _ in COLOR_CHOICES}:
             color = next(h for n, h in COLOR_CHOICES if n.lower() == color.lower())
         if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
-            say(f"{BAD} '{color}' is not a colour I understand. Use a number from the list or something like #ff3b3b.")
+            say(f"{BAD} '{color}' is not a color I understand. Use a number from the list or something like #ff3b3b.")
             return 1
         new["color"] = color
     if tagline:
@@ -1472,7 +1474,7 @@ def backup_now(dest=None):
     c = connect(cfg.db_path)
     path = backup.make(cfg, c, dest)
     say(f"{OK} Backup saved:\n       {path}")
-    say("       It holds your channels and lists, name and colours, favorites, resume points and watch history.")
+    say("       It holds your channels and lists, name and colors, favorites, resume points and watch history.")
     say("       Copy it somewhere safe (USB stick, cloud folder). Your videos are not in it.")
     return 0
 

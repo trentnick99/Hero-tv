@@ -15,7 +15,7 @@ import struct
 import threading
 import time
 import uuid
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from urllib.parse import quote, unquote, urlparse
 
 from . import __version__, config

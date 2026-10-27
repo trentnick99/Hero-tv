@@ -1,11 +1,10 @@
-"""Edit channels from the Settings screen instead of Notepad: rename, renumber, recolour, change the folder or the
+"""Edit channels from the Settings screen instead of Notepad: rename, renumber, recolor, change the folder or the
 keywords, add a channel, delete one.
 
 config/channels.json and config/auto-sort.json stay the single source of truth (still hand-editable). Every change is
 validated, written atomically with a .bak copy of the previous file, and special rules the screen cannot express
 (extra groups, time blocks, smart programming, tag/year rules) are left exactly as they were.
 """
-import copy
 import json
 import os
 import re
@@ -231,7 +230,7 @@ def _apply_basic(c, ch, channels):
         c["name"] = name
     if "color" in ch:
         if not isinstance(ch["color"], str) or not HEX.fullmatch(ch["color"]):
-            raise ValueError("The colour must look like #ff3b3b.")
+            raise ValueError("The color must look like #ff3b3b.")
         c["color"] = ch["color"]
     if "description" in ch:
         c["description"] = " ".join(str(ch["description"]).split())[:200]
@@ -278,7 +277,7 @@ def update(cfg, body):
         c = next((x for x in chans if x["id"] == body.get("id")), None)
         if c is None:
             raise ValueError("That channel no longer exists.")
-        old_num, old_label = c["number"], f"{c['number']} {c['name']}"
+        old_label = f"{c['number']} {c['name']}"
         _apply_basic(c, body, chans)
         if "number" in body:
             c["number"] = _check_number(body["number"], chans, c["id"])

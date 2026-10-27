@@ -1,165 +1,55 @@
 HERO TV on Windows 10 / 11
 ==========================
 
-START IT (3 steps)
-  1. Right-click the zip file > "Extract All..." and extract it somewhere normal (Desktop or Documents).
-     Do NOT run it from inside the zip window - that is the #1 reason it fails.
-  2. Double-click  HERO-TV.bat
-       - If Windows says "Windows protected your PC": click "More info", then "Run anyway".
-         (It shows this for any downloaded script. The file is plain text - you can open it in Notepad and read it.)
-       - First run, it checks your PC and offers to install what is missing (Python, ffmpeg). Say Y.
-         If it tells you to close the window and start again after an install, that is normal.
-  3. The TV opens fullscreen. Leave the black window open while you watch. Close it to turn the TV off.
+START IT
+  New PC (easiest): download  HERO-TV-Setup-v1.x.x.exe  from github.com/trentnick99/Hero-tv > Releases and run it.
+    No administrator rights needed. Windows may say "unknown publisher" (the app is not code-signed): More info >
+    Run anyway. Tick "Put a HERO TV icon on the desktop". From then on: click the icon - the TV opens fullscreen.
+  From the zip instead: right-click the zip > "Extract All...", extract it somewhere normal (Desktop or Documents) -
+    never run it from inside the zip window - and double-click  HERO-TV.bat  (Windows may warn: More info > Run anyway).
+  The first start checks the PC and offers to install what is missing (the free video tools, ffmpeg).
+  HERO TV updates itself: Settings (O) > Backup and about > Install now when a new version is out.
 
 With no videos yet it runs in DEMO MODE with made-up test clips so you can try the guide and channels.
 
 WHERE THINGS GO  (the short version - there are only two places)
-  1. THE PROGRAM FOLDER (where you extracted the zip): the .bat files and settings. Never put videos here.
-  2. YOUR MEDIA FOLDER: all your videos. Double-click  Open-Media-Folder.bat  to open it. Inside you will see:
-       Inbox          <- NOT SURE where a movie goes? Drop it here, then double-click Sort-Movies.bat
-       MCU, DC, X-Men, Dragon Ball, South Park, ...   <- one folder per channel. Know the channel? Put the movie right in it.
-       Free Movies    <- filled by Get-Free-Movies.bat. Leave it alone.
+  1. THE PROGRAM FOLDER (where HERO TV is installed): the program and its settings. Never put videos here.
+  2. YOUR MEDIA FOLDER: all your videos. Settings > Media library > Open media folder. Inside you will see:
+       Inbox          <- NOT SURE where a video goes? Drop it here (or drag it onto the TV window): HERO TV files it
+                         by itself. Ones it cannot place wait in Settings > Tools > Inbox, where you pick the channel.
+       MCU, DC, X-Men, Dragon Ball, South Park, ...   <- one folder per channel. Know the channel? Put the video right in it.
+       Free Movies    <- filled by Settings > Tools > Free movies. Leave it alone.
        WHERE THINGS GO.txt   <- this same cheat sheet, kept inside the folder
-     (The hidden ".originals" folders are safe copies from fixes. Clean-Originals.bat deletes them when you are happy.)
+     (The hidden ".originals" folders are safe copies from fixes. Settings > Tools > Free up space deletes them.)
   The folders are created for you, empty ones do no harm, and nothing you already have is moved or changed.
   Everything else (schedule, resume points, settings) HERO TV keeps by itself in a hidden folder. You never touch it.
 
 YOUR CHANNEL LINEUP  (and the folder each one reads)
-   1  Marvel Movies      folder MCU                   10  Hero Marathon     everything, shuffled (Movie Night, Saturday cartoons)
+   1  Marvel Movies      folder MCU                   10  Hero Marathon     everything, plus time-of-day and seasonal blocks
    2  Marvel Television  folder Marvel Television     11  Dragon Ball       folder Dragon Ball
    3  Marvel Animation   folder Marvel Animation      12  South Park        folder South Park
    4  Spider-Verse       Spider-Man MOVIES (tag)      13  Weather
-   5  X-Men              folder X-Men                 14  Free Movies       Get-Free-Movies.bat
+   5  X-Men              folder X-Men                 14  Free Movies       Settings > Tools > Free movies
    6  DC Movies          folder DC                    15  Invincible        folder Invincible
    7-9 Classics / Action / Comedy (by tags)            16  Thriller & Horror folder Thriller & Horror (or tag thriller / horror)
-  Channels with nothing on them stay hidden, so only the ones you have filled show up. Sort-Movies.bat knows keywords for
-  all of these ("invincible" -> 15, Halloween / Hereditary / Psycho... -> 16). Rename or recolour any channel in channels.json.
+                                                      17  For You           picked from what you watch
+  Channels with nothing on them stay hidden, so only the ones you have filled show up. New videos are filed by smart
+  sorting (with the free TMDB key) or by the keywords in Settings > Channels, where you can also rename, recolor,
+  reorder, switch off or add channels.
 
-CHECKLIST - WHAT YOU HAVE AND WHAT IS STILL MISSING
-  Press H, then pick "Checklist" (or double-click Checklist.bat). There is a tab for each list - Marvel Movies, Spider-Man,
-  X-Men and Deadpool, DC Movies, Invincible (by season, showing the missing episode numbers), South Park, and some Thriller &
-  Horror ideas. Press Left / Right to change list. Films not out yet show as "coming soon", not missing.
-  Checklist.bat also saves "Shopping list.txt" in your media folder - take it to the store or the library sale.
-  - A title counts as "have" when a video's title (and year) matches it. If one is not recognised, press F3 and give it the
-    normal name, or put the year in the file name:  Iron Man (2008).mp4 .
-  - The lists are in  config\checklist.json  (Notepad). Add a movie like  {"title":"Blade","year":1998}  , or a series with its
-    season sizes. "date":"2027-06-18" marks a title as not out yet. Lists were written from public release lists up to 2026;
-    add newer titles as they come out.
-  - It lists what you could look for; HERO TV does not download copyrighted titles.
-
-MAKE IT YOURS
-  Double-click  Personalize.bat : give your TV its own name (for example "Nick's Hero TV"), pick its main colour and the
-  greeting under the name. It shows on the home menu, the help and checklist screens and the browser tab. Each channel's own
-  colour and name are in channels.json. Press F5 in the TV window to see changes.
-
-GETTING YOUR MOVIES AND SHOWS IN  (the easy ways)
-  - A USB stick, external drive or folder full of videos?  Drag it onto  Import-Folder.bat  (or double-click it and paste the
-    path). It copies every video into your Inbox (your originals are not touched) and files them onto channels by title.
-  - A few files?  Drag them onto Add-Movies.bat (you pick the channel) or drop them in Inbox and run Sort-Movies.bat.
-  - Free ones?  Get-Free-Movies.bat.
-  - Your own DVDs and Blu-rays: copy-protected discs and streaming-service downloads (Netflix, Disney+, iTunes...) cannot be
-    copied by HERO TV, and it will not try. Discs without copy protection, home videos and DRM-free purchases work as they are.
-
-PUT YOUR VIDEOS IN
-  Double-click  Open-Media-Folder.bat  (it is  C:\Users\<you>\hero-tv-media ). The top folder = which channel:
-
-    hero-tv-media\
-      MCU\Some Movie (2008).mp4
-      DC\Another Movie (1978).mp4
-      Marvel Television\Show Name\Show Name S01E02 Title.mp4
-
-  Folder names for the built-in channels:  MCU, Marvel Television, Marvel Animation, X-Men, DC, Dragon Ball, South Park.
-  Channels 4, 7, 8, 9 (Spider-Verse, Classics, Action, Comedy) work from tags - see README.md ("sidecar" files).
-  Channel 10 (Hero Marathon) plays everything. Channel 14 (Free Movies) is filled by Get-Free-Movies.bat. Channels can be changed in  config\channels.json .
-  Then double-click HERO-TV.bat again - it rescans every time you start it.
-  Want a different folder (another drive)?  Set a Windows environment variable HEROTV_MEDIA to that folder.
-
-TWO LANGUAGES / WRONG LANGUAGE  (Fix-Audio.bat)
-  Some movies carry several sound tracks (for example Japanese and English). A web browser cannot switch between them
-  while playing - it plays one, usually the first. To choose:  drag the video onto  Fix-Audio.bat . It lists the tracks
-  ("1. Japanese  <- plays now", "2. English"), you type the number, and it makes a copy that plays that language. The
-  picture is not re-encoded, so it takes seconds. Your original is kept in the hidden .originals folder.
-  - Why-Isnt-It-Showing.bat now flags every video that has more than one sound track and says which one plays.
-  - Subtitles that were inside the video are saved next to the new copy as .srt files (see SUBTITLES below).
-
-SUBTITLES  (press C)
-  While watching, press  C : subtitles come on in the first language available, press again for the next language, then off.
-  HERO TV remembers your choice (for example English) and turns that language on by itself for the next video.
-  Where they come from:
-   - A subtitle file next to the video with the same name:  Movie (2008).srt ,  Movie (2008).en.srt ,  Movie (2008).spanish.vtt
-   - Text subtitles stored inside the video (.mkv). They are read on the spot.
-   - Not possible: picture-style subtitles (many Blu-ray and DVD rips). A browser cannot show those; HERO TV tells you so.
-     Download a .srt for the movie and put it beside it, and C will find it.
-  Fix-Audio.bat / Convert-Video.bat keep a video's text subtitles by saving them as .srt files beside the new copy.
-
-BACKUP AND RESTORE  (your setup, not your videos)
-  Double-click  Backup.bat . It saves one zip in  Documents\HERO TV Backups  with your channels and lists (channels.json,
-  checklist, sort keywords), your station name and colours, favorites, resume points, what you have watched, and skip-intro
-  settings. Copy it to a USB stick or a cloud folder now and then.
-  New PC, or something went wrong?  Install HERO TV, point it at your videos, then double-click  Restore.bat  (it uses the newest
-  backup, or drag a backup zip onto it). Your current channel files are kept next to the restored ones as *.before-restore.
-  Favorites and resume points are matched by file name inside your media folder, so they come back as long as the videos are there.
-  Your videos and their rename/tag files (.hero.json) live in your media folder - back that folder up like any other files.
-
-HOME MENU AND EASIER CONTROLS
-  Press  H  (or Esc while watching live TV) for the HOME MENU - big tiles you pick with the arrow keys and Enter:
-    Live TV | Continue watching (one press resumes exactly where you stopped) | tonight's special programming
-    (Movie Night, Saturday cartoons - it shows when it starts) | TV guide | Library and search | Favorites |
-    Free movies | Weather | Sleep timer | Bigger text | Help.
-  - SLEEP TIMER (S): press S to step through 30, 60, 90, 120 minutes, "end of this show", and off. When time is up the
-    picture pauses with "Sleep timer finished"; press any key to carry on. A note appears one minute before.
-  - UP NEXT: about a minute before a show ends, a small card shows what is coming next on that channel.
-  - BIGGER TEXT (T): makes all the writing larger for reading from the couch. It is remembered.
-  - HELP (?): a screen with the keys, and a plain-English check - how many videos can play, whether ffmpeg is found,
-    and for any video being skipped, WHY and what to do (usually: drag it onto Convert-Video.bat).
-  - SKIP INTRO / CREDITS (for shows, when you watch on demand - from the Library, or press R on live TV):
-    when the intro ends, press J. Every episode of that show then jumps past the intro when you start it
-    (it says "Skipped the intro" - press Left to go back). Press E where the credits begin, and from then on
-    that show jumps out when its credits start. Shift+J / Shift+E turn them off. N skips the intro if you started
-    partway in. Live channels keep their schedule, so they cannot skip.
-
-FREE MOVIES AND SHOWS  (channel 14)
-  Double-click  Get-Free-Movies.bat  and pick a list: classic cartoons (Superman, Popeye and friends), old sci-fi and
-  horror, silent films, classic feature films, classic TV. It downloads a few titles from each (you choose how many) into
-  a folder called "Free Movies" in your media folder. They are ordinary video files, so they play on channel 14 and in the
-  Library like anything else, and you can delete any of them. Run it again any time for more - it skips what you have.
-  - Only items the Internet Archive itself marks as PUBLIC DOMAIN are downloaded (it checks the item's own licence mark).
-    It does not download anything else. A few lists may find little: many old films carry no licence mark and are skipped.
-  - Each file is roughly 100-700 MB; it keeps 2 GB of your drive free, and stops if space runs low. If a download is cut
-    off, run it again and it carries on.
-  - The lists are in  config\free-sources.json  (open in Notepad): add your own Internet Archive search words.
-    The public-domain check always applies.
-  - Free ad-supported services (Pluto, Tubi, Roku Channel, YouTube...) cannot be added: they only play inside their own
-    apps and websites, and HERO TV does not work around that.
-
-WEATHER CHANNEL (13) AND LIVE ALERTS
-  Double-click  Set-Weather-Location.bat  once, type your town, pick it from the list. Then restart HERO TV.
-  Channel 13 shows current conditions, the next hours, 7 days, and active alerts. It needs an internet connection.
-  Live alerts (US only, from the National Weather Service): when a WARNING or WATCH (tornado, severe thunderstorm,
-  flood...) is issued for your location, a red crawl runs across the top of EVERY channel until it expires. Advisories
-  are listed on channel 13 only. Checked every 2 minutes. Forecast data: Open-Meteo (free, no account needed).
-  HERO TV is not an emergency alert system - keep your phone's emergency alerts on.
-
-NEW LOOK, THUMBNAILS, FAVORITES
-  - Every video gets a picture: HERO TV grabs a real frame from the video itself (about 18% in, past the studio logos).
-    It happens in the background the first time - a big library can take a while, and the TV keeps working meanwhile.
-    Until a picture exists you see a colored tile. Pictures are stored in %LOCALAPPDATA%\HeroTV (delete that folder's
-    "-thumbs" folder to redo them).
-  - Press L for the library: a grid of pictures. Press Tab to switch All / Continue watching / Favorites.
-    Press F2 on a video to add or remove it from Favorites (a star shows on it).
   - Every channel has its own color (the "color" in config\channels.json - use any #rrggbb you like).
 
 START WITHOUT THE BLACK WINDOW
-  Double-click  Create-Desktop-Shortcut.bat  once. A "HERO TV" icon appears on your Desktop. Double-click it and the TV opens
-  with no console window; closing the TV window turns HERO TV off by itself. If something is wrong it shows a message
-  instead of failing silently (details are in %LOCALAPPDATA%\HeroTV\herotv.log). Do the first start with HERO-TV.bat so it
-  can install what is missing.
+  The Setup puts a HERO TV icon on the Desktop (or: Settings > Tools > Make a desktop shortcut). It opens the TV
+  with no console window. Closing the TV window turns HERO TV off - unless Always on is switched on (Settings > Other
+  devices), which keeps it running for the Roku app and phones. If something is wrong it shows a message instead of
+  failing silently (details are in %LOCALAPPDATA%\HeroTV\herotv.log).
 
 AUTO-SORT BY TITLE
   Drop new movies into the "Inbox" folder inside your media folder (or loose in the media folder), then double-click
   Sort-Movies.bat. It shows where each one will go, asks to confirm, then files them (moves into the channel folder
   and writes the tag file). It also fixes sound/format problems on the way in (AC-3/DTS audio, .avi and similar are
-  converted automatically; your original is kept in a hidden ".originals" folder). Movies it doesn't recognise are left alone - use Add-Movies.bat for those.
+  converted automatically; your original is kept in a hidden ".originals" folder). Movies it doesn't recognize are left alone - use Add-Movies.bat for those.
   The keyword list is  config\auto-sort.json  (open in Notepad): "spider man" -> channel 4, "batman" -> channel 6, etc.
   Movies dated (1979) or earlier also go to Superhero Classics. Add your own keywords any time.
 
@@ -244,7 +134,7 @@ KEYS
 
 SETTINGS AND MOUSE CONTROLS
   Settings: press O, choose Settings on the Home menu, or move the mouse and click Settings. Sections: Appearance (name,
-  greeting, colour, bigger text), Media library (folder, automatic Inbox, check now), Weather, Cover art (TMDB key) and
+  greeting, color, bigger text), Media library (folder, automatic Inbox, check now), Weather, Cover art (TMDB key) and
   Backup and about (backup, log folder, versions). Nothing changes until you press Save; Esc warns about unsaved changes;
   anything that resets something asks you to press twice. A copy of the previous settings is kept as settings.json.bak.
   Mouse: move it over the picture and a row of buttons (Home, Guide, Library, Details, Settings, Full screen) appears at
@@ -258,11 +148,11 @@ TOOLS (Settings > Tools) - instead of the .bat files
   make a desktop shortcut. Its messages show on the screen. The .bat files still work if you prefer them.
 
 CHANGING CHANNELS WITHOUT NOTEPAD
-  Settings (O) > Channels: click a channel to rename it, change its number, colour, play order (in order / shuffled),
+  Settings (O) > Channels: click a channel to rename it, change its number, color, play order (in order / shuffled),
   folder, description and KEYWORDS (words in a file name that send a new video to that channel). "Add a channel" makes a new
   channel and its folder; Delete removes a channel from the guide (never your videos). Changes show up straight away.
   Channels with special rules (Spider-Verse, tag channels, Hero Marathon...) keep those rules; only their name, number,
-  colour, order, description and keywords are editable here. If a change cannot be used it is undone automatically, and the
+  color, order, description and keywords are editable here. If a change cannot be used it is undone automatically, and the
   previous files are kept as channels.json.bak / auto-sort.json.bak. Editing config\channels.json by hand still works.
 
 POSTERS, PLOTS, CAST AND RATINGS (optional, free)
@@ -345,7 +235,7 @@ HERO TV ON YOUR ROKU TV (a real app on the TV)
   gets a new network address (the TV must be on). The password is kept in HERO TV's settings on this PC.
 
 PHONE WON'T CONNECT (keeps loading)
-  Settings > Other devices > "Check the connection". It looks at Windows Firewall (a cancelled "Allow access?" question
+  Settings > Other devices > "Check the connection". It looks at Windows Firewall (a canceled "Allow access?" question
   leaves a block), whether Windows calls your home network Public, and whether the address belongs to a VPN. "Fix
   it" removes the block, lets HERO TV in on private networks only and marks your home network Private - Windows asks
   for permission first. A PC on a cable and a phone on WiFi is fine as long as both use the same router (not a guest
@@ -453,20 +343,26 @@ IF A VIDEO IS SKIPPED, HAS NO SOUND, OR HAS SOUND BUT NO PICTURE
   (If your PC does show HEVC fine, set the Windows environment variable HEROTV_ALLOW_HEVC=1 to stop converting it.)
 
 IF SOMETHING GOES WRONG
-  Double-click  Check-Setup.bat  - it lists what is OK, what is missing and how to fix it.
-  - "ffprobe not found"          : let HERO-TV.bat install ffmpeg (winget), or see the manual steps it prints.
+  Press ? on the TV: the help screen says what is wrong and how to fix it. Settings > Tools > Check setup lists what is
+  OK and what is missing. Still stuck? Settings > Backup and about > Report a problem: type what happened, press Make a
+  report, then Copy and paste it into your Claude chat.
+  - "ffprobe not found"          : Settings > Tools > Install video tools.
   - "No programming" on a channel: no playable video matches that channel's folder/tags. Check folder names above.
-  - "Port 8787 is being used"    : close the other copy of HERO TV, or set HEROTV_PORT=8788.
-  - Black screen / no sound       : click the picture once; run Why-Isnt-It-Showing.bat and convert any skipped file.
+  - "Port 8787 is being used"    : another copy of HERO TV is running - Settings > Backup and about > Quit HERO TV,
+                                   then start it again.
+  - Black screen / no sound       : click the picture once; Settings > Tools lists skipped videos with a Fix button.
+  - Phone or Roku cannot connect : Settings > Other devices > Check the connection.
 
 GOOD TO KNOW
-  - Everything stays on your PC. The server only listens on this computer (127.0.0.1), nobody else on your network can reach it.
+  - Everything stays on your PC. HERO TV only listens on this computer (127.0.0.1) - unless you switch on Other devices
+    (phones, laptops and the Roku app: paired once, watch-only) or the TV media server (no pairing, off by default).
   - The schedule and your resume points are stored in  %LOCALAPPDATA%\HeroTV  (not in the program folder, so
     OneDrive cannot lock the database). Delete that folder to reset the guide.
   - Showtimes are generated for your own virtual channels - they are not real TV listings.
   - Times follow your Windows clock/timezone automatically.
   - Very long file paths (over ~250 characters) can fail on Windows; keep names reasonably short.
-  - HERO TV plays videos you own and never unlocks or copies protected content. The only thing it ever downloads is the
-    public-domain list when YOU run Get-Free-Movies.bat (plus weather data for channel 13).
+  - HERO TV plays videos you own and never unlocks or copies protected content. It only goes online for: weather
+    (channel 13), cover art and smart sorting (TMDB, with your key), public-domain free movies when YOU ask, and
+    checking GitHub for HERO TV updates (can be switched off).
   - Uses Microsoft Edge (already on Windows) or Chrome, in its own separate profile - your normal browser is untouched.
   - The Raspberry Pi files (scripts\*.sh) are for the Pi and are not needed on Windows.

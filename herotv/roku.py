@@ -5,7 +5,6 @@ Right, Left, Right) - it asks for a password, which is then typed here.
 
 The app talks to the paired-devices listener (port 8788) exactly like a phone: watch-only."""
 import io
-import json
 import os
 import re
 import socket

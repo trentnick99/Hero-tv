@@ -1,6 +1,5 @@
 import argparse
 import os
-import datetime as dt
 import json
 import sys
 import time
@@ -57,7 +56,7 @@ def main(argv=None):
     im.add_argument("paths", nargs="*")
     im.add_argument("--yes", action="store_true")
     sub.add_parser("checklist", help="show which movies/shows on your wish lists you have and which are missing")
-    pz = sub.add_parser("personalize", help="set your TV station name, colour and greeting")
+    pz = sub.add_parser("personalize", help="set your TV station name, color and greeting")
     pz.add_argument("--name"); pz.add_argument("--color"); pz.add_argument("--tagline")
     bk = sub.add_parser("backup", help="save your channels, lists, favorites and watch history to one zip file")
     bk.add_argument("--to", help="folder to save into (default: Documents\\HERO TV Backups)")

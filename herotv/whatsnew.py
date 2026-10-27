@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.19.1": [
+        "Tidy-up: the help screen (?) and messages point to the right places in Settings, and list the newer keys.",
+        "Roku app fixes: the next show always plays in the right format, OK in the guide no longer counts twice, and the channel list no longer jumps while you scroll.",
+        "The README guides were brought up to date.",
+    ],
     "1.19.0": [
         "Reminders: in the guide press R on a later show (on the Roku: OK on it). When it starts, HERO TV offers to switch - Enter (OK on the Roku) to watch.",
         "Roku app: an 'Up next' card in the last minute of every show, like the one on the PC.",
@@ -114,7 +119,7 @@ NOTES = {
     ],
     "1.0.0": [
         "Settings > Tools does what the helper .bat files did, in the background while you watch.",
-        "Settings > Channels: rename, renumber, recolour, change folders and keywords, add or delete channels.",
+        "Settings > Channels: rename, renumber, recolor, change folders and keywords, add or delete channels.",
         "Keyword rules now follow the channel itself, so renumbering a channel never breaks them.",
         "Tested and built automatically on a real Windows PC for every change.",
         "Updates can install the ready-made HERO-TV.exe - no more Build-App.bat after each update.",

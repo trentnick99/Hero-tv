@@ -1011,7 +1011,7 @@ def make_handler(app, remote=False):
                         except Exception:
                             d["subs"] = []
                     return d
-                return self.send_json({"now": now, "slot": tv_slot(cur), "next": S.slot_dict(nxt, tz),
+                return self.send_json({"now": now, "slot": tv_slot(cur), "next": tv_slot(nxt),     # next: the app may play it directly
                                        "offset": (now - cur["start"]) if cur else None})
             if p.startswith("channel/") and p.endswith("/now"):
                 cid = p[8:-4]
@@ -1361,11 +1361,11 @@ def make_handler(app, remote=False):
             problems = []
             for r in rows[:12]:
                 if not r["verified"]:
-                    why, fix = "HERO TV could not read it.", "Run Check-Setup.bat (ffmpeg may be missing), or the file may be damaged."
+                    why, fix = "HERO TV could not read it.", "Settings > Tools > Check setup (the video tools may be missing), or the file may be damaged."
                 else:
                     why = L.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"] or "")
                     why = (why[0].upper() + why[1:] + ".") if why else "It stopped playing several times in a row."
-                    fix = "Settings > Tools > Fix makes a copy that plays (or drag the file onto Convert-Video.bat)."
+                    fix = "Settings > Tools > Fix makes a copy that plays."
                 problems.append({"id": r["id"], "title": r["title"], "file": os.path.basename(r["path"]), "why": why, "fix": fix})
             empty = empty_channel_ids(c)
             hidden = [f'{r["number"]} {r["name"]}' for r in S.channels(c) if r["id"] in empty]

@@ -214,7 +214,7 @@ def alerts_only(fetch=None):
         return {"configured": False, "alerts": []}
     fetch = fetch or _get_json
     key = f"{loc['lat']},{loc['lon']},{loc.get('units', 'us')}"
-    aj, stale, err = _cached("a:" + key, ALERTS_TTL, lambda: _alerts(loc, fetch))
+    aj, stale, _err = _cached("a:" + key, ALERTS_TTL, lambda: _alerts(loc, fetch))
     try:
         alerts = parse_alerts(aj) if aj else []
     except Exception:

@@ -115,7 +115,7 @@ def update(changes, geocode=None):
             cur["name"] = name[:40]
         if "color" in st:
             if not isinstance(st["color"], str) or not COLOR.fullmatch(st["color"]):
-                raise ValueError("The colour must look like #ff3b3b.")
+                raise ValueError("The color must look like #ff3b3b.")
             cur["color"] = st["color"]
         if "tagline" in st:
             cur["tagline"] = str(st["tagline"]).strip()[:80]
@@ -157,7 +157,7 @@ def update(changes, geocode=None):
     if "subs_style" in changes:
         st = changes["subs_style"]
         if not isinstance(st, dict) or st.get("size") not in SUB_SIZES or st.get("bg") not in SUB_BGS or st.get("color") not in SUB_COLORS:
-            raise ValueError("Choose a subtitle size, background and colour from the lists.")
+            raise ValueError("Choose a subtitle size, background and color from the lists.")
         data["subs_style"] = {k: st[k] for k in ("size", "bg", "color")}
         saved.append("subs_style")
     if "windowed" in changes:
