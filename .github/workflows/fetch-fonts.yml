@@ -1,0 +1,24 @@
+name: Fetch fonts (one-off)
+on:
+  push:
+    paths: [".github/workflows/fetch-fonts.yml"]
+jobs:
+  fonts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download the open-licence fonts from Google Fonts' GitHub
+        run: |
+          set -e
+          mkdir fonts
+          base=https://raw.githubusercontent.com/google/fonts/main/ofl
+          for f in atkinsonhyperlegible/AtkinsonHyperlegible-Regular.ttf atkinsonhyperlegible/AtkinsonHyperlegible-Bold.ttf \
+                   atkinsonhyperlegible/OFL.txt barlowcondensed/BarlowCondensed-SemiBold.ttf barlowcondensed/BarlowCondensed-Bold.ttf \
+                   barlowcondensed/OFL.txt; do
+            out="fonts/$(dirname $f)-$(basename $f)"
+            curl -fsSL -o "$out" "$base/$f" || echo "::warning::missing $f"
+          done
+          ls -la fonts; sha256sum fonts/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fonts
+          path: fonts
