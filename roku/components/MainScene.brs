@@ -86,6 +86,13 @@ sub init()
     m.epList.observeField("itemFocused", "onEpFocus")
     m.epList.observeField("itemSelected", "onEpSelect")
 
+    ' the "Up next" card between shows (channels with clean start times)
+    m.card = m.top.findNode("card")
+    m.isCard = false
+    m.top.findNode("cdBar").color = accent
+    m.top.findNode("cardTimer").observeField("fire", "onCardEnd")
+    m.top.findNode("cardTick").observeField("fire", "onCardTick")
+
     ' the Weather channel
     m.wx = m.top.findNode("wx")
     m.wxTimer = m.top.findNode("wxTimer")
@@ -217,6 +224,7 @@ sub tune(idx as integer)
     m.afterFinish = false
     m.errors = 0
     leaveVod()
+    hideCard()
     m.lib.visible = false
     m.eps.visible = false
     m.top.setFocus(true)
@@ -262,6 +270,7 @@ sub onNow(event as object)
         offset = 0
     end if
     m.afterFinish = false
+    hideCard()
     m.skew = num(r.now) - CreateObject("roDateTime").AsSeconds()
     m.nextSlot = r.next
     m.live = true
@@ -272,7 +281,57 @@ sub onNow(event as object)
     end if
     hideMsg()
     showBanner(m.channels[m.current], r)
+    if isTrue(slot.card)
+        showCard(slot)
+        return
+    end if
     play(slot, offset)
+end sub
+
+' ---------- the "Up next" card: a picture and the name of the next show until it starts ----------
+sub showCard(slot as object)
+    m.video.control = "stop"
+    m.slot = slot
+    m.isCard = true
+    ch = m.channels[m.current]
+    m.top.findNode("cdHead").text = "UP NEXT ON " + UCase(txt(ch.name))
+    m.top.findNode("cdTitle").text = txt(slot.next_title)
+    m.top.findNode("cdAt").text = "at " + clock(slot.end_local)
+    m.top.findNode("cdPlot").text = txt(slot.plot)
+    m.top.findNode("cdPic").uri = m.cfg.server + "/thumb/" + txt(slot.media_id) + "?k=" + m.cfg.mk
+    m.card.visible = true
+    left = num(slot["end"]) - serverNow()
+    if left < 1 then left = 1
+    t = m.top.findNode("cardTimer")
+    t.control = "stop"
+    t.duration = left
+    t.control = "start"
+    m.top.findNode("cardTick").control = "start"
+    onCardTick()
+end sub
+
+sub onCardTick()
+    if not m.isCard or not isAA(m.slot) then return
+    left = num(m.slot["end"]) - serverNow()
+    if left < 0 then left = 0
+    secs = left mod 60
+    pad = ""
+    if secs < 10 then pad = "0"
+    m.top.findNode("cdLeft").text = "Starts in " + (left \ 60).ToStr() + ":" + pad + secs.ToStr()
+end sub
+
+sub onCardEnd()
+    if not m.isCard or m.current < 0 then return
+    m.seq = m.seq + 1
+    api("/api/tv/" + m.channels[m.current].id, "onNow")
+end sub
+
+sub hideCard()
+    if not m.isCard then return
+    m.isCard = false
+    m.card.visible = false
+    m.top.findNode("cardTimer").control = "stop"
+    m.top.findNode("cardTick").control = "stop"
 end sub
 
 sub play(slot as object, offset as integer)
@@ -334,7 +393,7 @@ end sub
 
 ' tell HERO TV what you watch, so For You and 'continue watching' learn from the TV too
 sub reportSeen()
-    if m.video.state = "playing" and isAA(m.slot)
+    if m.video.state = "playing" and isAA(m.slot) and not m.isCard
         api("/api/seen", "onQuiet", "POST", FormatJson({ media_id: num(m.slot.media_id), secs: 30 }))
         if m.mode = "vod" then saveVod(false)
     end if
@@ -347,7 +406,7 @@ end sub
 ' ---------- subtitles (*) ----------
 sub cycleSubs()
     c = m.video.content
-    if c = invalid or m.mode = "weather" then return
+    if c = invalid or m.mode = "weather" or m.isCard then return
     tr = c.subtitleTracks
     if not isArr(tr) or tr.count() = 0
         flash("No subtitles for this video")
@@ -367,7 +426,7 @@ end sub
 
 ' ---------- start over / back to live / last channel ----------
 sub startOver()
-    if not isAA(m.slot) then return
+    if not isAA(m.slot) or m.isCard then return
     m.seq = m.seq + 1
     m.live = false
     m.upNext.visible = false
@@ -589,7 +648,7 @@ end sub
 
 ' every few seconds: the "up next" card in the last minute of a show
 sub onTick()
-    if not m.live or not isAA(m.slot) or not isAA(m.nextSlot) or m.grid.visible or m.guide.visible
+    if not m.live or m.isCard or not isAA(m.slot) or not isAA(m.nextSlot) or isTrue(m.nextSlot.card) or m.grid.visible or m.guide.visible
         m.upNext.visible = false
         return
     end if
@@ -770,7 +829,7 @@ function onKeyEvent(key as string, press as boolean) as boolean
         openLib()
         return true
     else if key = "play"
-        if m.mode = "weather" then return true
+        if m.mode = "weather" or m.isCard then return true
         if m.video.state = "playing" then m.video.control = "pause" else m.video.control = "resume"
         return true
     end if
@@ -1003,6 +1062,7 @@ sub onPlay(event as object)
         return
     end if
     if m.mode = "vod" then saveVod(false)
+    hideCard()
     m.mode = "vod"
     m.vod = r
     m.live = false

@@ -29,6 +29,17 @@
       <Group id="wxDays" translation="[120,870]" />
     </Group>
 
+    <Group id="card" visible="false">
+      <Rectangle width="1920" height="1080" color="0x0d1322FF" />
+      <Poster id="cdPic" translation="[110,259]" width="1000" height="562" loadDisplayMode="scaleToFill" />
+      <Rectangle id="cdBar" translation="[1170,300]" width="10" height="70" color="0xffcf1fFF" />
+      <Label id="cdHead" translation="[1200,300]" width="640" font="font:SmallBoldSystemFont" color="0xffcf1fFF" />
+      <Label id="cdTitle" translation="[1200,345]" width="640" wrap="true" maxLines="3" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="cdAt" translation="[1200,560]" width="640" font="font:MediumSystemFont" color="0xC8CDD8FF" />
+      <Label id="cdPlot" translation="[1200,620]" width="640" wrap="true" maxLines="4" font="font:SmallestSystemFont" color="0x9AA3B5FF" />
+      <Label id="cdLeft" translation="[1200,790]" width="640" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+    </Group>
+
     <Group id="banner" visible="false" translation="[0,780]">
       <Rectangle width="1920" height="300" color="0x000000C8" />
       <Rectangle id="bnBar" width="12" height="220" translation="[90,40]" color="0xffcf1fFF" />
@@ -121,5 +132,7 @@
     <Timer id="remTimer" duration="20" repeat="true" />
     <Timer id="remHide" duration="120" />
     <Timer id="wxTimer" duration="600" repeat="true" />
+    <Timer id="cardTimer" duration="60" />
+    <Timer id="cardTick" duration="1" repeat="true" />
   </children>
 </component>

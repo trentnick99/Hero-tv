@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.21.0": [
+        "Clean start times, like real TV: Settings > Channels > a channel > Start times - on the quarter hour, half hour or hour.",
+        "The gap before each show is filled with whole short cartoons from a Shorts folder in your media folder (free classic cartoons from Tools > Free movies count too) - never cut off.",
+        "The last minute or two shows an 'Up next' card with a picture of the next show, on the PC, phones and the Roku app.",
+    ],
     "1.20.2": [
         "Updates: when GitHub limits update checks from your Internet address (common with T-Mobile and other shared home internet), HERO TV asks GitHub's releases page instead.",
         "If checking still fails, the message now says why (no connection, a refused certificate, or GitHub's limit).",

@@ -164,7 +164,7 @@ def read(cfg):
         kws, shared = _own_keywords(rules, c["id"])
         folder = _folder_of(c)
         out.append({"id": c["id"], "number": c.get("number"), "name": c.get("name", ""), "color": c.get("color", "#ffcf1f"),
-                    "mode": c.get("mode", "sequential"), "description": c.get("description", ""), "kind": c.get("kind", "tv"),
+                    "mode": c.get("mode", "sequential"), "starts": c.get("starts") or 0, "description": c.get("description", ""), "kind": c.get("kind", "tv"),
                     "folder": folder, "keywords": kws, "shared_keywords": shared, "summary": _summary(c), "off": bool(c.get("off")),
                     "smart": [r.get("label") or "" for r in smart if c["id"] in r["channels"]],
                     "special": bool(c.get("also") or c.get("blocks") or c.get("smart") or (folder is None and c.get("kind") not in ("weather", "foryou")))})
@@ -234,6 +234,15 @@ def _apply_basic(c, ch, channels):
         c["color"] = ch["color"]
     if "description" in ch:
         c["description"] = " ".join(str(ch["description"]).split())[:200]
+    if "starts" in ch and c.get("kind") not in ("weather",):
+        v = ch["starts"]
+        v = int(v) if str(v).isdigit() else 0
+        if v not in (0, 15, 30, 60):
+            raise ValueError("Start times must be any time, quarter hours, half hours or whole hours.")
+        if v:
+            c["starts"] = v
+        else:
+            c.pop("starts", None)
     if "mode" in ch and c.get("kind") != "weather":
         if ch["mode"] not in MODES:
             raise ValueError("Play order must be 'in order' or 'shuffled'.")

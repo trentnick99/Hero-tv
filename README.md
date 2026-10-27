@@ -24,6 +24,8 @@ The full guide is in [`README_WINDOWS.txt`](README_WINDOWS.txt).
   Shows nobody planned for can get their own channel in one step; fix any mistake with *Move to another channel*.
 - **For You** (channel 17) learns from what you watch; **Hero Marathon** follows the clock like real TV (cartoons on
   weekend mornings, hero films in prime time, scary films late at night) and has seasonal specials.
+- **Clean start times** - a channel can start shows on the quarter or half hour like real TV, filling the gap with
+  whole short cartoons from a Shorts folder and an "Up next" card.
 - **Library** - search, resume, favorites, "continue watching", next episode, missing episodes, duplicates.
 - **Other screens** - phones and laptops on your WiFi (paired once, watch-only), and a **HERO TV app for Roku TVs**
   that HERO TV installs on the TV for you (guide grid, on-demand library with resume and search, Weather, last channel,

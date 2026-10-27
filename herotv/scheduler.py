@@ -14,6 +14,16 @@ from .tz import get_tz
 
 MAX_CATCHUP_S = 7 * 86400   # after a longer outage the channel resumes "now" instead of replaying it
 MAX_SLOTS_PER_RUN = 200000
+# Clean start times: a channel can start its shows on the quarter hour, half hour or hour (channels.json "starts":
+# 15, 30 or 60). The gap is filled with whole short cartoons from the Shorts folder that fit, and whatever is left
+# with an "Up next" card for the next show.
+SHORTS = "~short"
+CARD = "~card"
+SHORTS_FOLDER = "shorts"
+SHORT_MAX_S = 15 * 60          # longer videos are never used as filler
+LATE_OK_S = 60                 # a show that runs up to a minute past the hour: the next one simply starts then
+CARD_MIN_S = 5                 # a smaller leftover is added to the last item instead
+ALIGN_CHOICES = (15, 30, 60)
 _lock = threading.RLock()
 
 
@@ -26,6 +36,10 @@ def load_channels(conn, channels):
                 rules["_blocks"] = parse_blocks(c)
             if c.get("smart") is False:
                 rules["_smart"] = False                   # opt out of "prefer what you have not seen"
+            if c.get("starts") in ALIGN_CHOICES:
+                rules["_align"] = int(c["starts"])        # shows start on the quarter/half hour or the hour
+            if isinstance(c.get("filler"), list) and c["filler"]:
+                rules["_filler"] = [str(x) for x in c["filler"]]   # only these Shorts subfolders / tags
             conn.execute(
                 "INSERT INTO channels(id,number,name,mode,rules,description,color,kind) VALUES(?,?,?,?,?,?,?,?) "
                 "ON CONFLICT(id) DO UPDATE SET number=excluded.number,name=excluded.name,mode=excluded.mode,"
@@ -266,6 +280,65 @@ def _spec(ch):
     return rules, blocks
 
 
+# ---------- clean start times ----------
+def is_short(m):
+    """Filler: anything in the Shorts folder, and free classic cartoons, up to 15 minutes."""
+    if not 0 < (m["runtime_s"] or 0) <= SHORT_MAX_S:
+        return False
+    f = str(m["franchise"] or "").lower()
+    if f == SHORTS_FOLDER:
+        return True
+    return f == "free movies" and "cartoon" in {str(t).lower() for t in json.loads(m["tags"] or "[]")}
+
+
+def shorts_pool(conn, only=None):
+    """The shorts a channel may use, in a fixed order. `only`: names of Shorts subfolders or tags to keep to."""
+    rows = [r for r in conn.execute("SELECT * FROM media WHERE available=1 AND verified=1 AND playable=1 ORDER BY id")
+            if is_short(r)]
+    if only:
+        want = {str(x).lower() for x in only}
+        rows = [r for r in rows if str(r["series"] or "").lower() in want
+                or want & {str(t).lower() for t in json.loads(r["tags"] or "[]")}] or rows
+    return rows
+
+
+def next_start(t, minutes, z):
+    """The first quarter/half/whole hour (local time) at or after t - or t itself when that is under a minute late."""
+    step = minutes * 60
+    off = int(dt.datetime.fromtimestamp(t, z).utcoffset().total_seconds())
+    late = (t + off) % step
+    if late == 0 or late <= LATE_OK_S:
+        return t
+    return t + step - late
+
+
+def fill_gap(conn, ch_id, start, until, pool, after, card_media):
+    """Fill [start, until) with whole shorts that fit (going round the pool, starting after `after`), then an
+    "Up next" card for `card_media`. Returns the id of the last short used (or `after`)."""
+    gap = until - start
+    if gap <= 0:
+        return after
+    ids = [r["id"] for r in pool]
+    first = ids.index(after) + 1 if after in ids else 0
+    last_start = None
+    for k in range(len(pool)):
+        if gap < CARD_MIN_S:
+            break
+        m = pool[(first + k) % len(pool)]
+        d = max(1, math.ceil(m["runtime_s"]))
+        if d <= gap:
+            conn.execute("INSERT INTO slots(channel_id,start,end,media_id,cycle,pl) VALUES(?,?,?,?,0,?)",
+                         (ch_id, start, start + d, m["id"], SHORTS))
+            last_start, after = start, m["id"]
+            start, gap = start + d, gap - d
+    if gap >= CARD_MIN_S or (gap > 0 and last_start is None and card_media is not None):
+        conn.execute("INSERT INTO slots(channel_id,start,end,media_id,cycle,pl) VALUES(?,?,?,?,0,?)",
+                     (ch_id, start, until, card_media if card_media is not None else after, CARD))
+    elif gap > 0 and last_start is not None:
+        conn.execute("UPDATE slots SET end=? WHERE channel_id=? AND start=?", (until, ch_id, last_start))
+    return after
+
+
 def _playlist(conn, ch, plan, key, cycle, cache):
     """Ordered media for one playlist ("" = the channel's normal programming, else a block name) and cycle."""
     if (key, cycle) in cache:
@@ -339,6 +412,26 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
         else:
             start = last["end"]
         cache, added, pos = {}, 0, {}
+        align = plan[0].get("_align") if plan[0].get("_align") in ALIGN_CHOICES else None
+        fill_state = {"pool": None, "last": None}
+
+        def pad(t, fallback_media):
+            """Fill from t to the next clean start time; returns that time."""
+            b = next_start(t, align, z)
+            if b <= t:
+                return t
+            nb = block_at(blocks, dt.datetime.fromtimestamp(b, z)) if blocks else None
+            nkey = nb["name"] if nb else ""
+            peek = _next(conn, ch, plan, nkey, *where_was(nkey), cache, skip) or \
+                _next(conn, ch, plan, "", *where_was(""), cache, skip)
+            if fill_state["pool"] is None:
+                fill_state["pool"] = shorts_pool(conn, plan[0].get("_filler"))
+                r0 = conn.execute("SELECT media_id FROM slots WHERE channel_id=? AND pl=? ORDER BY start DESC LIMIT 1",
+                                  (ch["id"], SHORTS)).fetchone()
+                fill_state["last"] = r0["media_id"] if r0 else None
+            fill_state["last"] = fill_gap(conn, ch["id"], t, b, fill_state["pool"], fill_state["last"],
+                                          peek[0]["id"] if peek else fallback_media)
+            return b
 
         def where_was(key):                       # (last media, cycle) for a playlist, from what is already stored
             if key not in pos:
@@ -350,6 +443,8 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
                     pos[key] = (None, pos[key][1])
             return pos[key]
 
+        if align and last is not None and start == last["end"] and start < now + horizon_s:
+            start = pad(start, last["media_id"])      # e.g. carrying on after a short, or the setting was just switched on
         while start < now + horizon_s and added < MAX_SLOTS_PER_RUN:
             b = block_at(blocks, dt.datetime.fromtimestamp(start, z)) if blocks else None
             key = b["name"] if b else ""
@@ -371,6 +466,8 @@ def extend(conn, ch, now, horizon_s=48 * 3600, tz="local", resume=False, avoid=(
             pos[key] = (m["id"], cycle)
             if smart:
                 skip.add(m["id"])
+            if align:
+                end = pad(end, m["id"])
             start = end
             added += 1
         conn.commit()
@@ -417,7 +514,17 @@ def slot_dict(row, tz):
     d = dict(row)
     d["start_local"] = dt.datetime.fromtimestamp(d["start"], z).isoformat()
     d["end_local"] = dt.datetime.fromtimestamp(d["end"], z).isoformat()
-    d["block"] = "" if d.get("pl") == "~filler" else (d.get("pl") or "")   # "~filler" = slots made by an older version
+    pl = d.get("pl") or ""
+    d["block"] = "" if pl.startswith("~") else pl   # "~filler" = slots made by an older version
+    d["filler"] = "short" if pl == SHORTS else "card" if pl == CARD else ""
+    if pl == CARD:                       # an "Up next" card: no video, a picture and the name of what is next
+        d["card"] = True
+        nl = d.get("title") or ""
+        if d.get("series"):
+            nl = f"{d['series']} S{d.get('season') or 0}E{d.get('episode') or 0}" + (f" - {d['title']}" if d.get("title") else "")
+        d["next_title"] = nl
+        d["title"] = "Up next"
+        d["series"], d["season"], d["episode"] = "", 0, 0
     d["source"] = "generated"   # virtual-channel schedule, never an official broadcast listing
     return d
 

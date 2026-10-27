@@ -218,6 +218,16 @@ REMINDERS
   again removes it); when it starts the TV shows the reminder - OK to watch, Back for not now. Reminders are shared
   by the PC, phones and the Roku app, and clear themselves after the show.
 
+CLEAN START TIMES AND SHORTS (like real TV)
+  Settings > Channels > a channel > Start times: "On the quarter hour", "On the half hour" or "On the hour". Shows
+  then start at clean times, and the gap before each one is filled with whole short cartoons - never cut off - from
+  a folder called Shorts in your media folder (up to 15 minutes each; subfolders such as Shorts\Superhero are fine).
+  Free classic cartoons from Tools > Free movies (for example Superhero-era cartoons) are used as well. Whatever is
+  left (usually a minute or two) shows an "Up next" card with a picture and the name of the next show, on the PC,
+  phones and the Roku app. With no shorts at all the card fills the whole gap, so quarter hours work best then.
+  A channel can keep to some shorts only: add "filler": ["Superhero"] to it in config\channels.json (subfolder
+  names or tags).
+
 ALWAYS ON (for the Roku app and phones)
   Settings > Other devices > Always on: "Start HERO TV when I sign in to Windows" puts a HERO TV shortcut in the
   Startup folder; it starts in the background with no window. "Keep HERO TV running when the TV window is closed" is

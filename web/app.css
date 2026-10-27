@@ -261,3 +261,14 @@ body.cue-yellow video::cue{color:#ffe14d}
 #remind span{opacity:.8;font-size:calc(1.9vh*var(--tx))}
 .blk.rem{outline:2px dashed var(--accent);outline-offset:-3px}.blk .rbadge{position:absolute;right:.5vw;top:.4vh;font-size:1.3vh;font-weight:700;
  background:var(--accent);color:var(--on);border-radius:.6vh;padding:.1vh .5vw}
+
+/* "Up next" card between shows (clean start times) */
+#upcard{background:radial-gradient(120% 90% at 15% 0%,#22304f 0%,#0d1322 55%,#06080f 100%);display:none;align-items:center;gap:4vw;padding:0 6vw}
+#upcard.on{display:flex}
+#upcard img{width:44vw;aspect-ratio:16/9;object-fit:cover;border-radius:1.6vh;box-shadow:0 2vh 6vh rgba(0,0,0,.6)}
+#upcard .uc-t{display:flex;flex-direction:column;gap:1.4vh;max-width:40vw}
+#upcard small{color:var(--accent,#ffcf1f);font-weight:700;letter-spacing:.12em;font-size:2.2vh}
+#upcard h2{margin:0;font-size:5.6vh;line-height:1.1}
+#upcard .uc-at{font-size:3vh;color:#c9d6f2}
+#upcard p{margin:0;font-size:2.3vh;color:#9aa3b5;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+#upcard .uc-left{font-size:2.6vh;font-weight:600;margin-top:1vh}

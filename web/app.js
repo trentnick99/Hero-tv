@@ -47,7 +47,7 @@ function osd(keep){const c=chans[ci];if(!c)return;const wx=c.kind==="weather"&&!
  $("#osd").classList.toggle("vod",!!vod);$("#o-num").textContent=vod?"VOD":c.number;
  $("#o-title").textContent=wx?"Local weather":label(s);
  $("#o-sub").textContent=wx?c.name+", live forecast and alerts":vod?(vod.startOver?"Start over":"On demand")+([vod.franchise,vod.year].filter(Boolean).length?", "+[vod.franchise,vod.year].filter(Boolean).join(", "):""):`${c.name}${s.block?" · "+s.block:""}, ${T(s.start)} to ${T(s.end)}, ${mins(s.end-nowS())} min left`;
- osdHints(wx?"":vod?"":nextSlot?`Next at ${T(nextSlot.start)}: ${label(nextSlot)}`:"",
+ osdHints(wx?"":vod?"":nextSlot?(nextSlot.card?`Next at ${T(nextSlot.end)}: ${nextSlot.next_title}`:`Next at ${T(nextSlot.start)}: ${label(nextSlot)}`):"",
   wx?[]:vod?[["← →","skip 10 s / 30 s"],["0-9","jump"],["Space","pause"],["C","subtitles"],...(vod.series?[["J","intro ends here"],["E","credits start here"]]:[]),["Esc","back to TV"]]:slot?[["R","start over"],["C","subtitles"],["H","home menu"],["S","sleep timer"],["F3","rename"]]:[]);
  $("#o-clock").textContent=T(nowS())+(sleepLeft()?"   ·   Sleep in "+sleepLeft():"");show("#osd",true);clearTimeout(osdT);if(!(vod&&(v.paused||keep)))osdT=setTimeout(()=>show("#osd",false),5e3);bar()}
 function osdHints(text,pairs){const nx=$("#o-next");nx.textContent="";if(text)nx.append(el("span",0,text));
@@ -63,16 +63,25 @@ const seekBy=d=>seekTo(v.currentTime+d);
  wb.addEventListener("pointermove",e=>{if(!vod||!isFinite(v.duration))return;const f=frac(e);hv.textContent=hms(f*v.duration);hv.style.left=f*100+"%";hv.style.display="block";if(scrub)seekTo(f*v.duration)});
  wb.addEventListener("pointerup",()=>{scrub=false});wb.addEventListener("pointerleave",()=>{if(!scrub)hv.style.display="none"})}
 v.addEventListener("pause",()=>{if(vod)osd(true)});v.addEventListener("play",()=>{if(vod)osd()});
-function startOver(){if(!slot||vod)return;startVod({id:slot.media_id,title:slot.title,series:slot.series,season:slot.season,episode:slot.episode,
+function startOver(){if(!slot||vod||slot.card)return;startVod({id:slot.media_id,title:slot.title,series:slot.series,season:slot.season,episode:slot.episode,
  franchise:slot.franchise,year:slot.year,runtime_s:slot.runtime_s,position:0,completed:0,startOver:true})}
 async function sync(){const a=Date.now(),j=await api("/api/now");off=j.now-(a+Date.now())/2e3;cfg=j}
 async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;if(started&&ni!==ci)prevCi=ci;started=true;ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
- const wx=chans[ci].kind==="weather";show("#wx",wx);document.body.classList.toggle("novideo",wx);
+ const wx=chans[ci].kind==="weather";show("#wx",wx);show("#upcard",false);clearTimeout(cardT);document.body.classList.toggle("novideo",wx);
  if(wx){slot=nextSlot=null;v.pause();v.removeAttribute("src");v.load();loadWx();return osd()}
  let j;try{j=await api(`/api/channel/${chans[ci].id}/now`)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open. Trying again."),setTimeout(()=>tune(ci),3e3)}
  if(my!==seq)return; /* a newer tune() superseded this one */
  slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Press O for Settings, then Tools > Free movies > Download."):msg("Nothing is scheduled on "+chans[ci].name,"Drag videos onto this window, or put them in this channel's folder. They appear by themselves.")}
+ if(slot.card)return upCard(my);
  play(withK(`/media/${slot.media_id}`),()=>Math.min(nowS()-slot.start,(v.duration||1e9)-.5));loadSubs(slot.media_id);osd()}
+/* "Up next" card: fills the minute or two before a show that starts at a clean time (no video) */
+let cardT=0;
+function upCard(my){const c=chans[ci],box=$("#upcard");v.pause();v.removeAttribute("src");v.load();clearSub();document.body.classList.add("novideo");
+ box.textContent="";const img=el("img");img.alt="";img.src=withK(`/thumb/${slot.media_id}`);img.onerror=()=>img.remove();
+ const t=el("div","uc-t");t.append(el("small",0,"UP NEXT ON "+c.name.toUpperCase()),el("h2",0,slot.next_title||""),el("div","uc-at",`at ${T(slot.end)}`));
+ if(slot.plot)t.append(el("p",0,slot.plot));const left=el("div","uc-left");t.append(left);box.append(img,t);show("#upcard",true);
+ const tick=()=>{if(my!==seq||!slot||!slot.card)return;const s=Math.max(0,slot.end-nowS());left.textContent=`Starts in ${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
+  if(s<=0)return tune(ci);cardT=setTimeout(tick,1e3)};tick();osd()}
 /* subtitles: files next to the video, or text subtitles inside it (C cycles off / each track) */
 let subs=[],subI=-1,subPref="",subMid=0,subPics=0;
 function clearSub(){for(const t of v.querySelectorAll("track"))t.remove();subI=-1}
@@ -86,7 +95,7 @@ function cycleSub(){
  if(!subs.length)return toast(subPics?"This video's subtitles are pictures (Blu-ray style) that a browser cannot show. Use a .srt file instead.":"No subtitles for this video. Put a .srt file next to it with the same name.");
  const n=subI+1>=subs.length?-1:subI+1;setSub(n);subPref=n>=0?(subs[n].language||"*"):"";post("/api/prefs",{subs:subPref})}
 function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
-async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
+async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);show("#upcard",false);clearTimeout(cardT);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
  it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series))}catch(e){}if(vod!==it)return}
  play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
   const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0});loadSubs(it.id);osd()}
@@ -138,7 +147,7 @@ function sleepCheck(){if(sleeping)return;
 function goToSleep(){sleeping=true;sleepMs=0;sleepAfter=false;sleepI=0;v.pause();msg("Sleep timer finished","Press any key to keep watching.")}
 function wake(){sleeping=false;msg("");if(vod&&!v.ended)v.play().catch(()=>{});else tune(ci)}
 function upNext(){const u=$("#upnext"),left=slot?slot.end-nowS():0;
- if(vod||!slot||!nextSlot||left<=0||left>75||layer!==""||sleeping){u.classList.remove("on");u.dataset.k="";return}
+ if(vod||!slot||!nextSlot||slot.card||nextSlot.card||left<=0||left>75||layer!==""||sleeping){u.classList.remove("on");u.dataset.k="";return}
  const k=nextSlot.media_id+":"+nextSlot.start;
  if(u.dataset.k!==k){u.dataset.k=k;const pic=$("#un-pic");pic.textContent="";pic.append(thumb(nextSlot.media_id));$("#un-t").textContent=label(nextSlot);$("#un-s").textContent=`${chans[ci].number} ${chans[ci].name}, ${T(nextSlot.start)}${nextSlot.block?" · "+nextSlot.block:""}`}
  $("#un-h").textContent="UP NEXT IN "+hms(left);u.classList.add("on")}
@@ -496,7 +505,7 @@ async function loadTheme(){try{theme=Object.assign(theme,await api("/api/theme")
 function applyCues(st){st=st||{};const b=document.body.classList;b.toggle("cue-l",st.size==="large");b.toggle("cue-xl",st.size==="xl");b.toggle("cue-none",st.bg==="none");b.toggle("cue-yellow",st.color==="yellow")}
 const SW=["#ffcf1f","#ff3b3b","#3d6bff","#3ddc84","#b06bff","#ff8c00","#ff2e88","#1fd1b4"];
 const SCATS=[["look","Appearance"],["chan","Channels"],["lib","Media library"],["weather","Weather"],["art","Cover art"],["tools","Tools"],["devices","Other devices"],["about","Backup and about"]];
-let chList=null,chSel=null;let sCat="look",sData=null,sDirty=false,sLeave=false;
+let chList=null,chSel=null,chShorts=0;let sCat="look",sData=null,sDirty=false,sLeave=false;
 function sMsg(t,cls){const m=$("#st-msg");if(m){m.textContent=t||"";m.className="smsg"+(cls?" "+cls:"")}}
 function sField(label,help,input,row){const f=el("div","sf"+(row?" row":""));if(label)f.append(el("label",0,label));if(input)f.append(input);if(help)f.append(el("small",0,help));return f}
 function sBtn(text,fn,cls){const b=el("button","sbtn"+(cls?" "+cls:""),text);b.type="button";b.onclick=fn;return b}
@@ -759,7 +768,7 @@ function chBack(){chSel=null;sDirty=false;sLeave=false;drawSettings();$("#st-mai
 async function chSaved(r,text){chList=r.channels;sDirty=false;sLeave=false;try{libV=(await fetch("/api/hb").then(x=>x.json())).lib}catch(e){}libChanged("channels updated");sMsg(text+(r.note?" "+r.note:""),"ok")}
 async function chPost(body,okText,backToList){sMsg("Saving...");try{const r=await pj("/api/channels-config",body);await chSaved(r,okText);if(backToList){chSel=null;drawSettings();sMsg(okText+(r.note?" "+r.note:""),"ok")}}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}}
 function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
- if(!chList){main.append(el("div","empty","Loading channels..."));api("/api/channels-config").then(j=>{chList=j.channels;if(layer==="settings"&&sCat==="chan")drawSettings()}).catch(()=>{main.textContent="";main.append(el("div","empty","Channels could not be loaded."))});return}
+ if(!chList){main.append(el("div","empty","Loading channels..."));api("/api/channels-config").then(j=>{chList=j.channels;chShorts=j.shorts||0;if(layer==="settings"&&sCat==="chan")drawSettings()}).catch(()=>{main.textContent="";main.append(el("div","empty","Channels could not be loaded."))});return}
  if(chSel===null){main.append(el("small",0,"Click a channel to rename it, change its color, folder or keywords. Changes show up in the guide straight away."));
   { const sm=el("input");sm.type="checkbox";sm.checked=sData&&sData.smart_sort!==false;
     sm.onchange=async()=>{try{await pj("/api/settings",{smart_sort:sm.checked});sData=await api("/api/settings");chList=null;drawSettings();toast(sm.checked?"Smart sorting on":"Smart sorting off")}catch(e){sMsg(String(e.message||e),"err")}};
@@ -789,6 +798,8 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
  for(const x of SW){const b=el("button",x.toLowerCase()===col.toLowerCase()?"on":"");b.type="button";b.dataset.c=x;b.style.background=x;b.title=x;b.setAttribute("aria-label","Color "+x);b.onclick=()=>pick(x);sw.append(b)}
  main.append(sField("Channel name","Shown in the guide and when you change channel.",name),sField("Channel number","The number you type to tune it. Each channel needs its own.",num),sField("Color",null,sw),sField("",null,hex,true));
  let mode=null;if(c.kind!=="weather"){mode=el("select");for(const[v,t]of[["sequential","In order (episodes and movies one after another)"],["shuffle","Shuffled (a different order each time)"]]){const o=el("option",0,t);o.value=v;if(v===c.mode)o.selected=true;mode.append(o)}mode.onchange=()=>{sDirty=true;sLeave=false};main.append(sField("Play order",null,mode))}
+ let starts=null;if(c.kind!=="weather"){starts=el("select");for(const[v,t]of[[0,"Any time (one show straight after the other)"],[15,"On the quarter hour (:00, :15, :30, :45)"],[30,"On the half hour (:00 and :30)"],[60,"On the hour"]]){const o=el("option",0,t);o.value=v;if(v===(c.starts||0))o.selected=true;starts.append(o)}starts.onchange=()=>{sDirty=true;sLeave=false};
+  main.append(sField("Start times",`Like real TV: shows start at clean times, and the gap before them is filled with whole short cartoons from your Shorts folder (put them in a folder called Shorts in your media folder - Tools > Free movies > Superhero-era cartoons gets some free ones) and an "Up next" card for the last minute or two. You have ${chShorts} short${chShorts===1?"":"s"} right now`+(chShorts<10?" - with few or none, the gaps are mostly the Up next card, so quarter hours work best.":"."),starts))}
  let folder=null,words=null,desc=null;
  if(c.kind!=="weather"){
   if(!isNew)main.append(sField(c.off?"This channel is off":"On or off",c.off?"It is hidden from the guide and nothing new is filed onto it. Your videos are untouched.":"Switching it off hides it from the guide and stops new videos being filed onto it. Nothing is deleted.",
@@ -799,7 +810,7 @@ function drawChannelsCfg(main,msg){main.append(el("h3",0,"Channels"));
   if(c.smart&&c.smart.length)main.append(sField("Smart sorting",`With a TMDB key, this channel automatically gets: ${c.smart.join("; ")}. The keywords below are then only used for titles TMDB does not know.`,null));
   main.append(sField("Keywords","When new videos arrive in the Inbox (or you press Sort the Inbox now in Tools), a file whose name contains one of these words goes on this channel. One per line."+(c.shared_keywords?` ${c.shared_keywords} more keywords are shared with other channels and are not shown here.`:""),words))}
  desc=sInput(c.description);desc.style.width="50vw";main.append(sField("Description","One line shown in the guide.",desc));
- const bar=el("div","sbar"),payload=()=>{const b={name:name.value,color:col,description:desc.value};if(num.value.trim()!=="")b.number=num.value.trim();if(mode)b.mode=mode.value;if(folder&&(isNew||folder.value.trim()))b.folder=folder.value;if(words)b.keywords=words.value;return b};
+ const bar=el("div","sbar"),payload=()=>{const b={name:name.value,color:col,description:desc.value};if(num.value.trim()!=="")b.number=num.value.trim();if(mode)b.mode=mode.value;if(starts)b.starts=Number(starts.value);if(folder&&(isNew||folder.value.trim()))b.folder=folder.value;if(words)b.keywords=words.value;return b};
  bar.append(sBtn(isNew?"Create channel":"Save",()=>isNew?chPost(Object.assign({op:"add"},payload()),"Channel created.",true):chPost(Object.assign({op:"save",id:c.id},payload()),"Saved."),"pri"),sBtn("Back to the list",()=>{if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}chBack()}));
  if(!isNew)bar.append(sBtn("Delete this channel",()=>{if(!bar.dataset.sure){bar.dataset.sure=1;sMsg("Press Delete again to remove this channel from the guide. Your videos are not touched.","err");return}chPost({op:"delete",id:c.id},"Channel deleted.",true)},"warn"));
  main.append(bar,msg)}

@@ -47,6 +47,15 @@ class ChannelEditTests(unittest.TestCase):
         self.assertTrue((Path(self.cfg.channels_file).with_name("channels.json.bak")).exists())
         self.assertIn("_help", self.rules())
 
+    def test_start_times_setting(self):
+        CA.update(self.cfg, {"op": "save", "id": "mcu", "starts": 30})
+        self.assertEqual(self.chans()["mcu"]["starts"], 30)
+        self.assertEqual([c for c in CA.read(self.cfg)["channels"] if c["id"] == "mcu"][0]["starts"], 30)
+        CA.update(self.cfg, {"op": "save", "id": "mcu", "starts": 0})
+        self.assertNotIn("starts", self.chans()["mcu"])
+        with self.assertRaises(ValueError):
+            CA.update(self.cfg, {"op": "save", "id": "mcu", "starts": 20})
+
     def test_renumber_moves_rules_and_checklist(self):
         CA.update(self.cfg, {"op": "save", "id": "south-park", "number": 20})
         self.assertEqual(self.chans()["south-park"]["number"], 20)

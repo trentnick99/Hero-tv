@@ -1305,7 +1305,7 @@ def make_handler(app, remote=False):
             if p == "channels-config":
                 if method == "POST":
                     return self.send_json(self.change_channels(c, self.body()))
-                return self.send_json(channels_api.read(app.cfg))
+                return self.send_json(dict(channels_api.read(app.cfg), shorts=len(S.shorts_pool(c))))
             if p == "theme":
                 return self.send_json(dict(station(), subs=settings_api.subs_style()))
             if p == "checklist":
