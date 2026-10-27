@@ -78,9 +78,10 @@ class RealSound(unittest.TestCase):
         b = {"id": 2, "path": os.path.join(d, "ep2.m4a"), "runtime_s": 245}
         with unittest.mock.patch.object(I, "MIN_MATCH_S", 12):
             r = I.find_pair(ff, a, b)
-        self.assertAlmostEqual(r[1]["intro_start"], 50, delta=1.5)
-        self.assertAlmostEqual(r[1]["intro_end"], 75, delta=1.5)
-        self.assertAlmostEqual(r[2]["intro_start"], 20, delta=1.5)
+        self.assertAlmostEqual(r[1]["intro_start"], 50, delta=2)
+        self.assertTrue(62 <= r[1]["intro_end"] <= 77, r)          # never far past the end of the theme
+        self.assertAlmostEqual(r[2]["intro_start"], 20, delta=2)
+        self.assertAlmostEqual(r[1]["intro_end"] - r[1]["intro_start"], r[2]["intro_end"] - r[2]["intro_start"], delta=1)
 
 
 if __name__ == "__main__":

@@ -1155,6 +1155,7 @@ sub onVodPosition()
         m.video.seek = b
         flash("Skipped the intro  -  Left goes back")
         return
+    end if
     cr = num(sk.credits)
     if cr > 0 and not m.credDone and at >= cr and m.video.duration - at > 5
         m.credDone = true
