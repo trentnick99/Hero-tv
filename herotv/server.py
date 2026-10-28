@@ -4,10 +4,12 @@ import json
 import mimetypes
 import os
 import secrets
+import subprocess
 import sys
 import threading
 import time
 import traceback
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
@@ -294,6 +296,38 @@ def make_handler(app, remote=False):
             self.send_header("Content-Length", "0")
             self.end_headers()
 
+        def captest(self, name):
+            """A 2-second test clip (made once with ffmpeg): hevc8.mp4, hevc8.mkv or hevc10.mp4."""
+            from . import tools
+            from .launcher import app_data_dir
+            kinds = {"hevc8.mp4": ("yuv420p", "mp4"), "hevc8.mkv": ("yuv420p", "matroska"), "hevc10.mp4": ("yuv420p10le", "mp4")}
+            if name not in kinds:
+                return self.send_json({"error": "not found"}, 404)
+            d = Path(app_data_dir()) / "captest"
+            f = d / name
+            if not f.is_file():
+                exe = tools.find_tool("ffmpeg")
+                if not exe:
+                    return self.send_json({"error": "ffmpeg is needed"}, 503)
+                d.mkdir(parents=True, exist_ok=True)
+                pix, fmt = kinds[name]
+                cmd = [exe, "-hide_banner", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=25", "-f", "lavfi",
+                       "-i", "sine=f=440", "-t", "2", "-c:v", "libx265", "-pix_fmt", pix, "-x265-params", "log-level=error",
+                       "-c:a", "aac"] + (["-tag:v", "hvc1"] if fmt == "mp4" else []) + ["-f", fmt, str(f) + ".tmp"]
+                try:
+                    r = subprocess.run(cmd, capture_output=True, timeout=60, **tools.HIDE)
+                    if r.returncode != 0:
+                        return self.send_json({"error": "this ffmpeg cannot make H.265"}, 503)
+                    os.replace(str(f) + ".tmp", f)
+                except (OSError, subprocess.SubprocessError):
+                    return self.send_json({"error": "could not make the test clip"}, 503)
+            b = f.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "video/mp4" if name.endswith(".mp4") else "video/x-matroska")
+            self.send_header("Content-Length", str(len(b)))
+            self.end_headers()
+            self.wfile.write(b)
+
         def send_bytes(self, b, ctype, code=200):
             self.send_response(code)
             self.send_header("Content-Type", ctype)
@@ -548,7 +582,7 @@ def make_handler(app, remote=False):
                     orig += LA._dir_size(os.path.join(dp, ".originals"))
                 dn[:] = [x for x in dn if x != ".originals" and not x.startswith(".")]
             skipped = [{"id": r["id"], "title": r["title"], "file": os.path.basename(r["path"]),
-                        "why": L.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"] or "") or "it could not be read"}
+                        "why": L.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1]) or "it could not be read"}
                        for r in c.execute("SELECT id,title,path,vcodec,acodec,vfmt FROM media WHERE available=1 AND (playable=0 OR verified=0) "
                                           "ORDER BY title LIMIT 50")]
             not_phone = [r["path"] for r in c.execute("SELECT path,vcodec,acodec,vfmt FROM media WHERE available=1 AND verified=1 AND playable=1")
@@ -557,7 +591,11 @@ def make_handler(app, remote=False):
                     "inbox_files": self.inbox_files(c), "move_channels": self.move_channels(),
                     "duplicates": insights.duplicates(c)[:20], "shows": c.execute("SELECT COUNT(DISTINCT series) FROM media WHERE available=1 AND series<>''").fetchone()[0],
                     "inbox_waiting": inbox.waiting(app.cfg), "ffmpeg": bool(T.find_tool("ffmpeg") and T.find_tool("ffprobe")),
-                    "windows": os.name == "nt", "job": jobs.current()}
+                    "windows": os.name == "nt", "job": jobs.current(), "caps": L.caps(), "unsorted": [{"title": m["title"], "folder": m["franchise"] or "(loose in the media folder)"}
+                                                            for m in inbox.not_on_channels(c, app.cfg)[:200]],
+                    "hevc_videos": c.execute("SELECT COUNT(*) FROM media WHERE available=1 AND vcodec='hevc'").fetchone()[0],
+                    "encoder": (("graphics card" if "libx264" not in T.h264_encoder(T.find_tool("ffmpeg")) else "processor")
+                                if T.find_tool("ffmpeg") else "")}
 
         def change_channels(self, c, body):
             """Apply one Settings > Channels change and put the new channel list to work at once."""
@@ -689,6 +727,17 @@ def make_handler(app, remote=False):
                 return {"job": jobs.start(name, "Bringing in " + path, lambda: LA.import_folder([path], cfg=app.cfg, assume_yes=True))}
             if name == "sort":
                 return {"job": jobs.start(name, "Sorting the Inbox", lambda: LA.sort_movies(assume_yes=True, cfg=app.cfg))}
+            if name == "unsorted":                           # videos on no channel: through the Inbox, sorted by title
+                paths = [m["path"] for m in inbox.not_on_channels(c, app.cfg)]
+                if not paths:
+                    raise ValueError("Every video is already on a channel.")
+                media = os.path.abspath(str(app.cfg.media_dir))
+
+                def run_unsorted():
+                    n = inbox.move_in(paths, app.cfg, keep_folder_of=media)
+                    LA.say(f"Moved {n} video(s) into the Inbox to be sorted.")
+                    return LA.sort_movies(assume_yes=True, cfg=app.cfg)
+                return {"job": jobs.start(name, f"Sorting {len(paths)} video(s) that are on no channel", run_unsorted)}
             if name == "fix":
                 path, title = media_path()
                 return {"job": jobs.start(name, "Fixing " + title, lambda: LA.convert([path]) or LA._after_change(app.cfg, 0))}
@@ -1045,6 +1094,23 @@ def make_handler(app, remote=False):
                             threading.Thread(target=go, daemon=True).start()
                             intros._state["running"] = True
                 return self.send_json(intros.status(c))
+            if p.startswith("captest/"):                      # tiny H.265 clips the TV page tries to show (PC only)
+                return self.captest(p[8:])
+            if p == "caps":                                   # what the TV screen on this PC can play (PC only)
+                d = settings_api._load()
+                if method == "POST":
+                    b = self.body()
+                    caps = {k: bool(b.get(k)) for k in L.CAP_KEYS}
+                    caps["checked"] = int(now)
+                    caps["browser"] = str(self.headers.get("User-Agent") or "")[:160]
+                    old = d.get("browser_caps") if isinstance(d.get("browser_caps"), dict) else {}
+                    d["browser_caps"] = caps
+                    settings_api._save(d)
+                    if any(bool(old.get(k)) != caps[k] for k in L.CAP_KEYS):
+                        threading.Thread(target=app.refresh_library, daemon=True).start()   # skipped videos may play now
+                    d = settings_api._load()
+                n = c.execute("SELECT COUNT(*) FROM media WHERE available=1 AND vcodec='hevc'").fetchone()[0]
+                return self.send_json(dict(d.get("browser_caps") or {}, hevc_videos=n))
             if p == "quit" and method == "POST":               # Settings > Backup and about > Quit HERO TV
                 threading.Timer(0.5, app.stop).start()
                 return self.send_json({"ok": True})
@@ -1502,7 +1568,7 @@ def make_handler(app, remote=False):
                 if not r["verified"]:
                     why, fix = "HERO TV could not read it.", "Settings > Tools > Check setup (the video tools may be missing), or the file may be damaged."
                 else:
-                    why = L.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"] or "")
+                    why = L.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1])
                     why = (why[0].upper() + why[1:] + ".") if why else "It stopped playing several times in a row."
                     fix = "Settings > Tools > Fix makes a copy that plays."
                 problems.append({"id": r["id"], "title": r["title"], "file": os.path.basename(r["path"]), "why": why, "fix": fix})

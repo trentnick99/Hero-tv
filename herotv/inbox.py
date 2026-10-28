@@ -1,8 +1,9 @@
 """Hands-free Inbox: while HERO TV is running, anything you drop in the Inbox folder is filed onto the right channel
 by its title (the same keywords as Sort-Movies.bat), fixed if its sound/format needs it, and shows up on its own.
 
-Only the Inbox folder is watched. A file is touched only after it has stopped growing (so downloads in progress are left
-alone), and files whose title matches no keyword stay in the Inbox - the Help screen counts them.
+The Inbox folder is watched, and so are videos loose in the media folder itself (not in any folder). A file is touched
+only after it has stopped growing (so downloads in progress are left alone). Files whose title matches nothing stay in
+the Inbox (loose ones are moved into it), where Settings > Tools lists them with a channel picker.
 """
 import json
 import os
@@ -33,16 +34,26 @@ def _convertible():
     return launcher.CONVERTIBLE
 
 
-def candidates(cfg, seen, now=None):
-    """Inbox videos that are finished arriving: same size on two passes in a row and not changed for MIN_AGE_S seconds."""
-    now = now or time.time()
+def _walk(cfg):
+    """(folder, files) of the Inbox (all its folders) and of the media folder's top level (loose videos)."""
     d = inbox_dir(cfg)
+    if os.path.isdir(d):
+        for dp, dn, fn in os.walk(d):
+            dn[:] = [x for x in dn if not x.startswith(".")]
+            yield dp, fn
+    media = os.path.abspath(str(cfg.media_dir))
+    try:
+        yield media, [e.name for e in os.scandir(media) if e.is_file()]
+    except OSError:
+        pass
+
+
+def candidates(cfg, seen, now=None):
+    """Videos that are finished arriving: same size on two passes in a row and not changed for MIN_AGE_S seconds."""
+    now = now or time.time()
     ok, sizes = [], {}
-    if not os.path.isdir(d):
-        return ok, sizes
     exts = library.EXTS | _convertible()
-    for dp, dn, fn in os.walk(d):
-        dn[:] = [x for x in dn if not x.startswith(".")]
+    for dp, fn in _walk(cfg):
         for f in sorted(fn):
             p = os.path.join(dp, f)
             if f.startswith(".") or f.lower().endswith(PARTIAL) or os.path.splitext(f)[1].lower() not in exts:
@@ -126,6 +137,8 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
             picked = follow(stem)                         # a new episode of a show you already have
         if not picked:
             out["left"] += 1
+            if os.path.normcase(os.path.dirname(os.path.abspath(src))) == os.path.normcase(media):
+                move_in([src], cfg)                       # a loose video nothing matched: into the Inbox list
             continue
         try:
             if place(src, picked, media, force_move=True):
@@ -133,6 +146,68 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
         except Exception:
             traceback.print_exc()
             out["left"] += 1
+    return out
+
+
+SIDECARS = (".hero.json", ".srt", ".vtt", ".ass", ".ssa", ".nfo", ".jpg", ".png")
+
+
+def move_in(paths, cfg, keep_folder_of=None):
+    """Move videos (with their subtitle / note files) into the Inbox. keep_folder_of: the media folder - a video in
+    a folder keeps that folder name inside the Inbox, so a show's episodes stay together. Returns how many moved."""
+    import shutil
+    d = inbox_dir(cfg)
+    n = 0
+    for src in paths:
+        src = os.path.abspath(src)
+        if not os.path.isfile(src):
+            continue
+        sub = ""
+        if keep_folder_of:
+            rel = os.path.relpath(os.path.dirname(src), keep_folder_of)
+            if not rel.startswith("..") and rel != ".":
+                sub = rel
+        target = os.path.join(d, sub)
+        dest = os.path.join(target, os.path.basename(src))
+        if os.path.normcase(dest) == os.path.normcase(src) or os.path.exists(dest):
+            continue
+        os.makedirs(target, exist_ok=True)
+        stem = os.path.splitext(os.path.basename(src))[0]
+        folder = os.path.dirname(src)
+        try:
+            shutil.move(src, dest)
+        except OSError:
+            continue
+        n += 1
+        try:
+            for f in os.listdir(folder):
+                if f.startswith(stem) and f[len(stem):].lower().endswith(SIDECARS) and f[len(stem):len(stem) + 1] in (".", ""):
+                    if not os.path.exists(os.path.join(target, f)):
+                        shutil.move(os.path.join(folder, f), os.path.join(target, f))
+        except OSError:
+            pass
+    return n
+
+
+def not_on_channels(conn, cfg):
+    """Library videos (outside the Inbox) that no channel shows - e.g. in a folder no channel uses. Shorts are left out
+    (they are filler between shows), and so are videos already set aside."""
+    from . import scheduler as S, sortrules
+    try:
+        _r, chans = sortrules.load(cfg, write=False)
+    except (OSError, ValueError, KeyError):
+        return []
+    rules = [S.config_rules(ch) for ch in chans if ch.get("kind", "tv") == "tv" and not ch.get("off")
+             and (ch.get("match") or ch.get("also"))]
+    d = os.path.normcase(inbox_dir(cfg)) + os.sep
+    out = []
+    for m in conn.execute("SELECT * FROM media WHERE available=1 AND verified=1 ORDER BY franchise,series,ord,title"):
+        p = os.path.normcase(os.path.abspath(m["path"] or ""))
+        if p.startswith(d) or os.sep + ".originals" + os.sep in p or S.is_short(m) or \
+                str(m["franchise"] or "").lower() == S.SHORTS_FOLDER:
+            continue
+        if not any(S.matches(r, m) for r in rules):
+            out.append(m)
     return out
 
 

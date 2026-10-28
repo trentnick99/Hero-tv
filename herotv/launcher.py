@@ -479,26 +479,29 @@ def _convert_one(src, ffmpeg, phone=False):
     if not p:
         say("  [FAIL] cannot read this file as a video")
         return "failed", src
-    v_ok = library.video_ok(p["vcodec"], p.get("vfmt", ""))
-    a_ok = (not p["acodec"]) or p["acodec"] in library.PLAY_A
     ext = os.path.splitext(src)[1].lower()
+    v_ok = library.video_ok(p["vcodec"], p.get("vfmt", ""), ".mp4")    # the copy is an .mp4
+    a_ok = library.audio_ok(p["acodec"])
     if phone:                                  # iPhone-friendly: .mp4 with H.264/HEVC picture and AAC-type sound
         v_ok = v_ok and p["vcodec"] in ("h264", "hevc")
         a_ok = (not p["acodec"]) or p["acodec"] in library.PLAY_A & library.PHONE_A
         if v_ok and a_ok and ext in library.PHONE_EXTS:
             return "fine", src
-    elif v_ok and a_ok and ext in library.EXTS:
+    elif library.video_ok(p["vcodec"], p.get("vfmt", ""), ext) and a_ok and ext in library.EXTS:
         return "fine", src
     folder, stem = os.path.split(src)[0], os.path.splitext(os.path.basename(src))[0]
     tmp, final = os.path.join(folder, stem + ".converting.tmp"), os.path.join(folder, stem + ".mp4")
     if os.path.exists(final) and os.path.abspath(final) != src:
         say("  [skip] a .mp4 with this name already exists")
         return "failed", src
-    vopt = ["-c:v", "copy"] if v_ok else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+    vopt = ["-c:v", "copy"] if v_ok else tools.h264_encoder(ffmpeg)
     if v_ok and p["vcodec"] == "hevc":
         vopt += ["-tag:v", "hvc1"]               # Apple devices only play HEVC tagged this way
     aopt = ["-c:a", "copy"] if a_ok else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
-    say(("  making an iPhone-friendly copy:" if phone else "  fixing for the TV:") + " video " + ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 (slow: a movie can take 15-40 minutes)") +
+    speed = ("with the graphics card - a movie takes a few minutes" if "libx264" not in tools.h264_encoder(ffmpeg)
+             else "slow: a movie can take 15-40 minutes")
+    say(("  making an iPhone-friendly copy:" if phone else "  fixing for the TV:") + " video " +
+        ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 ({speed})") +
         ", audio " + ("kept as is" if a_ok else f"converting {p['acodec']} -> AAC"))
     cmd = [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", "0:a:0?", *vopt, *aopt,
            "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
@@ -576,15 +579,15 @@ def fix_audio(paths, lang=None, track=None):
             bad += 1
             continue
         t = tracks[pick]
-        v_ok = library.video_ok(p["vcodec"], p.get("vfmt", ""))
-        a_ok = t["codec"] in library.PLAY_A
+        v_ok = library.video_ok(p["vcodec"], p.get("vfmt", ""), ".mp4")
+        a_ok = library.audio_ok(t["codec"])
         folder, stem = os.path.split(src)[0], os.path.splitext(os.path.basename(src))[0]
         tmp, final = os.path.join(folder, stem + ".converting.tmp"), os.path.join(folder, stem + ".mp4")
         if os.path.exists(final) and os.path.abspath(final) != src:
             say("  [skip] a .mp4 with this name already exists")
             bad += 1
             continue
-        vopt = ["-c:v", "copy"] if v_ok else ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+        vopt = ["-c:v", "copy"] if v_ok else tools.h264_encoder(ffmpeg)
         aopt = ["-c:a", "copy"] if a_ok else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
         say(f"  making a copy that plays: {t['language']}" + ("" if v_ok else "  (this video also needs re-encoding: slow)"))
         cmd = [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", f"0:a:{pick}", *vopt, *aopt,
@@ -1025,7 +1028,7 @@ def show_library():
         if not r["verified"]:
             status = "NOT READABLE as a video (damaged, or ffprobe missing)"
         elif not r["playable"]:
-            status = "SKIPPED - " + (library.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"]) or "format not supported") + ": drag it onto Convert-Video.bat"
+            status = "SKIPPED - " + (library.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"], os.path.splitext(r["path"])[1]) or "format not supported") + ": drag it onto Convert-Video.bat"
         else:
             status = "OK"
             tr = library.audio_tracks(r["path"])

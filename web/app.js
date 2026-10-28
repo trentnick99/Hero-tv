@@ -741,9 +741,15 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
     const ctl=el("div","sbar");ctl.append(sel,nm,rl,go);r.append(txt,ctl);c.append(r)}
    {const listed=(t.inbox_files||[]).reduce((a,f)=>a+(f.group||1),0);if(listed&&t.inbox_waiting>listed)c.append(el("small",0,`...and ${t.inbox_waiting-listed} more - they appear here as these are filed.`))}
    const first=main.querySelector(".tcard");if((t.inbox_files||[]).length&&first)main.insertBefore(c,first);else main.append(c)}
+ { const u=t.unsorted||[];if(u.length){const c=tCard("Videos not on any channel",`${u.length}${u.length>=200?"+":""} video(s) are in your library but no channel shows them - usually because they are loose in the media folder or in a folder no channel uses. Sort them puts them through the Inbox: each is filed by its title, and any HERO TV cannot place shows up in the Inbox list above with a channel picker.`);
+   const byF={};for(const v of u)byF[v.folder]=(byF[v.folder]||0)+1;
+   c.append(el("small",0,Object.entries(byF).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([f,n])=>`${f}: ${n}`).join("   ")));
+   const b=sBtn("Sort them",()=>runJob({name:"unsorted"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row);
+   main.append(c)}}
  { const c=tCard("Videos that are skipped",t.skipped.length?"These cannot play in the TV yet. Fixing makes a copy that plays (keeps the original); a picture problem can take 15-40 minutes for a movie.":"Every video can play.");
    for(const v of t.skipped.slice(0,12)){const row=el("div","sbar"),b=sBtn("Fix",()=>runJob({name:"fix",media_id:v.id},b));row.append(b,el("span",0,v.title+" - "+v.why));c.append(row)}
    if(t.skipped.length>12)c.append(el("small",0,`...and ${t.skipped.length-12} more. Fix these first, then come back.`));main.append(c)}
+ main.append(capsCard(t));
  { const c=tCard("Sound language","For a video with more than one language: choose which one it plays.");const q=sInput("","text","Type part of the title");q.style.width="30vw";const res=el("div","pickl");
    let qt;q.addEventListener("input",()=>{clearTimeout(qt);qt=setTimeout(async()=>{res.textContent="";if(q.value.trim().length<2)return;
     const j=await api("/api/library?view=all&q="+encodeURIComponent(q.value.trim()));for(const it of j.items.slice(0,6)){const b=sBtn(label(it),async()=>{res.textContent="";res.append(el("small",0,"Reading its sound tracks..."));
@@ -765,6 +771,28 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
    if(!t.ffmpeg){const b=sBtn("Install video tools",()=>runJob({name:"ffmpeg"},b),"pri");row.append(b)}
    const b2=sBtn("Check setup",()=>runJob({name:"check"},b2));row.append(b2);
    if(t.windows){const b3=sBtn("Make a desktop shortcut",()=>runJob({name:"shortcut"},b3));row.append(b3)}c.append(row);main.append(c)}}
+/* ---- H.265 / Dolby sound: test once what this PC's TV window can really show, so those videos are not skipped ---- */
+function capClip(name){return new Promise(res=>{const t=document.createElement("video");t.muted=true;t.playsInline=true;t.preload="auto";
+ t.style.cssText="position:fixed;left:-9999px;width:16px;height:16px;opacity:0";let done=false;
+ const fin=ok=>{if(done)return;done=true;clearTimeout(tm);try{t.pause();t.removeAttribute("src");t.load()}catch(e){}t.remove();res(ok)};
+ const tm=setTimeout(()=>fin(false),6000);t.onerror=()=>fin(false);
+ const seen=()=>fin(t.videoWidth>0);if(t.requestVideoFrameCallback)t.requestVideoFrameCallback(seen);else t.addEventListener("timeupdate",()=>{if(t.currentTime>0.2)seen()});
+ document.body.append(t);t.src="/api/captest/"+name;t.play().catch(()=>{})})}
+function capType(ty){try{return !!(window.MediaSource&&MediaSource.isTypeSupported(ty))}catch(e){return false}}
+async function capTest(force){if(REMOTE)return null;let cur={};try{cur=await api("/api/caps")}catch(e){return null}
+ if(!force&&cur.checked&&Date.now()/1000-cur.checked<7*86400)return cur;
+ const r={hevc:await capClip("hevc8.mp4")};r.hevc10=r.hevc?await capClip("hevc10.mp4"):false;r.hevc_mkv=r.hevc?await capClip("hevc8.mkv"):false;
+ r.ac3=capType('audio/mp4; codecs="ac-3"');r.eac3=capType('audio/mp4; codecs="ec-3"');
+ try{const j=await api("/api/caps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(r)});
+  if(!cur.checked&&j.hevc&&j.hevc_videos)toast(`Good news: this PC can show H.265 videos, so ${j.hevc_videos} of them are being added back to your channels.`);return j}catch(e){return null}}
+function capsCard(t){const k=t.caps||{},n=t.hevc_videos||0,c=tCard("H.265 (HEVC) and Dolby sound",
+  !k.checked?"Not tested yet - HERO TV checks once whether this PC can show H.265 videos and play Dolby (AC-3) sound.":
+  (k.hevc?"This PC can show H.265 videos"+(k.hevc10?" (10-bit ones too)":" (but not 10-bit ones - Fix converts those)")+(k.hevc_mkv?"":"; .mkv ones are repackaged by Fix in seconds")+".":
+   "This PC cannot show H.265 videos yet"+(n?` (you have ${n})`:"")+". Install Microsoft's \"HEVC Video Extensions\" from the Microsoft Store (or \"HEVC Video Extensions from Device Manufacturer\", which is free on many PCs), restart HERO TV, then press Test again. Or press Fix on each one.")+
+  " Dolby sound: "+(k.ac3?"plays.":"converted by Fix (quick - only the sound)."));
+ const row=el("div","sbar"),lb=k.checked?"Test again":"Test now",b=sBtn(lb,async()=>{b.disabled=true;b.textContent="Testing...";const j=await capTest(true);b.disabled=false;b.textContent="Test again";
+  if(j){sMsg(j.hevc?"H.265 works on this PC. Videos are being checked again - give it a minute.":"H.265 still does not play here.",j.hevc?"ok":"err");tData=null;drawSettings()}});
+ row.append(b);if(t.encoder)row.append(el("small",0,"Fix converts with the "+t.encoder+"."));c.append(row);return c}
 /* ---- always on: start with Windows, keep running without the TV window (Roku app and phones need it) ---- */
 let aData=null;
 function alwaysCard(){const c=tCard("Always on","So your Roku TV and phones always find HERO TV: it can start by itself when you sign in to Windows and keep running quietly when the TV window is closed. Clicking the HERO TV icon still opens the TV.");
@@ -1075,6 +1103,6 @@ let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();d
  try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color);applyCues(theme.subs);applyComfort()}catch(e){}
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
  if(typeof pf.volume==="number")v.volume=pf.volume;if("muted" in pf)v.muted=!!pf.muted;if(pf.bigtext)setBig(true,false);if(typeof pf.subs==="string")subPref=pf.subs;
- let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();
+ let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();setTimeout(()=>capTest(false),8000);
  try{if(!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");setTimeout(()=>toast("Tip: press H for the home menu, or ? for help"),6000)}}catch(e){}})();
 })();

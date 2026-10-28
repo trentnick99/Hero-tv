@@ -24,30 +24,74 @@ def phone_ok(path, vcodec, acodec, vfmt=""):
             and video_ok(vcodec, vfmt) and (not acodec or acodec in PHONE_A))
 
 
-def video_ok(vcodec, vfmt=""):
+# What the TV screen on this PC has been seen to play (settings.json "browser_caps", filled in by the TV page's own
+# test): H.265 (8-bit and 10-bit, in .mp4 and .mkv) and Dolby sound (AC-3, E-AC-3). Unknown = not assumed.
+CAP_KEYS = ("hevc", "hevc10", "hevc_mkv", "ac3", "eac3")
+_caps = {"mtime": None, "caps": {}}
+
+
+def caps():
+    from . import config
+    try:
+        f = config.settings_file()
+        mt = os.path.getmtime(f)
+    except (OSError, AttributeError):
+        return {}
+    if _caps["mtime"] != mt:
+        try:
+            d = json.loads(f.read_text(encoding="utf-8-sig"))
+            c = d.get("browser_caps") if isinstance(d, dict) else None
+            _caps["caps"] = dict({k: bool(c.get(k)) for k in CAP_KEYS}, checked=int(c.get("checked") or 0)) if isinstance(c, dict) else {}
+        except (OSError, ValueError):
+            _caps["caps"] = {}
+        _caps["mtime"] = mt
+    return _caps["caps"]
+
+
+def audio_ok(acodec):
+    """Can the TV screen play this sound? AC-3 / E-AC-3 when this PC was seen to play them."""
+    if not acodec or acodec in PLAY_A:
+        return True
+    return acodec in ("ac3", "eac3") and caps().get(acodec, False)
+
+
+def video_ok(vcodec, vfmt="", ext=""):
     """Can a browser really SHOW this picture? (audio-but-black-screen is what you get when it cannot).
     vfmt is "pix_fmt|profile" from ffprobe. 10-bit / 4:2:2 / 4:4:4 H.264 (common in anime rips) is not decodable by
-    Edge/Chrome, and HEVC only works on some Windows PCs, so those get converted (Convert-Video.bat)."""
+    Edge/Chrome. HEVC plays on Windows PCs that have H.265 support (graphics card + Microsoft's HEVC Video Extensions):
+    the TV page tests that once (caps())."""
     if vcodec not in PLAY_V:
         return False
     pix, _, prof = (vfmt or "").partition("|")
     if vcodec == "h264":
         return not any(x in pix for x in ("10", "12", "422", "444", "gbr")) and not any(x in prof for x in ("10", "4:2:2", "4:4:4"))
     if vcodec == "hevc":
-        return not IS_WIN or os.environ.get("HEROTV_ALLOW_HEVC") == "1"
+        if not IS_WIN or os.environ.get("HEROTV_ALLOW_HEVC") == "1":
+            return True
+        c = caps()
+        if not c.get("hevc") or any(x in pix for x in ("422", "444", "12")):
+            return False
+        if ("10" in pix or "10" in prof) and not c.get("hevc10"):
+            return False
+        return str(ext).lower() != ".mkv" or c.get("hevc_mkv", False)
     return True
 
 
-def why_not_playable(vcodec, acodec, vfmt=""):
+def why_not_playable(vcodec, acodec, vfmt="", ext=""):
     """Plain-English reason a file is skipped (None when it is fine)."""
-    if not video_ok(vcodec, vfmt):
+    if not video_ok(vcodec, vfmt, ext):
         if vcodec == "hevc":
-            return "its video is HEVC/H.265, which many Windows browsers show as a black screen (sound only)"
+            c = caps()
+            if c.get("hevc") and str(ext).lower() == ".mkv" and not c.get("hevc_mkv"):
+                return "its video is HEVC/H.265 in an .mkv file - this PC plays H.265 only in .mp4 files (Fix repackages it in seconds)"
+            if c.get("hevc") and not c.get("hevc10"):
+                return "its video is 10-bit HEVC/H.265, which this PC cannot show (it plays 8-bit H.265)"
+            return "its video is HEVC/H.265, which this PC's TV screen cannot show yet (sound only) - see Settings > Tools > H.265"
         if vcodec == "h264":
             return f"its video is 10-bit/high-profile H.264 ({vfmt.replace('|', ', ')}), which browsers cannot show (sound only)"
         return f"its video format '{vcodec}' cannot be shown by a browser"
-    if acodec and acodec not in PLAY_A:
-        return f"its sound ({acodec}) cannot be played by a browser"
+    if not audio_ok(acodec):
+        return f"its sound ({acodec}) cannot be played by the TV screen (Fix converts just the sound - quick)"
     return None
 
 
@@ -130,6 +174,29 @@ _RELEASE = re.compile(r"(?i)[ ._\-\[(]+(?:(?:480|576|720|1080|2160)[pi]|4k|uhd|b
                       r"dvdrip|hdrip|remux|x26[45]|h\.?26[45]|hevc|xvid|aac\d*|dts|ddp?\d|10bit|hdr10?|yts|rarbg)(?![A-Za-z]).*$")
 
 
+_LANGS = (r"hindi|english|eng|tamil|telugu|malayalam|kannada|bengali|punjabi|marathi|urdu|spanish|latino|castellano|"
+          r"french|german|italian|russian|japanese|korean|chinese|mandarin|portuguese|arabic|turkish|polish|dutch|thai")
+_RJUNK = r"dual|multi|audio|dubbed|dub|subbed|esubs?|subs?|org|proper|repack|unrated|extended|hq|hc|line|hd|tc|cam|hdcam|hdts"
+_TAG = rf"(?:{_LANGS}|{_RJUNK})"
+_SEP = r"[\s\[\]()+&,/|-]"
+_BRACKET_LANG = re.compile(rf"(?i)\s*[\[(]\s*{_TAG}(?:{_SEP}+{_TAG})*\s*[\])]")
+_YEAR_LANG = re.compile(rf"(?i)^(.*?\S)\s+\(?((?:19|20)\d{{2}})\)?(?:{_SEP}*{_TAG}\b)+{_SEP}*$")
+_TAIL_JUNK = re.compile(rf"(?i)(?:\s+{_TAG})*\s+(?:dual|multi)\s+audio(?:{_SEP}+{_TAG})*{_SEP}*$|(?:{_SEP}+(?:{_RJUNK}))+{_SEP}*$")
+
+
+def _drop_languages(cut):
+    """'Avengers Endgame 2019 Hindi-English' -> 'Avengers Endgame 2019'; '... [Hindi + English]' -> '...'.
+    A language word is only dropped after a year, inside brackets or next to 'Dual Audio', so 'Johnny English' stays."""
+    c = _BRACKET_LANG.sub("", cut).strip()
+    m = _YEAR_LANG.match(c)
+    if m:
+        c = f"{m[1]} {m[2]}"
+    c2 = _TAIL_JUNK.sub("", c).strip(" ._-")
+    if c2 and re.search(r"(?i)\b(?:dual|multi)\s+audio\b", c[len(c2):]):
+        c = c2
+    return c
+
+
 def tidy(text, year=None, dotted_name=False):
     """Turn a download-style name into a readable one: 'Iron.Man.2008.1080p.BluRay.x264-GRP' -> ('Iron Man', 2008)."""
     t = text.strip()
@@ -138,6 +205,7 @@ def tidy(text, year=None, dotted_name=False):
     if dotted:
         cut = re.sub(r"[._]+", " ", cut)
     cut = re.sub(r"\s+", " ", cut).strip(" ._-")
+    cut = _drop_languages(cut) or cut
     if (dotted or dotted_name or cut != t) and year is None:            # 'Iron Man 2008' -> title + year (only for download-style names)
         m = re.match(r"^(.*\S)\s+\(?((?:19|20)\d{2})\)?$", cut)
         if m and int(m[2]) <= 2030:
@@ -305,7 +373,7 @@ def scan(conn, root, probe_fn=probe):
             row = conn.execute("SELECT id,mtime,size,verified,vcodec,acodec,vfmt FROM media WHERE path=?", (path,)).fetchone()
             if row and row["mtime"] == mt and row["size"] == st.st_size and row["verified"]:
                 # unchanged: no re-probe, but re-evaluate playable (undoes a "marked unplayable" from transient errors)
-                ok = video_ok(row["vcodec"], row["vfmt"]) and (not row["acodec"] or row["acodec"] in PLAY_A)
+                ok = video_ok(row["vcodec"], row["vfmt"], ext) and audio_ok(row["acodec"])
                 conn.execute("UPDATE media SET available=1, playable=? WHERE id=?", (1 if ok else 0, row["id"]))
                 continue
             meta = _guess(os.path.relpath(path, root).split(os.sep), stem)
@@ -326,7 +394,7 @@ def scan(conn, root, probe_fn=probe):
                 from . import art                  # films: TMDB's release date, once it is known
                 ordv = art.release_ord(conn, meta["title"], meta["year"]) or ordv
             verified = 1 if p else 0
-            playable = 1 if p and video_ok(p["vcodec"], p.get("vfmt", "")) and (not p["acodec"] or p["acodec"] in PLAY_A) else 0
+            playable = 1 if p and video_ok(p["vcodec"], p.get("vfmt", ""), ext) and audio_ok(p["acodec"]) else 0
             stats["unverified"] += 0 if verified else 1
             vals = (path, meta["title"], meta["year"], meta["franchise"], meta["series"], meta["season"], meta["episode"],
                     json.dumps(sc.get("tags", [])), sc.get("plot", ""), p["runtime_s"] if p else 0, verified, playable,

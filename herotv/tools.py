@@ -69,3 +69,33 @@ def run(cmd, **kw):
 
 def python_ok():
     return sys.version_info >= (3, 9)
+
+
+# ---------- converting video to standard H.264: the graphics card when it can, else the processor ----------
+_ENC = {}
+HW_ENCODERS = (
+    ("h264_nvenc", ["-preset", "p5", "-rc", "vbr", "-cq", "21", "-b:v", "0"]),          # NVIDIA
+    ("h264_qsv", ["-preset", "medium", "-global_quality", "22"]),                     # Intel
+    ("h264_amf", ["-quality", "balanced", "-rc", "cqp", "-qp_i", "20", "-qp_p", "22"]),  # AMD
+)
+
+
+def h264_encoder(ffmpeg, run=None):
+    """ffmpeg arguments that make standard 8-bit H.264: with the PC's graphics card (NVIDIA / Intel / AMD) when one
+    really works here - several times faster - else libx264 on the processor. Checked once per ffmpeg."""
+    if ffmpeg in _ENC:
+        return list(_ENC[ffmpeg])
+    run = run or subprocess.run
+    chosen = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+    for name, opts in HW_ENCODERS:
+        try:
+            r = run([ffmpeg, "-hide_banner", "-v", "error", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=25", "-frames:v", "10",
+                     "-vf", "format=yuv420p", "-c:v", name] + opts + ["-f", "null", "-"],
+                    capture_output=True, timeout=30, **HIDE)
+        except (OSError, subprocess.SubprocessError):
+            continue
+        if getattr(r, "returncode", 1) == 0:
+            chosen = ["-vf", "format=yuv420p", "-c:v", name] + opts
+            break
+    _ENC[ffmpeg] = chosen
+    return list(chosen)

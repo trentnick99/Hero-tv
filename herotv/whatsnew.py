@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.29.0": [
+        "H.265 (HEVC) videos: HERO TV now tests once whether this PC can show them, and plays them when it can instead of skipping them. If it cannot, Settings > Tools > H.265 says what to install (Microsoft's HEVC Video Extensions). Dolby (AC-3) sound is tested the same way.",
+        "Fix is much faster when your PC has an NVIDIA, Intel or AMD graphics chip: it converts with the graphics card (minutes, not 15-40 minutes for a movie).",
+        "Sorting: videos loose in your media folder are now filed automatically, like the Inbox. Settings > Tools has a new 'Videos not on any channel' card with a Sort them button.",
+        "Names like 'Avengers Endgame 2019 Hindi-English' or '... [Hindi + English] Dual Audio' are cleaned up to the title and year.",
+    ],
     "1.28.2": [
         "Cover art: titles that differ a little from TMDB's (Spiderman 3 / Spider-Man 3, X Men / X-Men) now find their poster and details. Titles that found nothing before are looked up again once.",
         "'Phone can't connect?' no longer says the firewall has no rule for HERO TV when Windows saved the rule with a differently written path.",
