@@ -77,6 +77,19 @@ def video_ok(vcodec, vfmt="", ext=""):
     return True
 
 
+def recheck_playable(conn):
+    """After the H.265 / Dolby test result changed: re-decide only the videos it affects. Returns how many changed."""
+    n = 0
+    for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,playable FROM media WHERE verified=1 AND "
+                          "(vcodec='hevc' OR acodec IN ('ac3','eac3'))").fetchall():
+        ok = 1 if video_ok(r["vcodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1]) and audio_ok(r["acodec"]) else 0
+        if ok != r["playable"]:
+            conn.execute("UPDATE media SET playable=? WHERE id=?", (ok, r["id"]))
+            n += 1
+    conn.commit()
+    return n
+
+
 def why_not_playable(vcodec, acodec, vfmt="", ext=""):
     """Plain-English reason a file is skipped (None when it is fine)."""
     if not video_ok(vcodec, vfmt, ext):

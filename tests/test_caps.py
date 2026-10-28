@@ -49,6 +49,17 @@ class CapsTests(unittest.TestCase):
         self.assertTrue(library.video_ok("hevc", "yuv420p10le|main 10", ".mkv"))
         self.assertTrue(library.audio_ok("eac3"))
 
+    def test_recheck_only_touches_affected_videos(self):
+        from herotv.db import connect
+        c = connect(":memory:")
+        for i, (v, a, ext) in enumerate((("hevc", "aac", ".mp4"), ("h264", "ac3", ".mp4"), ("h264", "aac", ".mp4"), ("hevc", "aac", ".mkv"))):
+            c.execute("INSERT INTO media(path,title,vcodec,acodec,vfmt,verified,playable) VALUES(?,?,?,?,?,1,?)",
+                      (f"/x/{i}{ext}", str(i), v, a, "yuv420p|main", 0 if (v == "hevc" or a == "ac3") else 1))
+        self.assertEqual(library.recheck_playable(c), 0)                      # still untested: nothing changes
+        self.write({"hevc": True, "ac3": True})
+        self.assertEqual(library.recheck_playable(c), 2)                      # the .mp4 H.265 and the AC-3 one
+        self.assertEqual([r[0] for r in c.execute("SELECT playable FROM media ORDER BY id")], [1, 1, 1, 0])
+
     def test_broken_settings_file_means_untested(self):
         self.sf.write_text("{not json", encoding="utf-8")
         self.assertEqual(library.caps(), {})

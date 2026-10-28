@@ -81,6 +81,18 @@ class App:
                     n += 1
         return f"{n}:{h.hexdigest()}"
 
+    def recheck_formats(self):
+        """Only H.265 / Dolby-sound videos can change after the TV window's test; re-plan only if any did."""
+        c = self.db()
+        try:
+            with self.scan_lock:
+                n = L.recheck_playable(c)
+                if n:
+                    S.extend_all(c, time.time(), self.horizon(), rebuild=True, tz=self.tz)
+        finally:
+            c.close()
+        return n
+
     def refresh_library(self):
         """Scan for added / removed / changed videos and re-plan the schedule. Returns the scan stats."""
         c = self.db()
@@ -1107,7 +1119,7 @@ def make_handler(app, remote=False):
                     d["browser_caps"] = caps
                     settings_api._save(d)
                     if any(bool(old.get(k)) != caps[k] for k in L.CAP_KEYS):
-                        threading.Thread(target=app.refresh_library, daemon=True).start()   # skipped videos may play now
+                        threading.Thread(target=app.recheck_formats, daemon=True).start()   # skipped videos may play now
                     d = settings_api._load()
                 n = c.execute("SELECT COUNT(*) FROM media WHERE available=1 AND vcodec='hevc'").fetchone()[0]
                 return self.send_json(dict(d.get("browser_caps") or {}, hevc_videos=n))
