@@ -1103,6 +1103,30 @@ def make_handler(app, remote=False):
                     server = ""
                 from . import tools
                 return self.send_json(dict(iptv.status(server), lan=R.enabled(), ffmpeg=bool(tools.find_tool("ffmpeg"))))
+            if p == "attention":                              # the short "needs a look" list at the top of Settings (cheap, nothing is changed)
+                from . import selfupdate, tools as T
+                items = []
+                u = selfupdate.status()
+                if u["available"]:
+                    items.append({"text": f"HERO TV {u['latest']} is available.", "cat": "about", "card": ""})
+                if not (T.find_tool("ffmpeg") and T.find_tool("ffprobe")):
+                    items.append({"text": "Video tools (ffmpeg) are missing - needed to read, fix and convert videos.", "cat": "tools", "card": "This PC"})
+                inb = os.path.normcase(inbox.inbox_dir(app.cfg)) + os.sep
+                n = sum(1 for r in c.execute("SELECT path FROM media WHERE available=1 AND (playable=0 OR verified=0) LIMIT 500")
+                        if not os.path.normcase(r["path"]).startswith(inb))
+                if n:
+                    items.append({"text": f"{n}{'+' if n >= 500 else ''} video(s) cannot play yet.", "cat": "tools", "card": "Videos that are skipped"})
+                w = inbox.waiting(app.cfg)
+                if w:
+                    items.append({"text": f"{w} video(s) waiting in the Inbox.", "cat": "tools", "card": "Inbox"})
+                ps = prepare.status(c)
+                if ps.get("blocked"):
+                    items.append({"text": "The space limit for ready-to-play copies is reached, so no new copies are made.", "cat": "tools",
+                                  "card": "Videos in other formats (ready-to-play copies)"})
+                if ps.get("failed"):
+                    items.append({"text": f"{ps['failed']} ready-to-play copy(ies) could not be made.", "cat": "tools",
+                                  "card": "Videos in other formats (ready-to-play copies)"})
+                return self.send_json({"items": items})
             if p == "work":                                   # what is being filed / converted right now (Settings progress bars)
                 snap = work.snapshot()
                 busy = {t["name"] for t in snap["active"]}

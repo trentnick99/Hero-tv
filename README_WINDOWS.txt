@@ -409,6 +409,11 @@ EPISODE NAMES (anime too)
   "Show - 012 - Title.mp4", "Show Episode 12.mp4", "Show E012.mp4" and "Show S01E12.mp4" all work. Put a show's
   episodes in one folder inside its channel folder (Dragon Ball\Dragon Ball Z\...) and they play in order.
 
+SETTINGS IS EASIER TO FIND YOUR WAY AROUND (1.32)
+  A 'Needs a look' box at the top of Settings lists what wants your attention (an update, videos that cannot play,
+  videos waiting in the Inbox) with an Open button for each. Settings > Tools is folded into four sections - press
+  Enter on a section name to open or close it. Nothing is deleted by any of this.
+
 SEE HOW FAR NEW VIDEOS ARE (1.31)
   Settings > Tools > 'New videos: how far along' shows every movie that arrives in the Inbox while HERO TV checks it,
   fixes its picture or sound, and sorts it onto its channel - with a progress bar, how many are still waiting, and how

@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.32.0": [
+        "Settings has a 'Needs a look' box at the top. It lists anything that wants your attention - an update, videos that cannot play, videos waiting in the Inbox, missing video tools, ready-to-play copies that failed - and an Open button takes you straight to it. It stays hidden when everything is fine.",
+        "Settings > Tools is shorter: its cards are folded into four sections (Right now, Add videos, Formats and copies, Tidy and check). Press Enter on a section name to open or close it; HERO TV remembers which ones you left open.",
+    ],
     "1.31.0": [
         "Settings > Tools has a new card, 'New videos: how far along'. It shows each movie from the Inbox as it is checked, fixed (picture, then sound) and sorted onto its channel, with a progress bar, how many more are waiting, and the ready-to-play copy progress.",
         "It updates by itself while the card is open. Nothing is deleted - it only shows what HERO TV is doing.",

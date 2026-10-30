@@ -163,7 +163,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
 setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.95})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
-const NEED_API=17;   /* must match API_LEVEL in herotv/config.py */
+const NEED_API=18;   /* must match API_LEVEL in herotv/config.py */
 let libV=null,toastT;
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),5000)}
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
@@ -576,13 +576,14 @@ async function openSettings(cat){if(REMOTE)return toast("Settings are on the PC.
  for(const id of ["#guide","#lib","#home","#help","#check","#info","#osd","#msg"])show(id,false);placePreview(false);show("#settings",true);paint($("#settings"),theme.color);
  hints($("#st-hints"),[["↑ ↓ ← →","move"],["Enter","choose"],["Esc","back"]]);
  try{sData=await api("/api/settings")}catch(e){sData=null}drawSettings()}
-function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
+function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
  {const a=document.activeElement;if(a&&main.contains(a)){const all=[...main.querySelectorAll(FOCUSABLE)];sKeep={cat:sCat,i:all.indexOf(a),text:a.textContent,type:a.type,top:main.scrollTop}}
   else if(sKeep&&(sKeep.cat!==sCat||(a&&a!==document.body)))sKeep=null}       /* a "Loading..." redraw in between keeps your place */
  nav.textContent=main.textContent="";
  for(const[k,n]of SCATS){const b=el("button",k===sCat?"on":"",n);b.type="button";b.setAttribute("role","tab");b.onclick=()=>sGo(k);b.dataset.k=k;nav.append(b)}
  if(!sData){main.append(el("div","empty","Settings could not be loaded. Make sure HERO TV is still running."));return}
  const d=sData,msg=el("div","smsg");msg.id="st-msg";
+ if(!REMOTE){const ab=el("div");ab.id="st-attn";main.append(ab);drawAttn()}
  if(sCat==="look"){main.append(el("h3",0,"Appearance"));
   const name=sInput(d.station.name),tag=sInput(d.station.tagline);let col=d.station.color;
   const sw=el("div","sw");const pick=c=>{col=c;sDirty=true;sLeave=false;[...sw.children].forEach(b=>b.classList.toggle("on",b.dataset.c.toLowerCase()===c.toLowerCase()));hex.value=c};
@@ -667,7 +668,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");
   main.append(sField("",d.last_backup?"Last backup: "+new Date(d.last_backup.when*1e3).toLocaleString():"No backup yet.",abl));
   const a=d.about,kv=el("div","kv");for(const[x,y]of[["HERO TV version",a.version+" (build "+a.api+")"],["Video tools (ffmpeg)",a.ffmpeg&&a.ffprobe?"installed":"MISSING - Settings > Tools > Install video tools"],["Settings file",a.settings_file],["Log file",a.log_file],["Channel files",a.config_dir]])kv.append(el("span",0,x),el("span",0,y));
   main.append(el("h3",0,"About"),kv)}
- if(sKeep&&sKeep.cat===sCat){const all=[...main.querySelectorAll(FOCUSABLE)].filter(x=>x.getClientRects().length);     /* keep your place after a redraw */
+ if(sKeep&&sKeep.cat===sCat&&!jumped){const all=[...main.querySelectorAll(FOCUSABLE)].filter(x=>x.getClientRects().length);     /* keep your place after a redraw */
   const t=all.find(x=>x.textContent===sKeep.text&&sKeep.text)||all[Math.min(sKeep.i,all.length-1)];if(t){main.scrollTop=sKeep.top;t.focus({preventScroll:true});sKeep=null;return}
   if(!all.length)return}                                                          /* still loading: try again on the next draw */
  sKeep=null;const sel=nav.querySelector(".on");if(sel&&(document.activeElement===document.body||!document.activeElement))sel.focus()}
@@ -698,7 +699,7 @@ setTimeout(updateNudge,30e3);setInterval(updateNudge,3*3600e3);
 /* ---- Tools: the jobs the .bat files used to do, run in the background ---- */
 let tData=null,jobT=null,jobSeen=0;
 function jobPoll(){clearTimeout(jobT);if(layer!=="settings")return;api("/api/job").then(j=>{drawJob(j.job);if(j.job&&j.job.state==="running")jobT=setTimeout(jobPoll,1500);
- else if(j.job&&j.job.id!==jobSeen){jobSeen=j.job.id;toast(j.job.title+(j.job.state==="done"?": finished.":": did not finish - see Settings > Tools."));if(sCat==="tools"){tData=null;drawSettings()}}}).catch(()=>{})}
+ else if(j.job&&j.job.id!==jobSeen){jobSeen=j.job.id;toast(j.job.title+(j.job.state==="done"?": finished.":": did not finish - see Settings > Tools."));atData=null;if(sCat==="tools"){tData=null;drawSettings()}}}).catch(()=>{})}
 function drawJob(j){const b=$("#jobbox");if(!b)return;b.textContent="";if(!j){b.style.display="none";return}b.style.display="";
  b.append(el("b",0,(j.state==="running"?"Working: ":j.state==="done"?"Finished: ":"Did not finish: ")+j.title));const pre=el("pre",0,j.lines.slice(-25).join("\n")||"Starting...");b.append(pre);pre.scrollTop=pre.scrollHeight;
  if(j.state==="running")b.append(el("small",0,"You can keep watching TV - this carries on in the background. Closing HERO TV stops it (run it again later to continue)."))}
@@ -749,7 +750,30 @@ function prepCard(){const c=tCard("Videos in other formats (ready-to-play copies
  if(d.failed)bar.append(sBtn("Try the failed ones again",()=>run({op:"retry"},"Trying again in the background.")));
  if(d.ready){const b=sBtn("Delete all copies",()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to delete them";return}run({op:"clear"},"Copies deleted. Your own videos were not touched.")});bar.append(b)}
  c.append(l,bar);return c}
-function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");jb.id="jobbox";jb.style.display="none";main.append(jb,msg);
+let atData=null;
+function drawAttn(){const b=$("#st-attn");if(!b)return;b.textContent="";
+ if(!atData){api("/api/attention").then(j=>{atData=j;drawAttn()}).catch(()=>{atData={items:[]}});return}
+ const it=atData.items||[];b.className=it.length?"attn":"";if(!it.length)return;b.append(el("b",0,it.length>1?"Needs a look":"Needs a look: "));
+ for(const x of it){const r=el("div","arow");r.append(el("span",0,x.text),sBtn("Open",()=>sJump(x.cat,x.card)));b.append(r)}}
+let jumpCard="",jumped=false;
+function sJump(cat,card){jumpCard=card||"";if(cat==="tools"&&card){const g=TGROUPS.find(g=>g[2].includes(card));if(g)tOpen[g[0]]=true;tSave()}atData=null;sGo(cat)}
+/* ---- Tools: the cards are folded into a few sections so the page is short; open or close one with Enter ---- */
+const TGROUPS=[["now","Right now",["New videos: how far along","Inbox","Videos not on any channel","Videos that are skipped"]],
+ ["add","Add videos",["Free movies","Bring in a folder or USB drive"]],
+ ["fmt","Formats and copies",["Videos in other formats (ready-to-play copies)","H.265 (HEVC) videos","iPhone-friendly copies"]],
+ ["tidy","Tidy and check",["Skip intros and credits by themselves","Sound language","Missing episodes","The same video twice","Free up space","This PC"]]];
+let tOpen={now:true};try{const o=JSON.parse(localStorage.getItem("herotv.toolsOpen")||"null");if(o&&typeof o==="object")tOpen=o}catch(e){}
+function tSave(){try{localStorage.setItem("herotv.toolsOpen",JSON.stringify(tOpen))}catch(e){}}
+function groupTools(main){const cards=[...main.children].filter(x=>x.classList.contains("tcard")),last=TGROUPS[TGROUPS.length-1];
+ const by={};for(const g of TGROUPS)by[g[0]]=[];for(const c of cards){const t=c.firstChild.textContent;(by[(TGROUPS.find(g=>g[2].includes(t))||last)[0]]).push(c);c.remove()}
+ for(const[k,name]of TGROUPS){const list=by[k];if(!list.length)continue;const open=!!tOpen[k];
+  const h=el("button","tgroup"+(open?" open":""),name+"  ("+list.length+")");h.type="button";h.dataset.g=k;h.setAttribute("aria-expanded",open?"true":"false");
+  h.onclick=()=>{tOpen[k]=!open;tSave();drawSettings();const n=$('#st-main [data-g="'+k+'"]');if(n)n.focus({preventScroll:true})};main.append(h);
+  if(open){const body=el("div","tgbody");for(const c of list)body.append(c);main.append(body)}}
+ if(jumpCard){const c=[...main.querySelectorAll(".tcard")].find(x=>x.firstChild.textContent===jumpCard);jumpCard="";
+  if(c){c.scrollIntoView({block:"start"});const f=c.querySelector(FOCUSABLE);if(f){f.focus({preventScroll:true});jumped=true}}}}
+function drawTools(main,msg){drawToolsRaw(main,msg);if(tData)groupTools(main)}
+function drawToolsRaw(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");jb.id="jobbox";jb.style.display="none";main.append(jb,msg);
  if(!tData){main.append(el("div","empty","Loading..."));api("/api/tools").then(j=>{tData=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return}
  drawJob(tData.job);if(tData.job&&tData.job.state==="running")jobPoll();
  const t=tData;
