@@ -747,6 +747,7 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
    const b=sBtn("Sort them",()=>runJob({name:"unsorted"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row);
    main.append(c)}}
  { const c=tCard("Videos that are skipped",t.skipped.length?"These cannot play in the TV yet. Fixing makes a copy that plays (keeps the original); a picture problem can take 15-40 minutes for a movie.":"Every video can play.");
+   if(t.skipped.length>1){const b=sBtn(`Fix all ${t.skipped.length}`,()=>runJob({name:"fixall"},b),"pri");const row=el("div","sbar");row.append(b,el("small",0,"Sound-only fixes go first and take seconds each; ones that need the picture converted take longer."));c.append(row)}
    for(const v of t.skipped.slice(0,12)){const row=el("div","sbar"),b=sBtn("Fix",()=>runJob({name:"fix",media_id:v.id},b));row.append(b,el("span",0,v.title+" - "+v.why));c.append(row)}
    if(t.skipped.length>12)c.append(el("small",0,`...and ${t.skipped.length-12} more. Fix these first, then come back.`));main.append(c)}
  main.append(capsCard(t));
@@ -785,11 +786,11 @@ async function capTest(force){if(REMOTE)return null;let cur={};try{cur=await api
  r.ac3=capType('audio/mp4; codecs="ac-3"');r.eac3=capType('audio/mp4; codecs="ec-3"');
  try{const j=await api("/api/caps",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(r)});
   if(!cur.checked&&j.hevc&&j.hevc_videos)toast(`Good news: this PC can show H.265 videos, so ${j.hevc_videos} of them are being added back to your channels.`);return j}catch(e){return null}}
-function capsCard(t){const k=t.caps||{},n=t.hevc_videos||0,c=tCard("H.265 (HEVC) and Dolby sound",
-  !k.checked?"Not tested yet - HERO TV checks once whether this PC can show H.265 videos and play Dolby (AC-3) sound.":
+function capsCard(t){const k=t.caps||{},n=t.hevc_videos||0,c=tCard("H.265 (HEVC) videos",
+  !k.checked?"Not tested yet - HERO TV checks once whether this PC can show H.265 videos.":
   (k.hevc?"This PC can show H.265 videos"+(k.hevc10?" (10-bit ones too)":" (but not 10-bit ones - Fix converts those)")+(k.hevc_mkv?"":"; .mkv ones are repackaged by Fix in seconds")+".":
    "This PC cannot show H.265 videos yet"+(n?` (you have ${n})`:"")+". Install Microsoft's \"HEVC Video Extensions\" from the Microsoft Store (or \"HEVC Video Extensions from Device Manufacturer\", which is free on many PCs), restart HERO TV, then press Test again. Or press Fix on each one.")+
-  " Dolby sound: "+(k.ac3?"plays.":"converted by Fix (quick - only the sound)."));
+  " Dolby (AC-3) sound is always converted to AAC on the way in - quick, only the sound.");
  const row=el("div","sbar"),lb=k.checked?"Test again":"Test now",b=sBtn(lb,async()=>{b.disabled=true;b.textContent="Testing...";const j=await capTest(true);b.disabled=false;b.textContent="Test again";
   if(j){sMsg(j.hevc?"H.265 works on this PC. Videos are being checked again - give it a minute.":"H.265 still does not play here.",j.hevc?"ok":"err");tData=null;drawSettings()}});
  row.append(b);if(t.encoder)row.append(el("small",0,"Fix converts with the "+t.encoder+"."));c.append(row);return c}

@@ -39,7 +39,7 @@ class CapsTests(unittest.TestCase):
         self.assertFalse(library.video_ok("hevc", "yuv420p10le|main 10", ".mp4"))   # 10-bit failed its own test
         self.assertFalse(library.video_ok("hevc", "yuv420p|main", ".mkv"))          # Fix repackages it quickly
         self.assertFalse(library.video_ok("hevc", "yuv422p|rext", ".mp4"))
-        self.assertTrue(library.audio_ok("ac3"))
+        self.assertFalse(library.audio_ok("ac3"))                     # Dolby is always converted (1.29.1)
         self.assertFalse(library.audio_ok("eac3"))
         self.assertEqual(library.caps()["checked"], 5)
         self.assertIn("seconds", library.why_not_playable("hevc", "aac", "yuv420p|main", ".mkv"))
@@ -47,7 +47,9 @@ class CapsTests(unittest.TestCase):
     def test_everything_passes(self):
         self.write({"hevc": True, "hevc10": True, "hevc_mkv": True, "ac3": True, "eac3": True})
         self.assertTrue(library.video_ok("hevc", "yuv420p10le|main 10", ".mkv"))
-        self.assertTrue(library.audio_ok("eac3"))
+        self.assertFalse(library.audio_ok("eac3"))
+        self.assertFalse(library.mp4_audio_ok("pcm_s16le"))
+        self.assertTrue(library.audio_ok("pcm_s16le"))
 
     def test_recheck_only_touches_affected_videos(self):
         from herotv.db import connect
@@ -57,8 +59,8 @@ class CapsTests(unittest.TestCase):
                       (f"/x/{i}{ext}", str(i), v, a, "yuv420p|main", 0 if (v == "hevc" or a == "ac3") else 1))
         self.assertEqual(library.recheck_playable(c), 0)                      # still untested: nothing changes
         self.write({"hevc": True, "ac3": True})
-        self.assertEqual(library.recheck_playable(c), 2)                      # the .mp4 H.265 and the AC-3 one
-        self.assertEqual([r[0] for r in c.execute("SELECT playable FROM media ORDER BY id")], [1, 1, 1, 0])
+        self.assertEqual(library.recheck_playable(c), 1)                      # the .mp4 H.265; AC-3 still converted
+        self.assertEqual([r[0] for r in c.execute("SELECT playable FROM media ORDER BY id")], [1, 0, 1, 0])
 
     def test_broken_settings_file_means_untested(self):
         self.sf.write_text("{not json", encoding="utf-8")
@@ -90,3 +92,42 @@ class EncoderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(tools.find_tool("ffmpeg") and tools.find_tool("ffprobe"), "needs ffmpeg")
+class DvdRipTests(unittest.TestCase):
+    """A MakeMKV DVD rip: MPEG-2 picture with raw PCM or Dolby sound."""
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.ff = tools.find_tool("ffmpeg")
+        tools._ENC.clear()
+
+    def make(self, name, acodec):
+        import subprocess
+        p = os.path.join(self.d, name)
+        subprocess.run([self.ff, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=25", "-f", "lavfi",
+                        "-i", "sine=f=440:sample_rate=48000", "-t", "4", "-c:v", "mpeg2video", "-c:a", acodec, p], check=True)
+        return p
+
+    def test_pcm_and_dolby_become_aac(self):
+        from herotv import launcher
+        tools._ENC[self.ff] = list(tools.CPU_H264)
+        for name, ac in (("pcm.mkv", "pcm_s16le"), ("dolby.mkv", "ac3")):
+            st, out = launcher._convert_one(self.make(name, ac), self.ff)
+            self.assertEqual(st, "converted")
+            p = library.probe(out)
+            self.assertEqual((p["vcodec"], p["acodec"]), ("h264", "aac"), name)
+
+    def test_a_black_graphics_card_copy_is_redone_on_the_processor(self):
+        from herotv import launcher
+        src = self.make("movie.mkv", "aac")
+        tmp = os.path.join(self.d, "out.mp4")
+
+        def mk(vo):
+            if "h264_fakegpu" in vo:      # a driver that "succeeds" but makes black video
+                return [self.ff, "-v", "error", "-y", "-f", "lavfi", "-i", "color=black:s=320x240:r=25", "-t", "4", tmp]
+            return [self.ff, "-v", "error", "-y", "-i", src, *vo, "-an", tmp]
+        r = launcher._encode_checked(self.ff, src, tmp, ["-c:v", "h264_fakegpu"], mk, 4)
+        self.assertEqual(r.returncode, 0)
+        self.assertIs(launcher._black(self.ff, tmp, 0, 3), False)
+        self.assertIn("libx264", tools.h264_encoder(self.ff))                # the processor from now on

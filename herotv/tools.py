@@ -80,13 +80,22 @@ HW_ENCODERS = (
 )
 
 
+CPU_H264 = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+
+
+def use_processor(ffmpeg):
+    """Stop using the graphics card for this ffmpeg (it made a broken copy). Returns the processor's arguments."""
+    _ENC[ffmpeg] = list(CPU_H264)
+    return list(CPU_H264)
+
+
 def h264_encoder(ffmpeg, run=None):
     """ffmpeg arguments that make standard 8-bit H.264: with the PC's graphics card (NVIDIA / Intel / AMD) when one
     really works here - several times faster - else libx264 on the processor. Checked once per ffmpeg."""
     if ffmpeg in _ENC:
         return list(_ENC[ffmpeg])
     run = run or subprocess.run
-    chosen = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
+    chosen = list(CPU_H264)
     for name, opts in HW_ENCODERS:
         try:
             r = run([ffmpeg, "-hide_banner", "-v", "error", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=25", "-frames:v", "10",

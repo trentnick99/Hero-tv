@@ -5,6 +5,7 @@
 """
 import json
 import os
+import re
 import zipfile
 import shutil
 import subprocess
@@ -471,6 +472,44 @@ def _keep_original(src):
     return dest
 
 
+def _black(ffmpeg, path, at, secs=12):
+    """True when a stretch of the video is all black (or green/grey: no detail at all), False when it has a picture,
+    None when it could not be read."""
+    try:
+        r = subprocess.run([ffmpeg, "-hide_banner", "-nostdin", "-ss", f"{at:.1f}", "-t", str(secs), "-i", path, "-an", "-sn",
+                            "-vf", "scale=160:-2,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-",
+                            "-f", "null", "-"], capture_output=True, text=True, timeout=180, **tools.HIDE)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    ydif = [float(x) for x in re.findall(r"YDIF=([\d.]+)", r.stdout or "")]
+    if len(ydif) < 5:
+        return True if r.returncode == 0 else None          # decoded, but no pictures came out
+    import statistics
+    return statistics.mean(ydif) < 0.05                     # nothing moves at all
+
+
+def _encode_checked(ffmpeg, src, tmp, vopt, make_cmd, runtime=0):
+    """Run the conversion. When the graphics card did the picture, check the result really has a picture (some
+    drivers make black or broken video without any error) and, if not, do it again on the processor - and keep
+    using the processor from then on."""
+    r = subprocess.run(make_cmd(vopt), **tools.HIDE)
+    hw = "-c:v" in vopt and vopt[vopt.index("-c:v") + 1] not in ("copy", "libx264")
+    if not hw:
+        return r
+    bad = r.returncode != 0 or not os.path.isfile(tmp)
+    if not bad:
+        at = min(max(runtime * 0.3, 0), max(runtime - 15, 0)) if runtime else 0
+        new, old = _black(ffmpeg, tmp, at), _black(ffmpeg, src, at)
+        bad = new is None or (new and old is False)
+    if not bad:
+        return r
+    say("  the graphics card's copy did not come out right - doing it again on the processor (slower)")
+    if os.path.isfile(tmp):
+        os.remove(tmp)
+    cpu = tools.use_processor(ffmpeg)
+    return subprocess.run(make_cmd(cpu), **tools.HIDE)
+
+
 def _convert_one(src, ffmpeg, phone=False):
     """Make one file browser-playable. Returns (status, path): 'fine' | 'converted' | 'failed'.
     Video already in a playable codec is copied untouched; only the sound (AC-3/DTS -> AAC) is converted.
@@ -482,6 +521,7 @@ def _convert_one(src, ffmpeg, phone=False):
     ext = os.path.splitext(src)[1].lower()
     v_ok = library.video_ok(p["vcodec"], p.get("vfmt", ""), ".mp4")    # the copy is an .mp4
     a_ok = library.audio_ok(p["acodec"])
+    a_copy = library.mp4_audio_ok(p["acodec"])
     if phone:                                  # iPhone-friendly: .mp4 with H.264/HEVC picture and AAC-type sound
         v_ok = v_ok and p["vcodec"] in ("h264", "hevc")
         a_ok = (not p["acodec"]) or p["acodec"] in library.PLAY_A & library.PHONE_A
@@ -497,15 +537,15 @@ def _convert_one(src, ffmpeg, phone=False):
     vopt = ["-c:v", "copy"] if v_ok else tools.h264_encoder(ffmpeg)
     if v_ok and p["vcodec"] == "hevc":
         vopt += ["-tag:v", "hvc1"]               # Apple devices only play HEVC tagged this way
-    aopt = ["-c:a", "copy"] if a_ok else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
+    aopt = ["-c:a", "copy"] if a_ok and a_copy else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
     speed = ("with the graphics card - a movie takes a few minutes" if "libx264" not in tools.h264_encoder(ffmpeg)
              else "slow: a movie can take 15-40 minutes")
     say(("  making an iPhone-friendly copy:" if phone else "  fixing for the TV:") + " video " +
         ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 ({speed})") +
-        ", audio " + ("kept as is" if a_ok else f"converting {p['acodec']} -> AAC"))
-    cmd = [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", "0:a:0?", *vopt, *aopt,
-           "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
-    r = subprocess.run(cmd, **tools.HIDE)
+        ", audio " + ("kept as is" if a_ok and a_copy else f"converting {p['acodec']} -> AAC"))
+    mk = lambda vo: [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", "0:a:0?", *vo, *aopt,
+                     "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
+    r = _encode_checked(ffmpeg, src, tmp, vopt, mk, p.get("runtime_s") or 0)
     if r.returncode != 0 or not os.path.isfile(tmp):
         say("  [FAIL] ffmpeg could not convert this file")
         if os.path.isfile(tmp):
@@ -580,7 +620,7 @@ def fix_audio(paths, lang=None, track=None):
             continue
         t = tracks[pick]
         v_ok = library.video_ok(p["vcodec"], p.get("vfmt", ""), ".mp4")
-        a_ok = library.audio_ok(t["codec"])
+        a_ok = library.mp4_audio_ok(t["codec"])
         folder, stem = os.path.split(src)[0], os.path.splitext(os.path.basename(src))[0]
         tmp, final = os.path.join(folder, stem + ".converting.tmp"), os.path.join(folder, stem + ".mp4")
         if os.path.exists(final) and os.path.abspath(final) != src:
@@ -590,9 +630,9 @@ def fix_audio(paths, lang=None, track=None):
         vopt = ["-c:v", "copy"] if v_ok else tools.h264_encoder(ffmpeg)
         aopt = ["-c:a", "copy"] if a_ok else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
         say(f"  making a copy that plays: {t['language']}" + ("" if v_ok else "  (this video also needs re-encoding: slow)"))
-        cmd = [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", f"0:a:{pick}", *vopt, *aopt,
-               "-disposition:a:0", "default", "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
-        r = subprocess.run(cmd, **tools.HIDE)
+        mk = lambda vo: [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", f"0:a:{pick}", *vo, *aopt,
+                         "-disposition:a:0", "default", "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
+        r = _encode_checked(ffmpeg, src, tmp, vopt, mk, p.get("runtime_s") or 0)
         if r.returncode != 0 or not os.path.isfile(tmp):
             say("  [FAIL] ffmpeg could not make the copy")
             if os.path.isfile(tmp):

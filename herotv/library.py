@@ -49,10 +49,15 @@ def caps():
 
 
 def audio_ok(acodec):
-    """Can the TV screen play this sound? AC-3 / E-AC-3 when this PC was seen to play them."""
-    if not acodec or acodec in PLAY_A:
-        return True
-    return acodec in ("ac3", "eac3") and caps().get(acodec, False)
+    """Can the TV screen play this sound? Dolby (AC-3 / E-AC-3) is always converted to AAC: a browser can say it
+    supports Dolby and still play it as static (seen in 1.29.0), and converting only the sound is quick."""
+    return not acodec or acodec in PLAY_A
+
+
+def mp4_audio_ok(acodec):
+    """Sound that may be copied as is into an .mp4. Raw PCM (DVD rips) becomes 'ipcm' there, which TVs and many
+    browsers play as noise or not at all - it is converted to AAC."""
+    return audio_ok(acodec) and not str(acodec or "").startswith("pcm")
 
 
 def video_ok(vcodec, vfmt="", ext=""):

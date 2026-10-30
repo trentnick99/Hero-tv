@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.29.1": [
+        "Bad sound (static, noise) fixed: Dolby (AC-3) sound is always converted to AAC again, and so is the raw sound of DVD rips (MakeMKV). Videos this affected now show under Settings > Tools > Videos that are skipped - press Fix all.",
+        "When the graphics card converts a video, HERO TV now checks the picture came out right, and if it did not, does it again on the processor.",
+    ],
     "1.29.0": [
         "H.265 (HEVC) videos: HERO TV now tests once whether this PC can show them, and plays them when it can instead of skipping them. If it cannot, Settings > Tools > H.265 says what to install (Microsoft's HEVC Video Extensions). Dolby (AC-3) sound is tested the same way.",
         "Fix is much faster when your PC has an NVIDIA, Intel or AMD graphics chip: it converts with the graphics card (minutes, not 15-40 minutes for a movie).",

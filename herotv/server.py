@@ -750,6 +750,14 @@ def make_handler(app, remote=False):
                     LA.say(f"Moved {n} video(s) into the Inbox to be sorted.")
                     return LA.sort_movies(assume_yes=True, cfg=app.cfg)
                 return {"job": jobs.start(name, f"Sorting {len(paths)} video(s) that are on no channel", run_unsorted)}
+            if name == "fixall":                             # every skipped video, sound-only fixes first (quick)
+                rows = [r for r in c.execute("SELECT path,vcodec,acodec,vfmt FROM media WHERE available=1 AND verified=1 "
+                                             "AND playable=0 ORDER BY title") if os.path.isfile(r["path"])]
+                if not rows:
+                    raise ValueError("Every video can already play.")
+                rows.sort(key=lambda r: 0 if L.video_ok(r["vcodec"], r["vfmt"] or "", ".mp4") else 1)
+                paths = [r["path"] for r in rows]
+                return {"job": jobs.start(name, f"Fixing {len(paths)} video(s)", lambda: LA.convert(paths) or LA._after_change(app.cfg, 0))}
             if name == "fix":
                 path, title = media_path()
                 return {"job": jobs.start(name, "Fixing " + title, lambda: LA.convert([path]) or LA._after_change(app.cfg, 0))}
