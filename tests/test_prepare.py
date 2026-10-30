@@ -88,7 +88,7 @@ class RealFiles(unittest.TestCase):
         library.scan(self.c, self.root)
 
     def row(self, path):
-        return self.c.execute("SELECT * FROM media WHERE path=?", (path,)).fetchone()
+        return self.c.execute("SELECT * FROM media WHERE path=?", (os.path.normpath(path),)).fetchone()   # Windows: backslashes
 
     def make(self):
         self.assertTrue(prepare.run_once(self.c, FF, self.root))
@@ -123,11 +123,11 @@ class RealFiles(unittest.TestCase):
         mid = self.row(self.dolby)["id"]
         self.assertEqual(prepare.delivery(self.c, mid, "browser")[1], "mp4")      # a browser gets the copy
         self.assertTrue(prepare.delivery(self.c, mid, "browser")[0].endswith(".mp4"))
-        self.assertEqual(prepare.delivery(self.c, mid, "roku"), (self.dolby, "mkv"))   # a Roku plays the original
+        self.assertEqual(prepare.delivery(self.c, mid, "roku"), (os.path.normpath(self.dolby), "mkv"))   # a Roku plays the original
         self.assertEqual(prepare.alt(self.c, mid), "mp4")                         # ... with the copy as its fallback
         self.assertEqual(prepare.delivery(self.c, mid, "safe")[1], "mp4")
         pid = self.row(self.plain)["id"]
-        self.assertEqual(prepare.delivery(self.c, pid, "browser"), (self.plain, "mp4"))
+        self.assertEqual(prepare.delivery(self.c, pid, "browser"), (os.path.normpath(self.plain), "mp4"))
         self.assertEqual(prepare.alt(self.c, pid), "")                            # nothing to fall back to
 
     def test_scan_keeps_it_playable_and_tidy_drops_a_copy_nobody_needs(self):
