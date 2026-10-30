@@ -527,7 +527,7 @@ def _convert_one(src, ffmpeg, phone=False):
         a_ok = (not p["acodec"]) or p["acodec"] in library.PLAY_A & library.PHONE_A
         if v_ok and a_ok and ext in library.PHONE_EXTS:
             return "fine", src
-    elif library.video_ok(p["vcodec"], p.get("vfmt", ""), ext) and a_ok and ext in library.EXTS:
+    elif library.video_ok(p["vcodec"], p.get("vfmt", ""), ext) and library.audio_ok(p["acodec"], ext) and ext in library.EXTS:
         return "fine", src
     folder, stem = os.path.split(src)[0], os.path.splitext(os.path.basename(src))[0]
     tmp, final = os.path.join(folder, stem + ".converting.tmp"), os.path.join(folder, stem + ".mp4")

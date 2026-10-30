@@ -118,6 +118,22 @@ class DvdRipTests(unittest.TestCase):
             p = library.probe(out)
             self.assertEqual((p["vcodec"], p["acodec"]), ("h264", "aac"), name)
 
+    def test_an_mp4_that_already_has_raw_pcm_is_skipped_and_fixed(self):
+        from herotv import launcher
+        self.assertFalse(library.audio_ok("pcm_s16le", ".mp4"))
+        self.assertTrue(library.audio_ok("pcm_s16le", ".mkv"))
+        self.assertIn("sound", library.why_not_playable("h264", "pcm_s16le", "yuv420p|high", ".mp4"))
+        tools._ENC[self.ff] = list(tools.CPU_H264)
+        import subprocess
+        src = os.path.join(self.d, "old.mp4")
+        subprocess.run([self.ff, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=25", "-f", "lavfi",
+                        "-i", "sine=f=440:sample_rate=48000", "-t", "3", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                        "-c:a", "pcm_s16le", "-f", "mp4", src], check=True)
+        st, out = launcher._convert_one(src, self.ff)
+        self.assertEqual(st, "converted")
+        p = library.probe(out)
+        self.assertEqual((p["vcodec"], p["acodec"]), ("h264", "aac"))
+
     def test_a_black_graphics_card_copy_is_redone_on_the_processor(self):
         from herotv import launcher
         src = self.make("movie.mkv", "aac")

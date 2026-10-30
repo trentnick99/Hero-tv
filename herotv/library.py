@@ -48,9 +48,12 @@ def caps():
     return _caps["caps"]
 
 
-def audio_ok(acodec):
+def audio_ok(acodec, ext=""):
     """Can the TV screen play this sound? Dolby (AC-3 / E-AC-3) is always converted to AAC: a browser can say it
-    supports Dolby and still play it as static (seen in 1.29.0), and converting only the sound is quick."""
+    supports Dolby and still play it as static (seen in 1.29.0), and converting only the sound is quick. Raw PCM is
+    fine in .mkv/.webm but not inside an .mp4 / .mov (see mp4_audio_ok)."""
+    if str(ext).lower() in (".mp4", ".m4v", ".mov") and str(acodec or "").startswith("pcm"):
+        return False
     return not acodec or acodec in PLAY_A
 
 
@@ -86,8 +89,9 @@ def recheck_playable(conn):
     """After the H.265 / Dolby test result changed: re-decide only the videos it affects. Returns how many changed."""
     n = 0
     for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,playable FROM media WHERE verified=1 AND "
-                          "(vcodec='hevc' OR acodec IN ('ac3','eac3'))").fetchall():
-        ok = 1 if video_ok(r["vcodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1]) and audio_ok(r["acodec"]) else 0
+                          "(vcodec='hevc' OR acodec IN ('ac3','eac3') OR acodec LIKE 'pcm%')").fetchall():
+        ok = 1 if video_ok(r["vcodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1]) and \
+            audio_ok(r["acodec"], os.path.splitext(r["path"])[1]) else 0
         if ok != r["playable"]:
             conn.execute("UPDATE media SET playable=? WHERE id=?", (ok, r["id"]))
             n += 1
@@ -108,7 +112,7 @@ def why_not_playable(vcodec, acodec, vfmt="", ext=""):
         if vcodec == "h264":
             return f"its video is 10-bit/high-profile H.264 ({vfmt.replace('|', ', ')}), which browsers cannot show (sound only)"
         return f"its video format '{vcodec}' cannot be shown by a browser"
-    if not audio_ok(acodec):
+    if not audio_ok(acodec, ext):
         return f"its sound ({acodec}) cannot be played by the TV screen (Fix converts just the sound - quick)"
     return None
 
@@ -391,7 +395,7 @@ def scan(conn, root, probe_fn=probe):
             row = conn.execute("SELECT id,mtime,size,verified,vcodec,acodec,vfmt FROM media WHERE path=?", (path,)).fetchone()
             if row and row["mtime"] == mt and row["size"] == st.st_size and row["verified"]:
                 # unchanged: no re-probe, but re-evaluate playable (undoes a "marked unplayable" from transient errors)
-                ok = video_ok(row["vcodec"], row["vfmt"], ext) and audio_ok(row["acodec"])
+                ok = video_ok(row["vcodec"], row["vfmt"], ext) and audio_ok(row["acodec"], ext)
                 conn.execute("UPDATE media SET available=1, playable=? WHERE id=?", (1 if ok else 0, row["id"]))
                 continue
             meta = _guess(os.path.relpath(path, root).split(os.sep), stem)
@@ -412,7 +416,7 @@ def scan(conn, root, probe_fn=probe):
                 from . import art                  # films: TMDB's release date, once it is known
                 ordv = art.release_ord(conn, meta["title"], meta["year"]) or ordv
             verified = 1 if p else 0
-            playable = 1 if p and video_ok(p["vcodec"], p.get("vfmt", ""), ext) and audio_ok(p["acodec"]) else 0
+            playable = 1 if p and video_ok(p["vcodec"], p.get("vfmt", ""), ext) and audio_ok(p["acodec"], ext) else 0
             stats["unverified"] += 0 if verified else 1
             vals = (path, meta["title"], meta["year"], meta["franchise"], meta["series"], meta["season"], meta["episode"],
                     json.dumps(sc.get("tags", [])), sc.get("plot", ""), p["runtime_s"] if p else 0, verified, playable,

@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.29.2": [
+        "DVD rips that were already turned into .mp4 files with raw (PCM) sound are now listed under Settings > Tools > Videos that are skipped too, so Fix all repairs their sound.",
+    ],
     "1.29.1": [
         "Bad sound (static, noise) fixed: Dolby (AC-3) sound is always converted to AAC again, and so is the raw sound of DVD rips (MakeMKV). Videos this affected now show under Settings > Tools > Videos that are skipped - press Fix all.",
         "When the graphics card converts a video, HERO TV now checks the picture came out right, and if it did not, does it again on the processor.",
