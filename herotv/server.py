@@ -1103,6 +1103,16 @@ def make_handler(app, remote=False):
                     server = ""
                 from . import tools
                 return self.send_json(dict(iptv.status(server), lan=R.enabled(), ffmpeg=bool(tools.find_tool("ffmpeg"))))
+            if p == "setup":                                  # the small "finish setting up" list on the Home screen (hidden once everything is done)
+                from . import tools as T
+                have = c.execute("SELECT COUNT(*) FROM media WHERE available=1").fetchone()[0]
+                plays = c.execute("SELECT COUNT(*) FROM media WHERE available=1 AND playable=1").fetchone()[0]
+                steps = [{"id": "videos", "text": "Add your videos", "done": have > 0, "cat": "tools", "card": "Bring in a folder or USB drive"},
+                         {"id": "tools", "text": "Install the video tools (ffmpeg)", "done": bool(T.find_tool("ffmpeg") and T.find_tool("ffprobe")),
+                          "cat": "tools", "card": "This PC"}]
+                if have:
+                    steps.append({"id": "play", "text": "Make your videos playable on this TV", "done": plays > 0, "cat": "tools", "card": "Videos that are skipped"})
+                return self.send_json({"steps": steps, "done": all(x["done"] for x in steps)})
             if p == "attention":                              # the short "needs a look" list at the top of Settings (cheap, nothing is changed)
                 from . import selfupdate, tools as T
                 items = []

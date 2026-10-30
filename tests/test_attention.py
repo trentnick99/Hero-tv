@@ -66,7 +66,28 @@ class Attention(unittest.TestCase):
                 mock.patch.object(selfupdate, "status", return_value={"available": False}):
             self.assertNotIn("Videos that are skipped", {i["card"] for i in self.get()})
 
+    def setup(self):
+        with urllib.request.urlopen(self.base + "/api/setup") as r:
+            return json.load(r)
+
+    def test_setup_list_follows_what_is_there(self):
+        with mock.patch.object(tools, "find_tool", return_value=None):
+            j = self.setup()
+        self.assertEqual([(x["id"], x["done"]) for x in j["steps"]], [("videos", False), ("tools", False)])   # no videos: no "playable" step yet
+        self.assertFalse(j["done"])
+        self.c.execute("INSERT INTO media(path,title,available,playable,verified,size) VALUES(?,?,1,0,1,5)",
+                       (os.path.join(self.root, "Movies", "A.mkv"), "A"))
+        self.c.commit()
+        with mock.patch.object(tools, "find_tool", return_value="/usr/bin/x"):
+            j = self.setup()
+        self.assertEqual([(x["id"], x["done"]) for x in j["steps"]], [("videos", True), ("tools", True), ("play", False)])
+        self.c.execute("UPDATE media SET playable=1")
+        self.c.commit()
+        with mock.patch.object(tools, "find_tool", return_value="/usr/bin/x"):
+            self.assertTrue(self.setup()["done"])                  # all done: the Home tile goes away
+
     def test_phones_cannot_read_it(self):
+        self.assertNotIn("setup", remote.REMOTE_GET_API)
         self.assertNotIn("attention", remote.REMOTE_GET_API)
         self.assertFalse(any("attention".startswith(p) for p in remote.REMOTE_GET_API_PREFIX))
 

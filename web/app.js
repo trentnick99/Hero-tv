@@ -163,7 +163,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
 setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.95})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
-const NEED_API=18;   /* must match API_LEVEL in herotv/config.py */
+const NEED_API=19;   /* must match API_LEVEL in herotv/config.py */
 let libV=null,toastT;
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),5000)}
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
@@ -212,11 +212,15 @@ async function loadHome(){const d={};
  try{const j=await api("/api/library?view=recent&limit=1");d.recent=j.items[0]||null;d.recentN=j.counts&&j.counts.recent||0}catch(e){}
  try{d.help=await api("/api/help")}catch(e){}
  try{d.check=(await api("/api/checklist")).lists}catch(e){}
+ if(!REMOTE)try{d.setup=await api("/api/setup")}catch(e){}
  homeData=d}
 const dayWord=t=>(new Date(t*1e3).toDateString()===new Date(nowS()*1e3).toDateString()?"today ":"tomorrow ")+T(t);
 function homeTiles(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="free"),wxc=chans.find(x=>x.kind==="weather"),list=[];
  const tuneTo=i=>{closeAll();tune(i)};
+ const sp=d.setup;
  list.push({ic:"live",wide:1,t:"Live TV",s:c?`${c.number} ${c.name}${slot?": "+label(slot):""}`:"",img:slot&&slot.media_id,go:()=>closeAll()});
+ if(sp&&!sp.done&&!REMOTE){const nx=sp.steps.find(x=>!x.done),n=sp.steps.filter(x=>x.done).length;
+  list.push({ic:"gear",t:"Finish setting up",s:`${n} of ${sp.steps.length} done. Next: ${nx.text}`,go:()=>{closeAll();openSettings("tools").then(()=>sJump(nx.cat,nx.card))}})}
  list.push(d.cont?{ic:"resume",t:"Continue watching",s:`${label(d.cont)}, ${hms(d.cont.position)} in`,img:d.cont.id,go:()=>startVod(d.cont)}
   :{ic:"resume",t:"Continue watching",s:"Nothing started yet. Pick something from the library.",dim:1,go:()=>{closeAll();openLib()}});
  if(d.recent)list.push({ic:"new",t:"New in your library",s:`${d.recentN} new: ${label(d.recent)}${d.recentN>1?" and more":""}`,img:d.recent.id,go:()=>{closeAll();openLib("recent")}});
@@ -360,7 +364,7 @@ let items=[],li=0,qT,cols=4,view="all",counts={continue:0,favorites:0,recent:0};
 const colCount=()=>innerWidth>1700?6:innerWidth>1400?5:innerWidth>1150?4:innerWidth>700?3:2;
 async function search(){const j=await api("/api/library?view="+view+"&q="+encodeURIComponent($("#q").value));items=j.items;counts=j.counts||counts;li=0;drawList()}
 function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.height="";cols=colCount();L.style.setProperty("--cols",cols);paint(L.parentNode,chans[ci]&&chans[ci].color);
- const tb=$("#l-tabs");tb.textContent="";for(const[k,n]of VIEWS){const sp=el("span",k===view?"on":"",n+(k==="all"?"":" "+counts[k]));sp.onclick=()=>{view=k;search()};tb.append(sp)}
+ const tb=$("#l-tabs");tb.textContent="";for(const[k,n]of VIEWS){const sp=el("span",k===view?"on":"",n+(k==="all"?"":" "+counts[k]));sp.onclick=()=>{view=k;saveView();search()};tb.append(sp)}
  const q=$("#q").value.trim();$("#l-count").textContent=items.length?`${items.length} ${items.length===1?"video":"videos"}`:"";
  if(!items.length){const e=el("div","empty");if(q){e.append(el("b",0,`Nothing matches "${q}".`),el("br"),document.createTextNode("Try a title, a series or a channel name."))}
   else if(view==="continue")e.append(el("b",0,"Nothing in progress."),el("br"),document.createTextNode("Videos you start from the library show up here so you can pick up where you left off."));
@@ -374,7 +378,9 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;
   if(step>0){L.style.flex="none";L.style.height=Math.max(1,Math.floor((L.parentNode.clientHeight-L.offsetTop-$("#l-hints").offsetHeight-16)/step))*step+"px"}}   /* whole rows only */
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
-async function openLib(v0){layer="lib";show("#settings",false);show("#info",false);view=v0||"all";show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play"],["Tab","switch list"],["F2","favorite"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
+function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
+function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
+async function openLib(v0){layer="lib";show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play"],["Tab","switch list"],["F2","favorite"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
 function closeAll(){layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
@@ -524,7 +530,7 @@ addEventListener("keydown",e=>{const k=e.key;
  if(layer==="help"){if(k==="Escape"||k==="Backspace"||k==="?"||k==="F1"||k==="h"||k==="H"){e.preventDefault();return helpBack==="home"?openHome():closeAll()}return}
  if((k==="F3"||k==="F4")&&(layer==="lib"||layer==="guide"||layer===""||vod)){e.preventDefault();return openRename(k==="F4"?"series":"title")}
  if(layer==="lib"){const mv=d=>{li=Math.max(0,Math.min(items.length-1,li+d));drawList();e.preventDefault()};
-  if(k==="Tab"){e.preventDefault();view=VIEWS[(VIEWS.findIndex(x=>x[0]===view)+1)%VIEWS.length][0];search();return}
+  if(k==="Tab"){e.preventDefault();view=VIEWS[(VIEWS.findIndex(x=>x[0]===view)+1)%VIEWS.length][0];saveView();search();return}
   if(k==="F2"&&items[li]){e.preventDefault();const it=items[li],on=!it.favorite;it.favorite=on?1:0;post("/api/favorite",{media_id:it.id,on});counts.favorites+=on?1:-1;
    if(view==="favorites"&&!on){items.splice(li,1);li=Math.min(li,items.length-1)}drawList();return}
   if(k==="F8"&&items[li]){e.preventDefault();return openInfo()}

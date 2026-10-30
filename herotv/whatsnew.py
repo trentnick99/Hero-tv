@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.34.0": [
+        "New 'Finish setting up' tile on the Home screen while something is still missing (videos added, video tools installed, videos playable). It takes you straight to the right place and goes away by itself when everything is done.",
+        "Screens now fade in instead of snapping open, and the info bar slides up gently when you press I or change channel. (Turned off if your system asks for less motion.)",
+        "The Library remembers which tab you used last (All, New, Continue watching, Favorites).",
+    ],
     "1.33.0": [
         "When a tool in Settings > Tools finishes with problems (Fix all, Free movies, bringing in a folder...), it now says in plain words what went wrong with each video, and offers 'Try again'. The full technical log is one button away ('Show the full log').",
     ],

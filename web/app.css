@@ -194,6 +194,10 @@ body.big #in-plot,body.big #in-m{font-size:2.8vh}body.big #in-cast{font-size:2.4
 
 @media(max-width:1000px){.ch{flex-basis:22vw}}
 @media(prefers-reduced-motion:reduce){#osd,video,.card{transition:none}}
+@media(prefers-reduced-motion:no-preference){
+#osd{translate:0 2.5vh;transition:opacity .25s,translate .3s ease}#osd.on{translate:0 0}
+#home.on,#guide.on,#lib.on,#help.on,#settings.on,#check.on,#info.on{animation:lyin .18s ease-out}
+@keyframes lyin{from{opacity:0}}}
 
 /* home menu */
 #home{background:rgba(9,11,19,.94)}
