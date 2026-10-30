@@ -11,7 +11,7 @@ import threading
 import time
 import traceback
 
-from . import config, library
+from . import config, library, work
 
 PARTIAL = (".part", ".crdownload", ".tmp", ".download", ".aria2", ".!ut")
 MIN_AGE_S = 20
@@ -79,6 +79,23 @@ def waiting(cfg):
     return n
 
 
+def waiting_names(cfg, limit=40):
+    """File names waiting in the Inbox (newest first), for the Settings progress card."""
+    d = inbox_dir(cfg)
+    found = []
+    if os.path.isdir(d):
+        for dp, dn, fn in os.walk(d):
+            dn[:] = [x for x in dn if not x.startswith(".")]
+            for f in fn:
+                if os.path.splitext(f)[1].lower() in library.EXTS | _convertible() and not f.lower().endswith(PARTIAL):
+                    try:
+                        found.append((os.stat(os.path.join(dp, f)).st_mtime, f))
+                    except OSError:
+                        pass
+    found.sort(reverse=True)
+    return [f for _, f in found[:limit]]
+
+
 def facts_lookup(cfg):
     """A function stem -> TMDB facts (or None), using the library database as its memory."""
     from . import art
@@ -130,23 +147,40 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
     mine = F.load(cfg)
     follow = series_lookup(cfg, channels)
     media = os.path.abspath(str(cfg.media_dir))
+    work.batch(len(ready), 0)
     for src in ready:
-        stem = os.path.splitext(os.path.basename(src))[0]
-        picked = sortrules.targets(stem, rules, channels, None if F.lookup(mine, stem) else (facts(stem) if facts else None), smart, mine)
-        if not picked:
-            picked = follow(stem)                         # a new episode of a show you already have
-        if not picked:
-            out["left"] += 1
-            if os.path.normcase(os.path.dirname(os.path.abspath(src))) == os.path.normcase(media):
-                move_in([src], cfg)                       # a loose video nothing matched: into the Inbox list
-            continue
+        work.begin("inbox", os.path.basename(src))
+        work.stage(work.FIRST)
+        result = "left in the Inbox"
         try:
-            if place(src, picked, media, force_move=True):
-                out["filed"].append(os.path.basename(src))
-        except Exception:
-            traceback.print_exc()
-            out["left"] += 1
+            _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, place)
+            if os.path.basename(src) in out["filed"]:
+                result = "filed"
+        finally:
+            work.end(result, quiet=(result != "filed" and work.waiting_stage()))
+            work.batch_step()
+    work.batch(0, 0)
     return out
+
+
+def _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, place):
+    from . import sortrules
+    from . import fixes as F
+    stem = os.path.splitext(os.path.basename(src))[0]
+    picked = sortrules.targets(stem, rules, channels, None if F.lookup(mine, stem) else (facts(stem) if facts else None), smart, mine)
+    if not picked:
+        picked = follow(stem)                         # a new episode of a show you already have
+    if not picked:
+        out["left"] += 1
+        if os.path.normcase(os.path.dirname(os.path.abspath(src))) == os.path.normcase(media):
+            move_in([src], cfg)                       # a loose video nothing matched: into the Inbox list
+        return
+    try:
+        if place(src, picked, media, force_move=True):
+            out["filed"].append(os.path.basename(src))
+    except Exception:
+        traceback.print_exc()
+        out["left"] += 1
 
 
 SIDECARS = (".hero.json", ".srt", ".vtt", ".ass", ".ssa", ".nfo", ".jpg", ".png")

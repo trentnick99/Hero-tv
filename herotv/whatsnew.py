@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.31.0": [
+        "Settings > Tools has a new card, 'New videos: how far along'. It shows each movie from the Inbox as it is checked, fixed (picture, then sound) and sorted onto its channel, with a progress bar, how many more are waiting, and the ready-to-play copy progress.",
+        "It updates by itself while the card is open. Nothing is deleted - it only shows what HERO TV is doing.",
+    ],
     "1.30.1": [
         "Settings > Tools > Videos in other formats has a space limit: choose how many GB the ready-to-play copies may use. When it is reached HERO TV just stops making new copies - nothing is ever deleted, copies and videos alike.",
         "Updates are now checked against the checksum GitHub publishes for the file, so a damaged or swapped download is refused instead of installed.",

@@ -163,7 +163,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
 setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.95})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
-const NEED_API=16;   /* must match API_LEVEL in herotv/config.py */
+const NEED_API=17;   /* must match API_LEVEL in herotv/config.py */
 let libV=null,toastT;
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),5000)}
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
@@ -715,6 +715,23 @@ function introsCard(){const c=tCard("Skip intros and credits by themselves","HER
  const go=sBtn("Check everything now",async()=>{try{nData=await pj("/api/intros",{op:"now"});sMsg("Checking in the background - this page shows the progress when you come back.","ok");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}});
  const bar=el("div","sbar");bar.append(go);c.append(l,bar);return c}
 /* ready-to-play copies of videos this TV screen cannot play as they are (Settings > Tools) */
+let wT=null;
+function wBar(p){const b=el("div","pbar"+(p==null?" ind":""));const i=el("i");if(p!=null)i.style.width=p+"%";b.append(i);return b}
+function workCard(){const c=tCard("New videos: how far along","Videos that arrive in the Inbox are checked, fixed if needed (picture, then sound) and sorted onto their channels. Ready-to-play copies show here too. Nothing is deleted.");
+ const body=el("div","wbody");body.id="wbody";c.append(body);body.append(el("small",0,"Loading..."));workPoll();return c}
+function drawWork(j){const b=$("#wbody");if(!b)return;b.textContent="";const act=j.active||[];
+ const inb=act.filter(t=>t.kind==="inbox"),cp=act.filter(t=>t.kind==="copy");
+ if(inb.length){const bt=j.batch||{};if(bt.total>1)b.append(el("small",0,`Inbox pass: ${Math.min(bt.done+1,bt.total)} of ${bt.total} videos`));
+  for(const t of inb){const r=el("div","wrow");r.append(el("b",0,t.name),el("small",0,t.stage+(t.pct!=null?` - ${t.pct}%`:"")),wBar(t.pct));b.append(r)}}
+ const w=j.inbox||{};if(w.waiting>(inb.length)){b.append(el("small",0,`Waiting in the Inbox: ${w.waiting-inb.length} (a new file is given about a minute to finish copying first)`));
+  const ul=el("div","wlist");for(const n of(w.names||[]).slice(0,8))ul.append(el("small",0,"- "+n));if((w.names||[]).length>8||w.waiting-inb.length>8)ul.append(el("small",0,"...and more"));b.append(ul)}
+ const cs=j.copies||{};
+ if(cp.length){for(const t of cp){const r=el("div","wrow");r.append(el("b",0,"Copy: "+t.name),el("small",0,t.stage+(t.pct!=null?` - ${t.pct}%`:"")),wBar(t.pct));b.append(r)}}
+ if(cs.need)b.append(el("small",0,`Ready-to-play copies: ${cs.ready} of ${cs.need} done`),wBar(Math.round(100*cs.ready/cs.need)));
+ if(!act.length&&!w.waiting)b.append(el("small",0,"Nothing new is being processed right now."));
+ const rc=(j.recent||[]).slice(0,6);if(rc.length){b.append(el("small",0,"Recently:"));for(const r of rc)b.append(el("small",0,`- ${r.name}: ${r.result}`))}}
+function workPoll(){clearTimeout(wT);if(layer!=="settings"||sCat!=="tools")return;
+ api("/api/work").then(j=>{drawWork(j);wT=setTimeout(workPoll,(j.active||[]).length?1500:4000)}).catch(()=>{wT=setTimeout(workPoll,6000)})}
 let pData=null;
 function prepCard(){const c=tCard("Videos in other formats (ready-to-play copies)","Some movies (Dolby or DTS sound, H.265 inside an .mkv file) cannot be played by this TV screen as they are. HERO TV makes a hidden copy of each one by itself, in the background, and adds it to the channels when it is ready. Your own files are never changed or moved. A Roku plays the originals directly.");
  if(!pData){c.append(el("small",0,"Loading..."));api("/api/prepare").then(j=>{pData=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return c}
@@ -736,6 +753,7 @@ function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");
  if(!tData){main.append(el("div","empty","Loading..."));api("/api/tools").then(j=>{tData=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return}
  drawJob(tData.job);if(tData.job&&tData.job.state==="running")jobPoll();
  const t=tData;
+ main.append(workCard());
  main.append(introsCard());
  main.append(prepCard());
  { const c=tCard("Free movies","Public-domain films and cartoons from the Internet Archive, saved into your Free Movies folder.");const box=el("div","chk"),cbs=[];

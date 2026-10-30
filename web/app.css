@@ -108,6 +108,9 @@ body.alerting #settings{padding-top:9.1vh}
 .tcard{border:1px solid var(--line);background:var(--panel);border-radius:1.2vh;padding:1.6vh 1.4vw;display:flex;flex-direction:column;gap:1vh;max-width:62vw}
 .tcard h4{margin:0;font-size:calc(2.3vh*var(--tx))}.tcard small{color:var(--mute);font-size:calc(1.8vh*var(--tx))}
 .tcard .chk{display:flex;flex-wrap:wrap;gap:.6vh 1.6vw}.tcard .chk label{display:flex;gap:.5vw;align-items:center;font-size:calc(1.9vh*var(--tx))}
+.pbar{height:1.4vh;border-radius:.7vh;background:var(--line);overflow:hidden;width:100%}.pbar i{display:block;height:100%;background:var(--accent);transition:width .6s}
+.pbar.ind i{width:35%;animation:pind 1.4s ease-in-out infinite alternate}@keyframes pind{from{margin-left:0}to{margin-left:65%}}
+.wrow{display:flex;flex-direction:column;gap:.5vh;padding:.6vh 0}.wrow b{font-size:calc(2vh*var(--tx));word-break:break-all}.wlist{display:flex;flex-direction:column}.wlist small{word-break:break-all}
 #jobbox{border:1px solid var(--accent);border-radius:1.2vh;padding:1.4vh 1.4vw;max-width:62vw;display:flex;flex-direction:column;gap:.8vh}
 #jobbox pre{margin:0;max-height:24vh;overflow:auto;white-space:pre-wrap;font:calc(1.6vh*var(--tx))/1.4 ui-monospace,Consolas,monospace;color:var(--mute)}
 .pickl{display:flex;flex-direction:column;gap:.5vh}.pickl button{text-align:left}

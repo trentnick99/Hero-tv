@@ -104,6 +104,8 @@ def run_ffmpeg(cmd, runtime=0, report=None, low=False):
     except OSError as e:
         return FFResult(1, [str(e)])
     errors, state = [], {"step": 0}
+    from . import work
+    task = work.current()                                   # the Settings progress bar for this job, if it has one
 
     def line(t):
         t = t.strip()
@@ -111,6 +113,8 @@ def run_ffmpeg(cmd, runtime=0, report=None, low=False):
             return
         m = _re.search(r"time=(\d+):(\d+):([\d.]+)", t)
         if m and t.startswith(("frame=", "size=")):
+            if runtime > 0:
+                work.percent(task, (int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3])) / runtime)
             if report and runtime > 300:
                 done = (int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3])) / runtime
                 step = int(done * 10)

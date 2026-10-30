@@ -14,7 +14,7 @@ import threading
 import time
 from pathlib import Path
 
-from . import library, tools
+from . import library, tools, work
 
 FOLDER = ".prepared"
 _OURS = re.compile(r"\d+-\d+\.(?:mp4|part)")             # the only file names this module ever makes (or deletes)
@@ -279,9 +279,13 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
             continue                                       # not enough room for this one: maybe a smaller one fits
         with _lock:
             _state["now"] = os.path.basename(r["path"])
+        work.begin("copy", os.path.basename(r["path"]))
+        work.stage("Making a ready-to-play copy")
+        res = ""
         try:
             res = prepare_one(conn, r, ffmpeg, run, probe)
         finally:
+            work.end({"ready": "copy ready", "failed": "could not make a copy"}.get(res, "stopped"), quiet=res not in ("ready", "failed"))
             with _lock:
                 _state["now"] = ""
         if res == "ready":

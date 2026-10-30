@@ -16,7 +16,7 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
-from . import library, samples, subtitles, tools
+from . import library, samples, subtitles, tools, work
 from . import scheduler as S
 from .config import API_LEVEL, Config, IS_WIN, ROOT
 from .db import connect
@@ -574,6 +574,7 @@ def _rescue_sound(ffmpeg, src, tmp, vopt, mk, rt):
     """The first sound track is damaged. Use another sound track if the file has one that reads cleanly; else keep
     this one and let ffmpeg skip the damaged bits (those moments are silent). Returns (ok, result)."""
     say("  the sound track in this file is damaged - ffmpeg cannot read much of it")
+    work.stage("Repairing a damaged sound track")
     tracks = library.audio_tracks(src) or []
     aac = ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
     good = lambda r: r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)
@@ -628,6 +629,7 @@ def _convert_one_locked(src, ffmpeg, phone=False):
         ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 ({speed})") +
         ", audio " + ("kept as is" if a_ok and a_copy else f"converting {p['acodec']} -> AAC"))
     rt = p.get("runtime_s") or 0
+    work.stage("Converting the picture to standard H.264" if not v_ok else "Converting the sound to AAC")
 
     def mk(vo, amap="0:a:0?", tolerant=False, ao=aopt):
         tol = ["-err_detect", "ignore_err", "-max_error_rate", "1"] if tolerant else []
@@ -927,6 +929,7 @@ def _place(src, picked, media, force_move=False):
         return False
     say(f"\n{os.path.basename(src)}")
     ffmpeg = tools.find_tool("ffmpeg")
+    work.stage("Checking the file")
     if ffmpeg and tools.find_tool("ffprobe"):       # fix AC-3/DTS sound, .avi etc. on the way in
         st, src = _convert_one(src, ffmpeg)
         if st == "failed":
@@ -935,6 +938,7 @@ def _place(src, picked, media, force_move=False):
     elif ext.lower() in CONVERTIBLE:
         say("  [FAIL] needs ffmpeg to convert - run Check-Setup.bat")
         return False
+    work.stage("Sorting onto its channel")
     tags = [c["match"]["tags"][0] for c in picked if c["match"].get("tags")]
     folders = [c["match"]["franchise"][0] for c in picked if c["match"].get("franchise")]
     dest = src
