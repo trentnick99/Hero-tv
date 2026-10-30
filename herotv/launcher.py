@@ -498,7 +498,13 @@ def _encode_checked(ffmpeg, src, tmp, vopt, make_cmd, runtime=0):
     hw = "-c:v" in vopt and vopt[vopt.index("-c:v") + 1] not in ("copy", "libx264")
     if not hw:
         return r
-    bad = r.returncode != 0 or not os.path.isfile(tmp)
+    name = vopt[vopt.index("-c:v") + 1]
+    if r.returncode != 0 or not os.path.isfile(tmp):
+        if not any(name in e for e in getattr(r, "errors", None) or []):
+            return r                           # something else failed (e.g. damaged sound) - not the graphics card
+        bad = True
+    else:
+        bad = False
     if not bad:
         at = min(max(runtime * 0.3, 0), max(runtime - 15, 0)) if runtime else 0
         new, old = _black(ffmpeg, tmp, at), _black(ffmpeg, src, at)
@@ -560,6 +566,37 @@ def _same_length(ffmpeg, path, runtime):
     return not runtime or abs((q["runtime_s"] or 0) - runtime) <= max(5.0, runtime * 0.02)
 
 
+_SOUND_ERR = re.compile(r"\[aist#|\[dec:(?:ac3|eac3|dts|dca|truehd|aac|mp3|mp2|opus|vorbis|flac|pcm\w*)\b")
+
+
+def _sound_trouble(errors):
+    return any(_SOUND_ERR.search(e) for e in errors or [])
+
+
+def _rescue_sound(ffmpeg, src, tmp, vopt, mk, rt):
+    """The first sound track is damaged. Use another sound track if the file has one that reads cleanly; else keep
+    this one and let ffmpeg skip the damaged bits (those moments are silent). Returns (ok, result)."""
+    say("  the sound track in this file is damaged - ffmpeg cannot read much of it")
+    tracks = library.audio_tracks(src) or []
+    aac = ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
+    good = lambda r: r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)
+    for t in tracks[1:]:
+        if os.path.isfile(tmp):
+            os.remove(tmp)
+        r = _encode_checked(ffmpeg, src, tmp, vopt, lambda vo, n=t["n"]: mk(vo, f"0:a:{n}", ao=aac), rt)
+        if good(r):
+            say(f"  used the file's other sound track instead: {t['language']}")
+            return True, r
+    if os.path.isfile(tmp):
+        os.remove(tmp)
+    r = _encode_checked(ffmpeg, src, tmp, vopt, lambda vo: mk(vo, "0:a:0?", tolerant=True, ao=aac), rt)
+    if good(r):
+        say("  kept the sound but skipped its damaged parts - those moments will be silent (a better copy of the"
+            " movie is the real fix)")
+        return True, r
+    return False, r
+
+
 def _convert_one_locked(src, ffmpeg, phone=False):
     if not os.path.isfile(src):
         say("  [skip] the file is no longer there")
@@ -594,11 +631,17 @@ def _convert_one_locked(src, ffmpeg, phone=False):
         ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 ({speed})") +
         ", audio " + ("kept as is" if a_ok and a_copy else f"converting {p['acodec']} -> AAC"))
     rt = p.get("runtime_s") or 0
-    mk = lambda vo: [ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts", "-i", src, "-map", "0:V:0", "-map", "0:a:0?",
-                     *vo, *aopt, "-sn", "-dn", "-max_muxing_queue_size", "9999", "-movflags", "+faststart", "-f", "mp4", tmp]
+
+    def mk(vo, amap="0:a:0?", tolerant=False, ao=aopt):
+        tol = ["-err_detect", "ignore_err", "-max_error_rate", "1"] if tolerant else []
+        return ([ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts"] + tol +
+                ["-i", src, "-map", "0:V:0", "-map", amap, *vo, *ao, "-sn", "-dn", "-max_muxing_queue_size", "9999",
+                 "-movflags", "+faststart", "-f", "mp4", tmp])
     r = _encode_checked(ffmpeg, src, tmp, vopt, mk, rt)
     ok = r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)
-    if not ok and v_ok:                          # copying the picture failed: make a fresh one instead (slower)
+    if not ok and r.returncode and _sound_trouble(r.errors):     # a damaged sound track - the picture is fine
+        ok, r = _rescue_sound(ffmpeg, src, tmp, vopt, mk, rt)
+    if not ok and v_ok and not (r.returncode and _sound_trouble(r.errors)):   # copying the picture failed: make a fresh one
         _ffmpeg_failed(r, "copy the picture as it is" if r.returncode else "make a complete copy")
         say("  trying again, re-encoding the picture (slower)")
         if os.path.isfile(tmp):

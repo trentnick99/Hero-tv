@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.29.4": [
+        "Videos with a damaged sound track (ffmpeg: 'Decode error rate exceeds maximum') can be fixed now: HERO TV uses the file's other sound track if it has one, or keeps the sound and skips the damaged bits (those moments are silent).",
+        "A failed fix no longer blames the graphics card when the problem was the sound.",
+    ],
     "1.29.3": [
         "Fixing a video is safer: a file is never converted twice at the same time (the Inbox and Fix all could both pick it up and leave a damaged copy), and a new copy must be as long as the original before it replaces it.",
         "When copying the picture fails, HERO TV tries again by re-encoding it, and the log now says what ffmpeg reported.",

@@ -189,6 +189,57 @@ class DvdRipTests(unittest.TestCase):
         self.assertTrue(any("Too many packets" in x for x in said))           # the reason is in the log now
         self.assertEqual(library.probe(out)["acodec"], "aac")
 
+    def _damaged(self, tracks):
+        import subprocess
+        good, bad = os.path.join(self.d, "g.mkv"), os.path.join(self.d, "Amazing.mkv")
+        cmd = [self.ff, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=25"]
+        for k in range(tracks):
+            cmd += ["-f", "lavfi", "-i", f"sine=f={440 + 220 * k}:sample_rate=48000"]
+        cmd += ["-t", "6"] + sum((["-map", str(k)] for k in range(tracks + 1)), []) + \
+               ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "ac3", good]
+        subprocess.run(cmd, check=True)
+        subprocess.run([self.ff, "-v", "error", "-y", "-i", good, "-map", "0", "-c", "copy", "-bsf:a:0", "noise=amount=20", bad], check=True)
+        return bad
+
+    def _first_run_fails_on_sound(self):
+        real, cmds = tools.run_ffmpeg, []
+
+        def run(cmd, runtime=0, report=None):
+            cmds.append(cmd)
+            if len(cmds) == 1:           # newer ffmpeg gives up on a badly damaged track; 6.x here does not
+                return tools.FFResult(69, ["[aist#0:1/ac3 @ 0x1] [dec:ac3 @ 0x2] Decode error rate 0.74 exceeds maximum 0.666667"])
+            return real(cmd, runtime, report)
+        return run, cmds
+
+    def test_damaged_sound_uses_the_other_track(self):
+        from herotv import launcher
+        tools._ENC[self.ff] = list(tools.CPU_H264)
+        src = self._damaged(2)
+        run, cmds = self._first_run_fails_on_sound()
+        said = []
+        with mock.patch.object(tools, "run_ffmpeg", run), mock.patch.object(launcher, "say", said.append):
+            st, out = launcher._convert_one(src, self.ff)
+        self.assertEqual(st, "converted")
+        self.assertIn("0:a:1", cmds[1])
+        self.assertEqual(cmds[1][cmds[1].index("-c:v") + 1], "copy")          # the picture is not re-encoded
+        self.assertTrue(any("other sound track" in x for x in said))
+
+    def test_damaged_only_track_is_kept_with_silent_gaps(self):
+        from herotv import launcher
+        tools._ENC[self.ff] = ["-c:v", "h264_somegpu"]                       # must NOT be blamed for a sound problem
+        src = self._damaged(1)
+        run, cmds = self._first_run_fails_on_sound()
+        said = []
+        with mock.patch.object(tools, "run_ffmpeg", run), mock.patch.object(launcher, "say", said.append):
+            st, out = launcher._convert_one(src, self.ff)
+        self.assertEqual(st, "converted")
+        self.assertIn("ignore_err", cmds[1])
+        self.assertTrue(any("silent" in x for x in said))
+        self.assertFalse(any("graphics card" in x for x in said))
+        self.assertEqual(tools._ENC[self.ff], ["-c:v", "h264_somegpu"])
+        self.assertEqual(library.probe(out)["acodec"], "aac")
+
+
 
 if __name__ == "__main__":
     unittest.main()
