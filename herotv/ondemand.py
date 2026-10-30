@@ -2,7 +2,9 @@
 folder), shows grouped so one tile stands for a whole series, and everything a TV needs to play one video."""
 import os
 
-PLAYABLE = "m.available=1 AND m.verified=1 AND m.playable=1"
+# A Roku plays what the PC's TV screen plays AND what Roku itself can play as it is (Dolby sound, H.265 in .mkv ...):
+# those appear here at once, before HERO TV has prepared a copy for the PC.
+PLAYABLE = "m.available=1 AND m.verified=1 AND (m.playable=1 OR m.roku=1)"
 ROW_MAX = 80
 RECENT_S = 30 * 86400
 COLS = ("m.id,m.title,m.year,m.franchise,m.series,m.season,m.episode,m.plot,m.runtime_s,m.added,m.ord,"
@@ -140,9 +142,14 @@ def episodes(c, franchise, series):
 
 
 def extras(c, mid):
-    """File type and subtitle tracks the TV needs to play a video ("" / [] when unknown)."""
+    """File type and subtitle tracks the TV needs to play a video ("" / [] when unknown). The file type is that of the
+    file the Roku will be given: the original when Roku can play it, else the ready-to-play copy."""
+    from . import prepare
     m = c.execute("SELECT path FROM media WHERE id=?", (mid,)).fetchone()
     ext = os.path.splitext(m["path"])[1].lstrip(".").lower() if m else ""
+    d = prepare.delivery(c, mid, "roku") if m else None
+    if d:
+        ext = d[1]
     subs = []
     if m and os.path.isfile(m["path"]):
         from . import subtitles
@@ -185,5 +192,6 @@ def play(c, mid):
             skip["credits"] = max(0, r["runtime_s"] - sk["outro"])
         elif found.get("credits"):
             skip["credits"] = found["credits"]
-    return {"id": r["id"], "title": t["title"], "line": t["line"], "ext": ext, "subs": subs, "resume": resume, "skip": skip,
-            "runtime": int(r["runtime_s"] or 0), "favorite": bool(r["favorite"]), "next": nxt}
+    from . import prepare
+    return {"id": r["id"], "title": t["title"], "line": t["line"], "ext": ext, "alt": prepare.alt(c, r["id"]), "subs": subs,
+            "resume": resume, "skip": skip, "runtime": int(r["runtime_s"] or 0), "favorite": bool(r["favorite"]), "next": nxt}

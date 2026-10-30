@@ -1,6 +1,7 @@
 """Locate ffmpeg/ffprobe (and run them quietly) on Linux, macOS and Windows."""
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -85,14 +86,21 @@ class FFResult:
         self.returncode, self.errors = returncode, errors
 
 
-def run_ffmpeg(cmd, runtime=0, report=None):
+def run_ffmpeg(cmd, runtime=0, report=None, low=False):
     """Run an ffmpeg conversion. Keeps ffmpeg's last error lines (so a failure can say why), and calls
-    report("  40% done") every 10% for long videos. Progress still shows in a console window."""
+    report("  40% done") every 10% for long videos. Progress still shows in a console window.
+    low=True runs it at low priority (background work while someone may be watching)."""
     import re as _re
     import sys as _sys
     import threading as _th
+    kw = dict(HIDE)
+    if low:
+        if IS_WIN:
+            kw["creationflags"] = kw.get("creationflags", 0) | 0x00004000      # BELOW_NORMAL_PRIORITY_CLASS
+        elif shutil.which("nice"):
+            cmd = ["nice", "-n", "10"] + list(cmd)
     try:
-        pr = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, **HIDE)
+        pr = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, **kw)
     except OSError as e:
         return FFResult(1, [str(e)])
     errors, state = [], {"step": 0}
@@ -137,6 +145,14 @@ def run_ffmpeg(cmd, runtime=0, report=None):
     rc = pr.wait()
     t.join(10)
     return FFResult(rc, errors)
+
+
+SOUND_ERR = re.compile(r"\[aist#|\[dec:(?:ac3|eac3|dts|dca|truehd|aac|mp3|mp2|opus|vorbis|flac|pcm\w*)\b")
+
+
+def sound_trouble(errors):
+    """Do ffmpeg's error lines say the sound track (not the picture) is damaged?"""
+    return any(SOUND_ERR.search(e) for e in errors or [])
 
 
 CPU_H264 = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]

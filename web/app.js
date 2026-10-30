@@ -163,7 +163,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
 setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.95})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
-const NEED_API=15;   /* must match API_LEVEL in herotv/config.py */
+const NEED_API=16;   /* must match API_LEVEL in herotv/config.py */
 let libV=null,toastT;
 function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove("on"),5000)}
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
@@ -713,11 +713,26 @@ function introsCard(){const c=tCard("Skip intros and credits by themselves","HER
  cb.onchange=async()=>{try{nData=await pj("/api/intros",{auto:cb.checked});toast("Saved.")}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}};
  const go=sBtn("Check everything now",async()=>{try{nData=await pj("/api/intros",{op:"now"});sMsg("Checking in the background - this page shows the progress when you come back.","ok");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}});
  const bar=el("div","sbar");bar.append(go);c.append(l,bar);return c}
+/* ready-to-play copies of videos this TV screen cannot play as they are (Settings > Tools) */
+let pData=null;
+function prepCard(){const c=tCard("Videos in other formats (ready-to-play copies)","Some movies (Dolby or DTS sound, H.265 inside an .mkv file) cannot be played by this TV screen as they are. HERO TV makes a hidden copy of each one by itself, in the background, and adds it to the channels when it is ready. Your own files are never changed or moved. A Roku plays the originals directly.");
+ if(!pData){c.append(el("small",0,"Loading..."));api("/api/prepare").then(j=>{pData=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return c}
+ const d=pData;
+ c.append(el("small",0,d.need?`${d.ready} of ${d.need} copies ready`+(d.bytes?` - ${gb(d.bytes)} used`:"")+(d.working?` - making: ${d.working}`:"")+(d.failed?` - ${d.failed} could not be made`:""):"No video needs a copy right now."));
+ if(d.convert)c.append(el("small",0,`${d.convert} more need a real conversion (10-bit or unusual picture): see "Videos that are skipped" below.`));
+ const cb=el("input");cb.type="checkbox";cb.checked=d.on;const l=el("label","lb");l.append(cb," Make copies automatically (one at a time, at low priority)");l.style.display="flex";l.style.gap="1vw";
+ const run=async(body,msg)=>{try{pData=await pj("/api/prepare",body);if(msg)sMsg(msg,"ok");tData=null;drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}};
+ cb.onchange=()=>run({auto:cb.checked},"Saved.");
+ const bar=el("div","sbar");
+ if(d.failed)bar.append(sBtn("Try the failed ones again",()=>run({op:"retry"},"Trying again in the background.")));
+ if(d.ready){const b=sBtn("Delete all copies",()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to delete them";return}run({op:"clear"},"Copies deleted. Your own videos were not touched.")});bar.append(b)}
+ c.append(l,bar);return c}
 function drawTools(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div");jb.id="jobbox";jb.style.display="none";main.append(jb,msg);
  if(!tData){main.append(el("div","empty","Loading..."));api("/api/tools").then(j=>{tData=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return}
  drawJob(tData.job);if(tData.job&&tData.job.state==="running")jobPoll();
  const t=tData;
  main.append(introsCard());
+ main.append(prepCard());
  { const c=tCard("Free movies","Public-domain films and cartoons from the Internet Archive, saved into your Free Movies folder.");const box=el("div","chk"),cbs=[];
    t.free_sources.forEach((n,i)=>{const l=el("label"),cb=el("input");cb.type="checkbox";cb.checked=true;cbs.push(cb);l.append(cb,n);box.append(l)});
    const cnt=el("select");for(const n of[1,3,5,10]){const o=el("option",0,n+" from each list");o.value=n;if(n===3)o.selected=true;cnt.append(o)}
@@ -967,7 +982,7 @@ function slotsField(c){const box=el("div","slots"),ORD={sequential:"in order",mi
   post({op:"add_block",id:c.id,days:days.value,from:a.value,to:z.value,mode:ord.value,what:{[k]:x}},"Time slot added.")});
  const form=el("div","sbar");form.append(days,a,el("span",0,"to"),z,what,ord,add);box.append(form);
  return sField("Time slots","Like real TV: during these hours this channel plays only what you pick - for example cartoons on Saturday mornings. Outside them it plays as usual. A slot can run past midnight (22:00 to 02:00).",box)}
-function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools"){tData=null;nData=null}if(k==="devices"){dData=null;rData=null;rFound=null;aData=null;iData=null}drawSettings();$("#st-main").scrollTop=0}
+function sGo(k){if(sDirty&&!sLeave){sLeave=true;toast("You have unsaved changes. Choose again to discard them, or press Save.");return}sDirty=false;sLeave=false;sCat=k;chSel=null;if(k==="chan")chList=null;if(k==="tools"){tData=null;nData=null;pData=null}if(k==="devices"){dData=null;rData=null;rFound=null;aData=null;iData=null}drawSettings();$("#st-main").scrollTop=0}
 /* is box q in direction k from box r? Compared by halves, so tiles a few pixels out of line still count as one row */
 function inDir(r,q,k){if(k==="ArrowDown")return q.top>=r.top+r.height*.5&&q.top+q.height/2>r.top+r.height/2;
  if(k==="ArrowUp")return q.bottom<=r.bottom-r.height*.5&&q.top+q.height/2<r.top+r.height/2;

@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS art(key TEXT PRIMARY KEY, tmdb_id INTEGER, kind TEXT 
 CREATE TABLE IF NOT EXISTS skips(series TEXT PRIMARY KEY, intro REAL DEFAULT 0, outro REAL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS progress(media_id INTEGER PRIMARY KEY, position REAL DEFAULT 0,
  completed INTEGER DEFAULT 0, updated INTEGER);
+CREATE TABLE IF NOT EXISTS prepared(media_id INTEGER PRIMARY KEY, file TEXT DEFAULT '', src_size INTEGER DEFAULT 0,
+ status TEXT DEFAULT 'ready', why TEXT DEFAULT '', made INTEGER DEFAULT 0, bytes INTEGER DEFAULT 0);  -- ready-to-play copies (prepare.py)
 """
 
 
@@ -51,6 +53,13 @@ def connect(path: str) -> sqlite3.Connection:
         conn.execute("ALTER TABLE media ADD COLUMN added INTEGER DEFAULT 0")   # when HERO TV first found the file (0 = before 1.2)
     if "vfmt" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:
         conn.execute("ALTER TABLE media ADD COLUMN vfmt TEXT DEFAULT ''")
+    if "roku" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:
+        conn.execute("ALTER TABLE media ADD COLUMN roku INTEGER DEFAULT 0")    # a Roku TV plays the file as it is (library.roku_ok)
+        from . import library
+        for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt FROM media WHERE verified=1").fetchall():
+            if library.roku_ok(r["vcodec"], r["acodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1]):
+                conn.execute("UPDATE media SET roku=1 WHERE id=?", (r["id"],))
+        conn.commit()
     if conn.execute("PRAGMA user_version").fetchone()[0] < 4:
         # v2: new episode-number/play-order rules; v3: pixel format is now checked (10-bit / HEVC = black screen); v4: download-style file names are tidied.
         # Either way every file is re-read once on the next scan.

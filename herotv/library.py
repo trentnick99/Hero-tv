@@ -85,13 +85,52 @@ def video_ok(vcodec, vfmt="", ext=""):
     return True
 
 
+ROKU_EXTS = {".mp4", ".m4v", ".mov", ".mkv", ".webm"}
+ROKU_V = {"h264", "hevc", "vp9"}
+ROKU_A = {"aac", "ac3", "eac3", "mp3"}                            # DTS, TrueHD, Opus ... are not assumed: a copy is used instead
+
+
+def roku_ok(vcodec, acodec, vfmt="", ext=""):
+    """Will a Roku TV play this file exactly as it is (no copy needed)? Deliberately cautious: only what Roku
+    documents for its video player. Dolby (AC-3 / E-AC-3) sound and H.265 in .mkv are fine there, which is why
+    these play on a Roku while a browser cannot."""
+    if str(ext).lower() not in ROKU_EXTS or vcodec not in ROKU_V:
+        return False
+    pix, _, prof = (vfmt or "").partition("|")
+    if vcodec == "h264" and (any(x in pix for x in ("10", "12", "422", "444", "gbr")) or any(x in prof for x in ("10", "4:2:2", "4:4:4"))):
+        return False                                              # 10-bit H.264 (Hi10P) is not supported
+    if vcodec == "hevc" and any(x in pix for x in ("422", "444", "12")):
+        return False                                              # Main and Main 10 only
+    return not acodec or acodec in ROKU_A
+
+
+def pc_kind(vcodec, acodec, vfmt="", ext=""):
+    """What the PC's TV screen (a browser) needs for this file:
+    'direct'  - plays as it is;
+    'prepare' - the picture is fine, only the container or sound is not (Dolby/DTS sound, H.265 in .mkv):
+                a ready-to-play copy is quick to make (prepare.py);
+    'convert' - the picture itself cannot be shown (10-bit H.264, an unknown codec): needs a real conversion (Fix)."""
+    ext = str(ext).lower()
+    if video_ok(vcodec, vfmt, ext) and audio_ok(acodec, ext):
+        return "direct"
+    return "prepare" if video_ok(vcodec, vfmt, ".mp4") else "convert"
+
+
+def pc_ok(conn, mid, size, vcodec, acodec, vfmt, ext):
+    """Can the PC's TV screen play this video right now: as it is, or from a ready-to-play copy."""
+    kind = pc_kind(vcodec, acodec, vfmt or "", ext)
+    if kind == "prepare":
+        from . import prepare
+        return prepare.has_copy(conn, mid, size)
+    return kind == "direct"
+
+
 def recheck_playable(conn):
     """After the H.265 / Dolby test result changed: re-decide only the videos it affects. Returns how many changed."""
     n = 0
-    for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,playable FROM media WHERE verified=1 AND "
+    for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,playable,size FROM media WHERE verified=1 AND "
                           "(vcodec='hevc' OR acodec IN ('ac3','eac3') OR acodec LIKE 'pcm%')").fetchall():
-        ok = 1 if video_ok(r["vcodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1]) and \
-            audio_ok(r["acodec"], os.path.splitext(r["path"])[1]) else 0
+        ok = 1 if pc_ok(conn, r["id"], r["size"], r["vcodec"], r["acodec"], r["vfmt"], os.path.splitext(r["path"])[1]) else 0
         if ok != r["playable"]:
             conn.execute("UPDATE media SET playable=? WHERE id=?", (ok, r["id"]))
             n += 1
@@ -113,7 +152,7 @@ def why_not_playable(vcodec, acodec, vfmt="", ext=""):
             return f"its video is 10-bit/high-profile H.264 ({vfmt.replace('|', ', ')}), which browsers cannot show (sound only)"
         return f"its video format '{vcodec}' cannot be shown by a browser"
     if not audio_ok(acodec, ext):
-        return f"its sound ({acodec}) cannot be played by the TV screen (Fix converts just the sound - quick)"
+        return f"its sound ({acodec}) cannot be played by the TV screen (HERO TV prepares a copy by itself; Fix does it for good - quick)"
     return None
 
 
@@ -394,9 +433,11 @@ def scan(conn, root, probe_fn=probe):
             mt = st.st_mtime + (os.stat(side).st_mtime if os.path.exists(side) else 0)
             row = conn.execute("SELECT id,mtime,size,verified,vcodec,acodec,vfmt FROM media WHERE path=?", (path,)).fetchone()
             if row and row["mtime"] == mt and row["size"] == st.st_size and row["verified"]:
-                # unchanged: no re-probe, but re-evaluate playable (undoes a "marked unplayable" from transient errors)
-                ok = video_ok(row["vcodec"], row["vfmt"], ext) and audio_ok(row["acodec"], ext)
-                conn.execute("UPDATE media SET available=1, playable=? WHERE id=?", (1 if ok else 0, row["id"]))
+                # unchanged: no re-probe, but re-evaluate playable (undoes a "marked unplayable" from transient errors);
+                # a ready-to-play copy (prepare.py) counts as playable too
+                ok = pc_ok(conn, row["id"], row["size"], row["vcodec"], row["acodec"], row["vfmt"], ext)
+                conn.execute("UPDATE media SET available=1, playable=?, roku=? WHERE id=?",
+                             (1 if ok else 0, 1 if roku_ok(row["vcodec"], row["acodec"], row["vfmt"], ext) else 0, row["id"]))
                 continue
             meta = _guess(os.path.relpath(path, root).split(os.sep), stem)
             sc = {}
@@ -417,19 +458,20 @@ def scan(conn, root, probe_fn=probe):
                 ordv = art.release_ord(conn, meta["title"], meta["year"]) or ordv
             verified = 1 if p else 0
             playable = 1 if p and video_ok(p["vcodec"], p.get("vfmt", ""), ext) and audio_ok(p["acodec"], ext) else 0
+            roku = 1 if p and roku_ok(p["vcodec"], p["acodec"], p.get("vfmt", ""), ext) else 0
             stats["unverified"] += 0 if verified else 1
             vals = (path, meta["title"], meta["year"], meta["franchise"], meta["series"], meta["season"], meta["episode"],
                     json.dumps(sc.get("tags", [])), sc.get("plot", ""), p["runtime_s"] if p else 0, verified, playable,
                     p["vcodec"] if p else "", p["acodec"] if p else "", ordv, mt, st.st_size, p.get("vfmt", "") if p else "",
-                    int(time.time()))
+                    roku, int(time.time()))
             conn.execute(
                 "INSERT INTO media(path,title,year,franchise,series,season,episode,tags,plot,runtime_s,verified,playable,"
-                "vcodec,acodec,ord,mtime,size,vfmt,available,added) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?) "
+                "vcodec,acodec,ord,mtime,size,vfmt,roku,available,added) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?) "
                 "ON CONFLICT(path) DO UPDATE SET title=excluded.title,year=excluded.year,franchise=excluded.franchise,"
                 "series=excluded.series,season=excluded.season,episode=excluded.episode,tags=excluded.tags,"
                 "plot=excluded.plot,runtime_s=excluded.runtime_s,verified=excluded.verified,playable=excluded.playable,"
-                "vcodec=excluded.vcodec,acodec=excluded.acodec,vfmt=excluded.vfmt,ord=excluded.ord,mtime=excluded.mtime,"
-                "size=excluded.size,available=1", vals)
+                "vcodec=excluded.vcodec,acodec=excluded.acodec,vfmt=excluded.vfmt,roku=excluded.roku,ord=excluded.ord,"
+                "mtime=excluded.mtime,size=excluded.size,available=1", vals)
             stats["updated" if row else "added"] += 1
             if not row:
                 added_paths.append(path)
@@ -490,6 +532,11 @@ def relink(conn, added_paths):
             conn.execute(f"INSERT OR IGNORE INTO {table}({cols}) SELECT ?,{rest} FROM {table} WHERE media_id=?", (new["id"], old["id"]))
             conn.execute(f"DELETE FROM {table} WHERE media_id=?", (old["id"],))
         conn.execute("UPDATE slots SET media_id=? WHERE media_id=?", (new["id"], old["id"]))
+        conn.execute("UPDATE OR IGNORE prepared SET media_id=? WHERE media_id=?", (new["id"], old["id"]))   # its ready-to-play copy
+        conn.execute("DELETE FROM prepared WHERE media_id=?", (old["id"],))
+        from . import prepare
+        if prepare.has_copy(conn, new["id"], new["size"]):
+            conn.execute("UPDATE media SET playable=1 WHERE id=?", (new["id"],))
         conn.execute("UPDATE media SET added=(SELECT added FROM media WHERE id=?) WHERE id=?", (old["id"], new["id"]))
         old_side = os.path.splitext(old["path"])[0] + ".hero.json"           # your renames/tags follow the file
         new_side = os.path.splitext(new["path"])[0] + ".hero.json"

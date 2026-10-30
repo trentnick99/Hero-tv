@@ -566,11 +566,8 @@ def _same_length(ffmpeg, path, runtime):
     return not runtime or abs((q["runtime_s"] or 0) - runtime) <= max(5.0, runtime * 0.02)
 
 
-_SOUND_ERR = re.compile(r"\[aist#|\[dec:(?:ac3|eac3|dts|dca|truehd|aac|mp3|mp2|opus|vorbis|flac|pcm\w*)\b")
-
-
-def _sound_trouble(errors):
-    return any(_SOUND_ERR.search(e) for e in errors or [])
+_SOUND_ERR = tools.SOUND_ERR
+_sound_trouble = tools.sound_trouble
 
 
 def _rescue_sound(ffmpeg, src, tmp, vopt, mk, rt):

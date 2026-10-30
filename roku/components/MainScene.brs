@@ -387,10 +387,16 @@ end sub
 sub play(slot as object, offset as integer)
     ext = "mp4"
     if isStr(slot.ext) and slot.ext <> "" then ext = LCase(slot.ext)
+    ' the TV refused the original file: HERO TV's ready-made copy (an .mp4) is asked for instead
+    tail = ""
+    if isTrue(slot.safe) and isStr(slot.alt) and slot.alt <> ""
+        ext = LCase(slot.alt)
+        tail = "&safe=1"
+    end if
     fmt = "mp4"
     if ext = "mkv" or ext = "webm" then fmt = "mkv"
     c = CreateObject("roSGNode", "ContentNode")
-    c.url = m.cfg.server + "/media/" + txt(slot.media_id) + "." + ext + "?k=" + m.cfg.mk
+    c.url = m.cfg.server + "/media/" + txt(slot.media_id) + "." + ext + "?k=" + m.cfg.mk + tail
     c.streamFormat = fmt
     c.title = txt(slot.title)
     if offset > 5 then c.playStart = offset
@@ -418,6 +424,29 @@ sub play(slot as object, offset as integer)
     end if
 end sub
 
+' The Roku plays the original file when it can (Dolby sound, H.265 in .mkv ...). If it refuses one anyway, try HERO TV's
+' ready-made copy once (the server says whether there is one: slot.alt). Returns true when it started that.
+function retrySafe() as boolean
+    if not isAA(m.slot) then return false
+    if isTrue(m.slot.safe) then return false
+    alt = ""
+    if isStr(m.slot.alt) then alt = m.slot.alt
+    if alt = "" then return false
+    s = {}
+    s.Append(m.slot)
+    s.safe = true
+    at = 0
+    if m.mode = "vod"
+        at = Int(m.video.position)
+        if at < 5 and isAA(m.vod) then at = num(m.vod.resume)
+    else
+        at = serverNow() - num(m.slot.start) + num(m.slot.seek)
+    end if
+    if at < 0 then at = 0
+    play(s, at)
+    return true
+end function
+
 sub onCut()
     if m.mode <> "live" or m.current < 0 then return
     m.afterFinish = false
@@ -436,6 +465,7 @@ sub onVideoState()
         m.seq = m.seq + 1
         if m.current >= 0 then api("/api/tv/" + m.channels[m.current].id, "onNow")
     else if s = "error"
+        if retrySafe() then return
         ' like real TV: skip what this TV cannot play and go on with the next show
         m.errors = m.errors + 1
         title = ""
@@ -1147,7 +1177,7 @@ sub onPlay(event as object)
     m.eps.visible = false
     m.top.setFocus(true)
     hideMsg()
-    play({ media_id: r.id, ext: r.ext, subs: r.subs, title: r.title }, num(r.resume))
+    play({ media_id: r.id, ext: r.ext, alt: r.alt, subs: r.subs, title: r.title }, num(r.resume))
     m.top.findNode("bnNum").text = ""
     m.top.findNode("bnChan").text = "ON DEMAND"
     m.top.findNode("bnTitle").text = txt(r.title)
@@ -1195,6 +1225,7 @@ sub onVodState(s as string)
             stopVod()
         end if
     else if s = "error"
+        if retrySafe() then return
         title = ""
         if isAA(m.vod) then title = txt(m.vod.title)
         showMsg("This TV cannot play " + title + " (" + m.video.errorMsg + ")." + Chr(10) + "On the PC, Settings > Tools makes copies that play here." + Chr(10) + Chr(10) + "Press Back for the library.")

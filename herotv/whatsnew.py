@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.30.0": [
+        "Far fewer videos need fixing: movies with Dolby (AC-3) or DTS sound, or H.265 inside an .mkv, now get a hidden ready-to-play copy that HERO TV makes by itself in the background (the picture is copied, only the sound is converted). They join the channels when the copy is ready. Your own files are never changed. Settings > Tools > Videos in other formats shows the progress.",
+        "Roku: plays your original files directly when it can (Dolby sound, H.265 in .mkv), so those movies are in On Demand at once. If a Roku ever refuses one, it tries the ready copy by itself.",
+    ],
     "1.29.4": [
         "Videos with a damaged sound track (ffmpeg: 'Decode error rate exceeds maximum') can be fixed now: HERO TV uses the file's other sound track if it has one, or keeps the sound and skips the damaged bits (those moments are silent).",
         "A failed fix no longer blames the graphics card when the problem was the sound.",

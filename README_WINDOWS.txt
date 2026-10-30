@@ -409,6 +409,16 @@ EPISODE NAMES (anime too)
   "Show - 012 - Title.mp4", "Show Episode 12.mp4", "Show E012.mp4" and "Show S01E12.mp4" all work. Put a show's
   episodes in one folder inside its channel folder (Dragon Ball\Dragon Ball Z\...) and they play in order.
 
+VIDEOS IN OTHER FORMATS PREPARE THEMSELVES (1.30)
+  Movies with Dolby (AC-3) or DTS sound, and H.265 inside an .mkv file, no longer need fixing by hand. HERO TV makes a
+  hidden ready-to-play copy of each one in the hidden .prepared folder inside your media folder, one at a time in the
+  background (the picture is copied, so it is quick; only the sound is converted). A video joins the channels when its
+  copy is ready. Your own files are never changed or moved. Settings > Tools > Videos in other formats shows the
+  progress, the space used and can switch it off or delete the copies (they are simply made again if needed).
+  A Roku TV plays the originals directly, so those movies show up in On Demand on the Roku at once; if a Roku ever
+  refuses one, it tries the ready copy by itself. Only pictures that really cannot be shown (10-bit H.264, avi) still
+  need Fix, below.
+
 IF A VIDEO IS SKIPPED, HAS NO SOUND, OR HAS SOUND BUT NO PICTURE
   Browsers cannot play: AC-3 / DTS sound (very common in movie rips), .avi / old Xvid video, 10-bit H.264 (very common
   in anime rips - this is the classic "sound but black screen"), and HEVC / H.265 on many Windows PCs.
