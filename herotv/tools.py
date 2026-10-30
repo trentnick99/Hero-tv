@@ -80,6 +80,65 @@ HW_ENCODERS = (
 )
 
 
+class FFResult:
+    def __init__(self, returncode, errors):
+        self.returncode, self.errors = returncode, errors
+
+
+def run_ffmpeg(cmd, runtime=0, report=None):
+    """Run an ffmpeg conversion. Keeps ffmpeg's last error lines (so a failure can say why), and calls
+    report("  40% done") every 10% for long videos. Progress still shows in a console window."""
+    import re as _re
+    import sys as _sys
+    import threading as _th
+    try:
+        pr = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, **HIDE)
+    except OSError as e:
+        return FFResult(1, [str(e)])
+    errors, state = [], {"step": 0}
+
+    def line(t):
+        t = t.strip()
+        if not t:
+            return
+        m = _re.search(r"time=(\d+):(\d+):([\d.]+)", t)
+        if m and t.startswith(("frame=", "size=")):
+            if report and runtime > 300:
+                done = (int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3])) / runtime
+                step = int(done * 10)
+                if 1 <= step <= 9 and step > state["step"]:
+                    state["step"] = step
+                    report(f"  {step * 10}% done")
+            return
+        errors.append(t[:300])
+        del errors[:-12]
+
+    def pump():
+        buf = b""
+        con = getattr(_sys, "__stderr__", None)
+        while True:
+            ch = pr.stderr.read(4096)
+            if not ch:
+                break
+            try:
+                if con:
+                    con.write(ch.decode("utf-8", "replace"))
+                    con.flush()
+            except (OSError, ValueError, AttributeError):
+                pass
+            buf += ch
+            parts = _re.split(rb"[\r\n]", buf)
+            buf = parts.pop()
+            for x in parts:
+                line(x.decode("utf-8", "replace"))
+        line(buf.decode("utf-8", "replace"))
+    t = _th.Thread(target=pump, daemon=True)
+    t.start()
+    rc = pr.wait()
+    t.join(10)
+    return FFResult(rc, errors)
+
+
 CPU_H264 = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p"]
 
 

@@ -90,10 +90,6 @@ class EncoderTests(unittest.TestCase):
         self.assertIn("yuv420p", a)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 @unittest.skipUnless(tools.find_tool("ffmpeg") and tools.find_tool("ffprobe"), "needs ffmpeg")
 class DvdRipTests(unittest.TestCase):
     """A MakeMKV DVD rip: MPEG-2 picture with raw PCM or Dolby sound."""
@@ -147,3 +143,52 @@ class DvdRipTests(unittest.TestCase):
         self.assertEqual(r.returncode, 0)
         self.assertIs(launcher._black(self.ff, tmp, 0, 3), False)
         self.assertIn("libx264", tools.h264_encoder(self.ff))                # the processor from now on
+
+    def test_one_conversion_per_file_at_a_time(self):
+        from herotv import launcher
+        src = self.make("logan.mkv", "ac3")
+        with launcher._Claim(src) as mine:
+            self.assertTrue(mine)
+            st, out = launcher._convert_one(src, self.ff)                    # e.g. the Inbox, while Fix all runs
+            self.assertEqual((st, out), ("failed", src))
+            self.assertTrue(os.path.isfile(src))
+            self.assertFalse(os.path.exists(os.path.join(self.d, "logan.converting.tmp")))
+        tools._ENC[self.ff] = list(tools.CPU_H264)
+        st, out = launcher._convert_one(src, self.ff)                        # free again afterwards
+        self.assertEqual(st, "converted")
+        self.assertIsNone(launcher._keep_original(src))                      # already moved: no crash
+
+    def test_ffmpeg_errors_are_kept_and_progress_reported(self):
+        r = tools.run_ffmpeg([self.ff, "-v", "error", "-i", os.path.join(self.d, "missing.mkv"), "-f", "null", "-"])
+        self.assertNotEqual(r.returncode, 0)
+        self.assertTrue(any("missing.mkv" in e for e in r.errors))
+        seen = []
+        src = self.make("long.mkv", "aac")
+        r = tools.run_ffmpeg([self.ff, "-v", "error", "-stats", "-y", "-i", src, "-f", "null", "-"], runtime=4, report=seen.append)
+        self.assertEqual(r.returncode, 0)                                    # (short videos: no % lines)
+        self.assertEqual(seen, [])
+
+    def test_a_failed_copy_is_tried_again_with_a_fresh_picture(self):
+        from herotv import launcher
+        tools._ENC[self.ff] = list(tools.CPU_H264)
+        import subprocess
+        src = os.path.join(self.d, "Amazing.mp4")
+        subprocess.run([self.ff, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=320x240:r=25", "-f", "lavfi",
+                        "-i", "sine=f=440", "-t", "3", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "ac3", src], check=True)
+        real, calls, said = tools.run_ffmpeg, [], []
+
+        def flaky(cmd, runtime=0, report=None):
+            calls.append(cmd[cmd.index("-c:v") + 1])
+            if len(calls) == 1:
+                return tools.FFResult(1, ["Too many packets buffered for output stream 0:1."])
+            return real(cmd, runtime, report)
+        with mock.patch.object(tools, "run_ffmpeg", flaky), mock.patch.object(launcher, "say", said.append):
+            st, out = launcher._convert_one(src, self.ff)
+        self.assertEqual(st, "converted")
+        self.assertEqual(calls, ["copy", "libx264"])
+        self.assertTrue(any("Too many packets" in x for x in said))           # the reason is in the log now
+        self.assertEqual(library.probe(out)["acodec"], "aac")
+
+
+if __name__ == "__main__":
+    unittest.main()

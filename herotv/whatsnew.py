@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.29.3": [
+        "Fixing a video is safer: a file is never converted twice at the same time (the Inbox and Fix all could both pick it up and leave a damaged copy), and a new copy must be as long as the original before it replaces it.",
+        "When copying the picture fails, HERO TV tries again by re-encoding it, and the log now says what ffmpeg reported.",
+        "Long fixes show how far along they are (10%, 20% ...).",
+    ],
     "1.29.2": [
         "DVD rips that were already turned into .mp4 files with raw (PCM) sound are now listed under Settings > Tools > Videos that are skipped too, so Fix all repairs their sound.",
     ],

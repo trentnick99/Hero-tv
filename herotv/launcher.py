@@ -462,6 +462,8 @@ CONVERTIBLE = {".avi", ".wmv", ".flv", ".ts", ".m2ts", ".mts", ".mpg", ".mpeg", 
 
 def _keep_original(src):
     """Move src into the hidden '.originals' folder next to it, never overwriting an earlier saved original."""
+    if not os.path.isfile(src):
+        return None
     keep = os.path.join(os.path.dirname(src), ".originals")
     os.makedirs(keep, exist_ok=True)
     stem, ext = os.path.splitext(os.path.basename(src))
@@ -492,7 +494,7 @@ def _encode_checked(ffmpeg, src, tmp, vopt, make_cmd, runtime=0):
     """Run the conversion. When the graphics card did the picture, check the result really has a picture (some
     drivers make black or broken video without any error) and, if not, do it again on the processor - and keep
     using the processor from then on."""
-    r = subprocess.run(make_cmd(vopt), **tools.HIDE)
+    r = tools.run_ffmpeg(make_cmd(vopt), runtime, say)
     hw = "-c:v" in vopt and vopt[vopt.index("-c:v") + 1] not in ("copy", "libx264")
     if not hw:
         return r
@@ -507,13 +509,61 @@ def _encode_checked(ffmpeg, src, tmp, vopt, make_cmd, runtime=0):
     if os.path.isfile(tmp):
         os.remove(tmp)
     cpu = tools.use_processor(ffmpeg)
-    return subprocess.run(make_cmd(cpu), **tools.HIDE)
+    return tools.run_ffmpeg(make_cmd(cpu), runtime, say)
+
+
+def _ffmpeg_failed(r, what="convert this file"):
+    say(f"  [FAIL] ffmpeg could not {what}")
+    for e in (getattr(r, "errors", None) or [])[-4:]:
+        say("         ffmpeg says: " + e)
+
+
+_busy, _busy_lock = set(), threading.Lock()
+
+
+class _Claim:
+    """One conversion per file at a time: the Inbox watcher, Fix and Fix all can otherwise pick up the same file
+    together, write the same temporary file and leave a damaged copy (seen with Logan (2017).mkv in 1.29.2)."""
+    def __init__(self, path):
+        self.key = os.path.normcase(os.path.abspath(path))
+        self.ok = False
+
+    def __enter__(self):
+        with _busy_lock:
+            if self.key not in _busy:
+                _busy.add(self.key)
+                self.ok = True
+        return self.ok
+
+    def __exit__(self, *a):
+        if self.ok:
+            with _busy_lock:
+                _busy.discard(self.key)
 
 
 def _convert_one(src, ffmpeg, phone=False):
     """Make one file browser-playable. Returns (status, path): 'fine' | 'converted' | 'failed'.
     Video already in a playable codec is copied untouched; only the sound (AC-3/DTS -> AAC) is converted.
     The original is kept in a hidden '.originals' folder next to it."""
+    with _Claim(src) as mine:
+        if not mine:
+            say("  already being fixed right now - skipped here")
+            return "failed", src
+        return _convert_one_locked(src, ffmpeg, phone)
+
+
+def _same_length(ffmpeg, path, runtime):
+    """The new copy is as long as the original (a damaged or cut-off copy is not)."""
+    q = library.probe(path)
+    if not q:
+        return False
+    return not runtime or abs((q["runtime_s"] or 0) - runtime) <= max(5.0, runtime * 0.02)
+
+
+def _convert_one_locked(src, ffmpeg, phone=False):
+    if not os.path.isfile(src):
+        say("  [skip] the file is no longer there")
+        return "failed", src
     p = library.probe(src)
     if not p:
         say("  [FAIL] cannot read this file as a video")
@@ -543,11 +593,20 @@ def _convert_one(src, ffmpeg, phone=False):
     say(("  making an iPhone-friendly copy:" if phone else "  fixing for the TV:") + " video " +
         ("kept as is" if v_ok else f"re-encoding {p['vcodec']} -> standard H.264 ({speed})") +
         ", audio " + ("kept as is" if a_ok and a_copy else f"converting {p['acodec']} -> AAC"))
-    mk = lambda vo: [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", "0:a:0?", *vo, *aopt,
-                     "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
-    r = _encode_checked(ffmpeg, src, tmp, vopt, mk, p.get("runtime_s") or 0)
-    if r.returncode != 0 or not os.path.isfile(tmp):
-        say("  [FAIL] ffmpeg could not convert this file")
+    rt = p.get("runtime_s") or 0
+    mk = lambda vo: [ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts", "-i", src, "-map", "0:V:0", "-map", "0:a:0?",
+                     *vo, *aopt, "-sn", "-dn", "-max_muxing_queue_size", "9999", "-movflags", "+faststart", "-f", "mp4", tmp]
+    r = _encode_checked(ffmpeg, src, tmp, vopt, mk, rt)
+    ok = r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)
+    if not ok and v_ok:                          # copying the picture failed: make a fresh one instead (slower)
+        _ffmpeg_failed(r, "copy the picture as it is" if r.returncode else "make a complete copy")
+        say("  trying again, re-encoding the picture (slower)")
+        if os.path.isfile(tmp):
+            os.remove(tmp)
+        r = _encode_checked(ffmpeg, src, tmp, tools.h264_encoder(ffmpeg), mk, rt)
+        ok = r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)
+    if not ok:
+        _ffmpeg_failed(r) if r.returncode else say("  [FAIL] the new copy came out shorter than the original - kept the original")
         if os.path.isfile(tmp):
             os.remove(tmp)
         return "failed", src
@@ -630,11 +689,17 @@ def fix_audio(paths, lang=None, track=None):
         vopt = ["-c:v", "copy"] if v_ok else tools.h264_encoder(ffmpeg)
         aopt = ["-c:a", "copy"] if a_ok else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
         say(f"  making a copy that plays: {t['language']}" + ("" if v_ok else "  (this video also needs re-encoding: slow)"))
-        mk = lambda vo: [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", f"0:a:{pick}", *vo, *aopt,
-                         "-disposition:a:0", "default", "-sn", "-movflags", "+faststart", "-f", "mp4", tmp]
-        r = _encode_checked(ffmpeg, src, tmp, vopt, mk, p.get("runtime_s") or 0)
+        mk = lambda vo: [ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts", "-i", src, "-map", "0:V:0", "-map", f"0:a:{pick}",
+                         *vo, *aopt, "-disposition:a:0", "default", "-sn", "-dn", "-max_muxing_queue_size", "9999",
+                         "-movflags", "+faststart", "-f", "mp4", tmp]
+        with _Claim(src) as mine:
+            r = _encode_checked(ffmpeg, src, tmp, vopt, mk, p.get("runtime_s") or 0) if mine else None
+        if r is None:
+            say("  already being fixed right now - try again when that is done")
+            bad += 1
+            continue
         if r.returncode != 0 or not os.path.isfile(tmp):
-            say("  [FAIL] ffmpeg could not make the copy")
+            _ffmpeg_failed(r, "make the copy")
             if os.path.isfile(tmp):
                 os.remove(tmp)
             bad += 1
@@ -1224,7 +1289,7 @@ def shrink(paths, delete_originals=None, fast=False, yes=False, keep_resolution=
             failed += 1
             continue
         vf = ["-vf", f"scale=-2:{pl['scale_to']}"] if pl["scale_to"] else []
-        cmd = [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:v:0", "-map", "0:a:0?", "-sn",
+        cmd = [ffmpeg, "-v", "error", "-stats", "-y", "-i", src, "-map", "0:V:0", "-map", "0:a:0?", "-sn",
                "-c:v", "libx264", "-preset", "veryfast" if fast else "medium", "-crf", str(pl["crf"] + (2 if fast else 0)),
                "-pix_fmt", "yuv420p", *(["-tune", "animation"] if pl["tune_animation"] else []), *vf,
                "-c:a", "aac", "-b:a", "128k", "-ac", "2", "-metadata", f"comment={SHRUNK_TAG}", "-movflags", "+faststart", "-f", "mp4", tmp]

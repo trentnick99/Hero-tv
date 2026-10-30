@@ -596,7 +596,8 @@ def make_handler(app, remote=False):
             skipped = [{"id": r["id"], "title": r["title"], "file": os.path.basename(r["path"]),
                         "why": L.why_not_playable(r["vcodec"], r["acodec"], r["vfmt"] or "", os.path.splitext(r["path"])[1]) or "it could not be read"}
                        for r in c.execute("SELECT id,title,path,vcodec,acodec,vfmt FROM media WHERE available=1 AND (playable=0 OR verified=0) "
-                                          "ORDER BY title LIMIT 50")]
+                                          "ORDER BY title LIMIT 80")
+                       if not os.path.normcase(r["path"]).startswith(os.path.normcase(inbox.inbox_dir(app.cfg)) + os.sep)][:50]
             not_phone = [r["path"] for r in c.execute("SELECT path,vcodec,acodec,vfmt FROM media WHERE available=1 AND verified=1 AND playable=1")
                          if not L.phone_ok(r["path"], r["vcodec"], r["acodec"], r["vfmt"] or "")]
             return {"free_sources": [s["name"] for s in srcs], "originals_bytes": orig, "skipped": skipped, "not_phone": len(not_phone),
@@ -751,8 +752,10 @@ def make_handler(app, remote=False):
                     return LA.sort_movies(assume_yes=True, cfg=app.cfg)
                 return {"job": jobs.start(name, f"Sorting {len(paths)} video(s) that are on no channel", run_unsorted)}
             if name == "fixall":                             # every skipped video, sound-only fixes first (quick)
+                ib = os.path.normcase(inbox.inbox_dir(app.cfg)) + os.sep
                 rows = [r for r in c.execute("SELECT path,vcodec,acodec,vfmt FROM media WHERE available=1 AND verified=1 "
-                                             "AND playable=0 ORDER BY title") if os.path.isfile(r["path"])]
+                                             "AND playable=0 ORDER BY title")
+                        if os.path.isfile(r["path"]) and not os.path.normcase(r["path"]).startswith(ib)]
                 if not rows:
                     raise ValueError("Every video can already play.")
                 rows.sort(key=lambda r: 0 if L.video_ok(r["vcodec"], r["vfmt"] or "", ".mp4") else 1)
