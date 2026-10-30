@@ -116,6 +116,7 @@ body.alerting #settings{padding-top:9.1vh}
 .tgroup{align-self:flex-start;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--fg,inherit);font:inherit;font-weight:700;font-size:calc(2.4vh*var(--tx));padding:.8vh .4vw;cursor:pointer;width:62vw;max-width:100%}
 .tgroup::before{content:"\25B8";display:inline-block;width:1.6em;transition:transform .15s}.tgroup.open::before{transform:rotate(90deg)}
 .tgroup:focus-visible{outline:.4vh solid var(--accent);outline-offset:.2vh}.tgbody{display:flex;flex-direction:column;gap:2vh}
+.jsum{display:flex;flex-direction:column;gap:.5vh}.jsum .jbad{color:#ffb454}
 #jobbox{border:1px solid var(--accent);border-radius:1.2vh;padding:1.4vh 1.4vw;max-width:62vw;display:flex;flex-direction:column;gap:.8vh}
 #jobbox pre{margin:0;max-height:24vh;overflow:auto;white-space:pre-wrap;font:calc(1.6vh*var(--tx))/1.4 ui-monospace,Consolas,monospace;color:var(--mute)}
 .pickl{display:flex;flex-direction:column;gap:.5vh}.pickl button{text-align:left}

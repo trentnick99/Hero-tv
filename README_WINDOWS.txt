@@ -409,6 +409,10 @@ EPISODE NAMES (anime too)
   "Show - 012 - Title.mp4", "Show Episode 12.mp4", "Show E012.mp4" and "Show S01E12.mp4" all work. Put a show's
   episodes in one folder inside its channel folder (Dragon Ball\Dragon Ball Z\...) and they play in order.
 
+WHEN A TOOL HAS PROBLEMS, IT SAYS WHY (1.33)
+  After a tool in Settings > Tools finishes with problems, each video that did not work is listed with a plain-words reason,
+  and Try again runs the same tool once more. 'Show the full log' has the technical details.
+
 SETTINGS IS EASIER TO FIND YOUR WAY AROUND (1.32)
   A 'Needs a look' box at the top of Settings lists what wants your attention (an update, videos that cannot play,
   videos waiting in the Inbox) with an Open button for each. Settings > Tools is folded into four sections - press

@@ -700,10 +700,34 @@ setTimeout(updateNudge,30e3);setInterval(updateNudge,3*3600e3);
 let tData=null,jobT=null,jobSeen=0;
 function jobPoll(){clearTimeout(jobT);if(layer!=="settings")return;api("/api/job").then(j=>{drawJob(j.job);if(j.job&&j.job.state==="running")jobT=setTimeout(jobPoll,1500);
  else if(j.job&&j.job.id!==jobSeen){jobSeen=j.job.id;toast(j.job.title+(j.job.state==="done"?": finished.":": did not finish - see Settings > Tools."));atData=null;if(sCat==="tools"){tData=null;drawSettings()}}}).catch(()=>{})}
+const JOB_WHY=[[/cannot read this file as a video|not a video file/i,"This file cannot be read as a video - it may be damaged, or not a video."],
+ [/came out shorter/i,"The fixed copy came out shorter than the original, so the original was kept. Nothing was changed."],
+ [/ffmpeg could not/i,"The video tool (ffmpeg) could not convert this one."],
+ [/ffmpeg is missing|ffprobe not found|needs ffmpeg/i,"The video tools are missing. Settings > Tools > This PC > Install video tools puts them in."],
+ [/not enough free space/i,"There is not enough free space on this drive."],
+ [/already exists|already in /i,"A file with this name is already there, so this one was skipped."],
+ [/no longer there/i,"The file is no longer there."],
+ [/already being fixed/i,"Something else is already fixing this file."]];
+function jobSummary(lines){const out=[];let name="";
+ for(const raw of lines){const t=raw.trim();if(!t)continue;
+  if(!/^\s/.test(raw)&&!/^\[/.test(t)){name=t;continue}
+  const m=t.match(/^\[(FAIL|skip)\]\s*(.*)$/i);if(!m)continue;
+  let why=m[2];for(const[re,txt]of JOB_WHY)if(re.test(why)){why=txt;break}
+  out.push({name,fail:m[1].toUpperCase()==="FAIL",why})}
+ return out}
+let lastJob=null,jobFull=false;
 function drawJob(j){const b=$("#jobbox");if(!b)return;b.textContent="";if(!j){b.style.display="none";return}b.style.display="";
- b.append(el("b",0,(j.state==="running"?"Working: ":j.state==="done"?"Finished: ":"Did not finish: ")+j.title));const pre=el("pre",0,j.lines.slice(-25).join("\n")||"Starting...");b.append(pre);pre.scrollTop=pre.scrollHeight;
+ b.append(el("b",0,(j.state==="running"?"Working: ":j.state==="done"?"Finished: ":"Did not finish: ")+j.title));
+ const sum=j.state==="running"?[]:jobSummary(j.lines);
+ if(sum.length){const l=el("div","jsum");const bad=sum.filter(x=>x.fail).length;
+  l.append(el("small",0,bad?`${bad} thing(s) did not work, ${sum.length-bad} skipped.`:`${sum.length} skipped.`));
+  for(const x of sum.slice(0,12))l.append(el("small",x.fail?"jbad":"",(x.name?x.name+": ":"")+x.why));
+  if(sum.length>12)l.append(el("small",0,`...and ${sum.length-12} more - see the full log.`));b.append(l);
+  const row=el("div","sbar");if(lastJob&&lastJob.name===j.name){const r=sBtn("Try again",()=>runJob(lastJob));row.append(r)}
+  const tg=sBtn(jobFull?"Hide the full log":"Show the full log",()=>{jobFull=!jobFull;drawJob(j)});row.append(tg);b.append(row)}
+ if(!sum.length||jobFull||j.state==="running"){const pre=el("pre",0,j.lines.slice(-25).join("\n")||"Starting...");b.append(pre);pre.scrollTop=pre.scrollHeight}
  if(j.state==="running")b.append(el("small",0,"You can keep watching TV - this carries on in the background. Closing HERO TV stops it (run it again later to continue)."))}
-async function runJob(body,btn){if(btn)btn.disabled=true;sMsg("");try{const r=await pj("/api/job",body);drawJob(r.job);jobPoll()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}if(btn)btn.disabled=false}
+async function runJob(body,btn){if(btn)btn.disabled=true;sMsg("");lastJob=body;jobFull=false;try{const r=await pj("/api/job",body);drawJob(r.job);jobPoll()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}if(btn)btn.disabled=false}
 function tCard(title,help){const c=el("div","tcard");c.append(el("h4",0,title));if(help)c.append(el("small",0,help));return c}
 const gb=n=>n>=1e9?(n/1e9).toFixed(1)+" GB":Math.round(n/1e6)+" MB";
 /* intros and credits that HERO TV finds by itself (Settings > Tools) */

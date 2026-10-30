@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.33.0": [
+        "When a tool in Settings > Tools finishes with problems (Fix all, Free movies, bringing in a folder...), it now says in plain words what went wrong with each video, and offers 'Try again'. The full technical log is one button away ('Show the full log').",
+    ],
     "1.32.0": [
         "Settings has a 'Needs a look' box at the top. It lists anything that wants your attention - an update, videos that cannot play, videos waiting in the Inbox, missing video tools, ready-to-play copies that failed - and an Open button takes you straight to it. It stays hidden when everything is fine.",
         "Settings > Tools is shorter: its cards are folded into four sections (Right now, Add videos, Formats and copies, Tidy and check). Press Enter on a section name to open or close it; HERO TV remembers which ones you left open.",
