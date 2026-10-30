@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.30.1": [
+        "Settings > Tools > Videos in other formats has a space limit: choose how many GB the ready-to-play copies may use. When it is reached HERO TV just stops making new copies - nothing is ever deleted, copies and videos alike.",
+        "Updates are now checked against the checksum GitHub publishes for the file, so a damaged or swapped download is refused instead of installed.",
+        "If the Checklist file is missing or broken, the Checklist screen now says so instead of showing an empty page.",
+    ],
     "1.30.0": [
         "Far fewer videos need fixing: movies with Dolby (AC-3) or DTS sound, or H.265 inside an .mkv, now get a hidden ready-to-play copy that HERO TV makes by itself in the background (the picture is copied, only the sound is converted). They join the channels when the copy is ready. Your own files are never changed. Settings > Tools > Videos in other formats shows the progress.",
         "Roku: plays your original files directly when it can (Dolby sound, H.265 in .mkv), so those movies are in On Demand at once. If a Roku ever refuses one, it tries the ready copy by itself.",

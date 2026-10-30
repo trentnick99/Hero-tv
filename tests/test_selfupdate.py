@@ -134,6 +134,28 @@ class SelfUpdateTests(unittest.TestCase):
         selfupdate.download("https://github.com/x.zip", dest, 3, opener=lambda u: Resp(b"abc", "https://release-assets.githubusercontent.com/x"))
         self.assertEqual(dest.read_bytes(), b"abc")
 
+    def test_download_is_checked_against_githubs_checksum(self):
+        import hashlib
+        dest = Path(self.d) / "dl" / "c.zip"
+        ok = hashlib.sha256(b"abc").hexdigest()
+        opener = lambda u: Resp(b"abc", "https://release-assets.githubusercontent.com/x")
+        with self.assertRaises(ValueError) as cm:                         # swapped or damaged: refused, nothing is left behind
+            selfupdate.download("https://github.com/x.zip", dest, 3, opener=opener, sha256=hashlib.sha256(b"abd").hexdigest())
+        self.assertIn("checksum", str(cm.exception))
+        self.assertFalse(dest.exists())
+        self.assertFalse(dest.with_name(dest.name + ".part").exists())
+        selfupdate.download("https://github.com/x.zip", dest, 3, opener=opener, sha256=ok.upper())   # matching (any letter case)
+        self.assertEqual(dest.read_bytes(), b"abc")
+        dest.unlink()
+        selfupdate.download("https://github.com/x.zip", dest, 3, opener=opener)                      # no checksum offered: as before
+        self.assertEqual(dest.read_bytes(), b"abc")
+
+    def test_digest_is_read_from_the_api_format_only(self):
+        good = "a" * 64
+        self.assertEqual(selfupdate._digest({"digest": "sha256:" + good}), good)
+        for bad in ({}, None, {"digest": ""}, {"digest": "md5:" + "a" * 32}, {"digest": "sha256:xyz"}, {"digest": "sha256:" + "a" * 63}):
+            self.assertEqual(selfupdate._digest(bad), "")
+
     def wait_phase(self):
         for _ in range(100):
             if selfupdate._state["phase"] not in ("", "downloading"):

@@ -10,7 +10,6 @@ Each channel is one continuous live stream (MPEG-TS) that follows the schedule, 
 Watch-only and off by default. Like the TV media server, it has no pairing - any app on your home network that
 knows the address can watch - so it has its own switch with a warning (Settings > Other devices), and it only
 works while "Let other devices watch" is on."""
-import json
 import os
 import secrets
 import subprocess
@@ -258,7 +257,3 @@ def status(server, d=None):
         out.update(m3u=f"{server}/tv.m3u", xmltv=f"{server}/tv.xml", hdhr=server.split("://", 1)[-1],
                    m3u_long=f"{b}/channels.m3u", xmltv_long=f"{b}/guide.xml")
     return out
-
-
-def json_bytes(x):
-    return json.dumps(x).encode()

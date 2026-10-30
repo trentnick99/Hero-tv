@@ -8,7 +8,9 @@ import tempfile
 import threading
 import time
 import unittest
+import urllib.error
 import urllib.request
+from unittest import mock
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -84,7 +86,9 @@ class RealFiles(unittest.TestCase):
         self.addCleanup(self.c.close)
         S.load_channels(self.c, json.loads(Path(self.cfg.channels_file).read_text())["channels"])
         prepare.set_folder(self.root)
-        prepare._first.clear()
+        sf = mock.patch("herotv.config.settings_file", return_value=Path(self.root) / "settings.json")   # never the real settings
+        sf.start()
+        self.addCleanup(sf.stop)
         library.scan(self.c, self.root)
 
     def row(self, path):
@@ -224,6 +228,69 @@ class RealFiles(unittest.TestCase):
         s = prepare.status(self.c)
         self.assertEqual((s["need"], s["ready"]), (1, 1))
         self.assertGreater(s["bytes"], 0)
+
+    # -- the space limit stops NEW copies and never deletes one
+    def test_space_limit_stops_new_copies_but_never_removes_one(self):
+        self.make()                                                               # the first copy exists
+        mid = self.row(self.dolby)["id"]
+        cp = prepare.copy_path(self.c, mid, self.size)
+        other = f"{self.root}/Movies/Second Dolby (2022).mkv"
+        clip(other, 3, "ac3")
+        library.scan(self.c, self.root)
+        self.assertEqual(self.row(other)["playable"], 0)
+        with mock.patch.object(prepare, "cap_gb", return_value=1), mock.patch.object(prepare, "used_bytes", return_value=2 * 1024 ** 3):
+            self.assertFalse(prepare.run_once(self.c, FF, self.root))             # over the limit: no new copy
+            s = prepare.status(self.c)
+        self.assertEqual((s["cap_gb"], s["blocked"]), (1, True))
+        self.assertEqual(self.row(other)["playable"], 0)
+        self.assertTrue(os.path.isfile(cp))                                       # the existing copy is untouched
+        self.assertEqual(self.row(self.dolby)["playable"], 1)
+        self.assertTrue(os.path.exists(other) and os.path.exists(self.dolby))     # and so are the videos
+        self.assertTrue(prepare.run_once(self.c, FF, self.root))                  # limit lifted (0 = none): carries on
+        self.assertFalse(prepare.status(self.c)["blocked"])
+        self.assertEqual(self.row(other)["playable"], 1)
+
+    def test_limit_setting_is_validated_and_saved(self):
+        base = self.serve()
+        call = lambda body: self.post(base, "/api/prepare", body)
+        self.assertEqual(call({"cap": "lots"})[0], 400)
+        self.assertEqual(call({"cap": -5})[0], 400)
+        self.assertEqual(call({"cap": 10 ** 9})[0], 400)
+        st, j = call({"cap": 100})
+        self.assertEqual((st, j["cap_gb"]), (200, 100))
+        self.assertEqual(prepare.cap_gb(), 100)
+        self.assertEqual(call({"cap": 0})[1]["cap_gb"], 0)
+
+    def test_inside_is_not_fooled_by_a_sibling_folder(self):
+        from herotv.server import _inside
+        root = os.path.join(self.root, "Media")
+        self.assertTrue(_inside(os.path.join(root, "a", "x.mkv"), root))
+        self.assertTrue(_inside(root, root))
+        self.assertFalse(_inside(os.path.join(self.root, "Media2", "x.mkv"), root))   # a plain prefix test would say yes
+        self.assertFalse(_inside(os.path.join(root, "..", "x.mkv"), root))
+
+    def test_a_missing_checklist_file_is_not_a_server_error(self):
+        base = self.serve()
+        with urllib.request.urlopen(base + "/api/checklist") as r:
+            j = json.load(r)
+        self.assertEqual((r.status, j["lists"]), (200, []))
+        self.assertIn("checklist.json", j["error"])
+
+    def serve(self):
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(App(self.cfg)))
+        srv.daemon_threads = True
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        self.addCleanup(srv.server_close)
+        self.addCleanup(srv.shutdown)
+        return f"http://127.0.0.1:{srv.server_address[1]}"
+
+    def post(self, base, path, body):
+        req = urllib.request.Request(base + path, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, json.load(r)
+        except urllib.error.HTTPError as e:
+            return e.code, None
 
     # -- the Roku's view
     def test_on_demand_lists_what_a_roku_can_play_before_the_copy_exists(self):

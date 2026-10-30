@@ -144,6 +144,10 @@ def run_ffmpeg(cmd, runtime=0, report=None, low=False):
     t.start()
     rc = pr.wait()
     t.join(10)
+    try:
+        pr.stderr.close()
+    except OSError:
+        pass
     return FFResult(rc, errors)
 
 

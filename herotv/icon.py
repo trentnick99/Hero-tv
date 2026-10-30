@@ -58,8 +58,3 @@ def make_ico(path):
     with open(path, "wb") as f:
         f.write(head + entries + data)
     return path
-
-
-def make_png(path, size=256):
-    with open(path, "wb") as f:
-        f.write(_png(size, size, render(size)))

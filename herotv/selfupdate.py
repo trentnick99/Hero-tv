@@ -6,6 +6,7 @@ Only GitHub's own addresses are used, over verified HTTPS, and the zip must say 
 was offered (and carry the ready-made application) before anything is installed."""
 import ast
 import json
+import hashlib
 import os
 import re
 import subprocess
@@ -101,6 +102,13 @@ def notes_from_source(src, version):
     return []
 
 
+def _digest(asset):
+    """GitHub's own SHA-256 of a release file ("sha256:<64 hex>" in the API), or "" when it does not say (the releases-page
+    fallback has none: then the download is checked for size and content only, as before)."""
+    d = str((asset or {}).get("digest") or "").strip().lower()
+    return d[7:] if re.fullmatch(r"sha256:[0-9a-f]{64}", d) else ""
+
+
 def check(force=False, gj=None, gt=None, now=None):
     """What GitHub says. Remembered for a few hours. Never raises."""
     now = now or time.time()
@@ -124,6 +132,7 @@ def check(force=False, gj=None, gt=None, now=None):
         asset = next((a for a in d.get("assets") or [] if str(a.get("name", "")).lower().endswith("-windows.zip")), None)
         info = {"latest": latest, "tag": tag, "page": d.get("html_url") or f"https://github.com/{REPO}/releases",
                 "zip_url": asset.get("browser_download_url") if asset else "", "size": int(asset.get("size") or 0) if asset else 0,
+                "sha256": _digest(asset),
                 "published": d.get("published_at") or "", "notes": []}
         if updater.version_tuple(latest) > updater.version_tuple(__version__):
             for url in (RAW.format(tag=tag), RAW_WEB.format(tag=tag)):
@@ -158,8 +167,9 @@ def can_install():
     return bool(getattr(sys, "frozen", False)) or os.environ.get("HEROTV_SELFUPDATE_TEST") == "1"
 
 
-def download(url, dest, size=0, opener=None):
-    """Save the release zip. Only GitHub addresses; size checked while it streams."""
+def download(url, dest, size=0, opener=None, sha256=""):
+    """Save the release zip. Only GitHub addresses; size checked while it streams, and its SHA-256 against the one GitHub
+    published for the file when there is one (a damaged or swapped download is refused and deleted)."""
     if not url.startswith(DOWNLOAD_HOSTS):
         raise ValueError("refusing to download from an unexpected address")
     opener = opener or (lambda u: net.urlopen(urllib.request.Request(u, headers={"User-Agent": UA}), timeout=60))
@@ -167,6 +177,7 @@ def download(url, dest, size=0, opener=None):
     dest.parent.mkdir(parents=True, exist_ok=True)
     tmp = dest.with_name(dest.name + ".part")
     got = 0
+    h = hashlib.sha256()
     with opener(url) as r, open(tmp, "wb") as fh:
         final = getattr(r, "geturl", lambda: url)()
         if not str(final).startswith(DOWNLOAD_HOSTS):
@@ -179,10 +190,14 @@ def download(url, dest, size=0, opener=None):
             if got > MAX_ZIP:
                 raise ValueError("the download is far bigger than expected")
             fh.write(chunk)
+            h.update(chunk)
             _state["done"] = got
     if size and got != size:
         tmp.unlink(missing_ok=True)
         raise ValueError(f"the download was incomplete ({got} of {size} bytes) - try again")
+    if sha256 and h.hexdigest() != sha256.lower():
+        tmp.unlink(missing_ok=True)
+        raise ValueError("the download does not match the checksum GitHub published for it, so it was not installed - try again")
     os.replace(tmp, dest)
     return dest
 
@@ -203,7 +218,7 @@ def install(root=None, opener=None, spawn=None):
     def run():
         try:
             _state.update(phase="downloading", done=0, total=info["size"], error="")
-            z = download(info["zip_url"], root / ".update-download" / f"HERO-TV-{info['tag']}-windows.zip", info["size"], opener)
+            z = download(info["zip_url"], root / ".update-download" / f"HERO-TV-{info['tag']}-windows.zip", info["size"], opener, info.get("sha256", ""))
             zi = updater.zip_info(z)
             if zi["version"] != info["latest"]:
                 raise ValueError(f"the zip says it is version {zi['version']}, not {info['latest']}")

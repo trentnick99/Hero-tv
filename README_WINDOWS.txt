@@ -414,7 +414,8 @@ VIDEOS IN OTHER FORMATS PREPARE THEMSELVES (1.30)
   hidden ready-to-play copy of each one in the hidden .prepared folder inside your media folder, one at a time in the
   background (the picture is copied, so it is quick; only the sound is converted). A video joins the channels when its
   copy is ready. Your own files are never changed or moved. Settings > Tools > Videos in other formats shows the
-  progress, the space used and can switch it off or delete the copies (they are simply made again if needed).
+  progress and the space used. It can switch copying off, delete the copies (they are simply made again if needed) or set
+  a space limit: when the copies reach it, HERO TV only stops making NEW ones - it never deletes anything by itself.
   A Roku TV plays the originals directly, so those movies show up in On Demand on the Roku at once; if a Roku ever
   refuses one, it tries the ready copy by itself. Only pictures that really cannot be shown (10-bit H.264, avi) still
   need Fix, below.

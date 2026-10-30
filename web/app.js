@@ -256,9 +256,10 @@ function homeKey(e){const k=e.key,cols=getComputedStyle($("#tiles")).gridTemplat
 let ck={data:null,i:0};
 async function openCheck(){layer="check";show("#settings",false);show("#home",false);show("#help",false);show("#check",true);paint($("#check"),theme.color);
  hints($("#ck-hints"),[["← →","change list"],["↑ ↓","scroll"],["Esc","back"]]);ck.i=0;ck.data=null;drawCheck();
- try{ck.data=(await api("/api/checklist")).lists}catch(e){}drawCheck()}
+ try{const j=await api("/api/checklist");ck.data=j.lists;ck.err=j.error||""}catch(e){}drawCheck()}
 function drawCheck(){const tabs=$("#ck-tabs"),body=$("#ck-body"),sum=$("#ck-sum");tabs.textContent=body.textContent=sum.textContent="";
  if(!ck.data){body.append(el("div","empty","Loading your lists..."));return}
+ if(!ck.data.length){body.append(el("div","empty",ck.err||"There are no lists to show."));return}
  ck.data.forEach((l,i)=>tabs.append(el("span",i===ck.i?"on":"",l.name)));
  const l=ck.data[ck.i];if(!l)return;$("#ck-sub").textContent=l.channel?"on channel "+l.channel:"";
  const total=l.have+l.missing,f=total?l.have/total:0;
@@ -723,7 +724,11 @@ function prepCard(){const c=tCard("Videos in other formats (ready-to-play copies
  const cb=el("input");cb.type="checkbox";cb.checked=d.on;const l=el("label","lb");l.append(cb," Make copies automatically (one at a time, at low priority)");l.style.display="flex";l.style.gap="1vw";
  const run=async(body,msg)=>{try{pData=await pj("/api/prepare",body);if(msg)sMsg(msg,"ok");tData=null;drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}};
  cb.onchange=()=>run({auto:cb.checked},"Saved.");
- const bar=el("div","sbar");
+ const lim=el("select");for(const g of[0,50,100,200,500,1000]){const o=el("option",0,g?`Stop making new copies after ${g} GB`:"No limit on how much space copies use");o.value=g;if(g===d.cap_gb)o.selected=true;lim.append(o)}
+ if(d.cap_gb&&![50,100,200,500,1000].includes(d.cap_gb)){const o=el("option",0,`Stop making new copies after ${d.cap_gb} GB`);o.value=d.cap_gb;o.selected=true;lim.append(o)}
+ lim.onchange=()=>run({cap:+lim.value},"Saved. Copies that already exist are never removed because of this limit.");
+ if(d.blocked)c.append(el("small",0,"The space limit is reached, so no new copies are being made. Raise the limit to carry on - nothing is deleted."));
+ const bar=el("div","sbar");bar.append(lim);
  if(d.failed)bar.append(sBtn("Try the failed ones again",()=>run({op:"retry"},"Trying again in the background.")));
  if(d.ready){const b=sBtn("Delete all copies",()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to delete them";return}run({op:"clear"},"Copies deleted. Your own videos were not touched.")});bar.append(b)}
  c.append(l,bar);return c}

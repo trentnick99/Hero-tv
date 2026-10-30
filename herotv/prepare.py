@@ -20,11 +20,10 @@ FOLDER = ".prepared"
 _OURS = re.compile(r"\d+-\d+\.(?:mp4|part)")             # the only file names this module ever makes (or deletes)
 RETRY_FAILED_S = 7 * 86400
 SPARE_BYTES = 2 * 1024 ** 3                  # always leave this much free on the drive
-_state = {"folder": None, "running": False, "now": "", "done": 0}
+_state = {"folder": None, "running": False, "now": "", "done": 0, "blocked": False}
 _lock = threading.Lock()
 _busy = set()
 WAKE = threading.Event()                     # set to look for work at once
-_first = []                                  # media ids asked for explicitly: done first
 
 
 def set_folder(media_dir):
@@ -104,6 +103,20 @@ def why(conn, row):
 def enabled():
     from . import settings_api
     return settings_api._load().get("auto_prepare", True) is not False
+
+
+def cap_gb():
+    """Stop making NEW copies once the copies together use this many GB (0 = no limit). Nothing is ever deleted
+    because of it: copies that exist stay, whatever the limit is set to."""
+    from . import settings_api
+    try:
+        return max(0, int(settings_api._load().get("prepare_cap_gb") or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def used_bytes(conn):
+    return conn.execute("SELECT COALESCE(SUM(bytes),0) FROM prepared WHERE status='ready'").fetchone()[0]
 
 
 # ---------- making copies ----------
@@ -194,7 +207,7 @@ def _skip_dirs(media_dir):
 
 
 def todo(conn, media_dir="", now=None):
-    """Videos that need a copy and have none, newest first (explicit requests first). Failed ones wait a week."""
+    """Videos that need a copy and have none, newest first. Failed ones wait a week."""
     now = now or time.time()
     skip = _skip_dirs(media_dir) if media_dir else ()
     out = []
@@ -211,8 +224,6 @@ def todo(conn, media_dir="", now=None):
             if p["status"] == "ready" and has_copy(conn, r["id"], r["size"]):
                 continue
         out.append(r)
-    wanted = {m: i for i, m in enumerate(_first)}
-    out.sort(key=lambda r: wanted.get(r["id"], len(wanted)))      # stable: the rest keep newest-first
     return out
 
 
@@ -250,7 +261,12 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
     if folder() is None:
         set_folder(media_dir)
     tidy(conn)
+    cap, used = cap_gb() * 1024 ** 3, used_bytes(conn)
+    _state["blocked"] = False
     for r in todo(conn, media_dir):
+        if cap and used + int((r["size"] or 0) * 1.05) > cap:
+            _state["blocked"] = True                       # the limit you chose: no new copy (an existing copy is never removed)
+            continue
         need = int((r["size"] or 0) * 1.05) + SPARE_BYTES
         try:
             os.makedirs(folder(), exist_ok=True)
@@ -268,22 +284,12 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
         finally:
             with _lock:
                 _state["now"] = ""
-        if r["id"] in _first:
-            _first.remove(r["id"])
         if res == "ready":
             with _lock:
                 _state["done"] += 1
         if res in ("ready", "failed"):
             return True
     return False
-
-
-def request(media_ids):
-    """Do these first (the TV page asks when someone wants to watch one that is not ready)."""
-    for m in media_ids:
-        if m not in _first:
-            _first.append(m)
-    WAKE.set()
 
 
 def retry(conn):
@@ -324,7 +330,7 @@ def status(conn):
     except OSError:
         free = None
     return {"on": enabled(), "need": need, "ready": ready, "failed": failed, "convert": convert, "bytes": row["b"],
-            "free": free, "working": _state["now"], "running": _state["running"]}
+            "cap_gb": cap_gb(), "blocked": _state["blocked"], "free": free, "working": _state["now"], "running": _state["running"]}
 
 
 def start_background(cfg, connect, every=3, idle=600):
