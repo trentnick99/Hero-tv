@@ -572,7 +572,7 @@ async function sSave(changes,okText,after){sMsg("Saving...");try{const r=await p
  catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}}
 async function sAct(name,btn){const old=btn.textContent;btn.disabled=true;btn.textContent="Working...";
  try{const r=await pj("/api/action",{name});sMsg(r.message||"Done.","ok")}catch(e){sMsg(String(e.message||e),"err")}btn.disabled=false;btn.textContent=old}
-async function openSettings(cat){if(REMOTE)return toast("Settings are on the PC.");if(cat)sCat=cat;layer="settings";sDirty=false;sLeave=false;chList=null;chSel=null;tData=null;
+async function openSettings(cat){if(REMOTE)return toast("Settings are on the PC.");atData=null;if(cat)sCat=cat;layer="settings";sDirty=false;sLeave=false;chList=null;chSel=null;tData=null;
  for(const id of ["#guide","#lib","#home","#help","#check","#info","#osd","#msg"])show(id,false);placePreview(false);show("#settings",true);paint($("#settings"),theme.color);
  hints($("#st-hints"),[["↑ ↓ ← →","move"],["Enter","choose"],["Esc","back"]]);
  try{sData=await api("/api/settings")}catch(e){sData=null}drawSettings()}
@@ -583,7 +583,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
  for(const[k,n]of SCATS){const b=el("button",k===sCat?"on":"",n);b.type="button";b.setAttribute("role","tab");b.onclick=()=>sGo(k);b.dataset.k=k;nav.append(b)}
  if(!sData){main.append(el("div","empty","Settings could not be loaded. Make sure HERO TV is still running."));return}
  const d=sData,msg=el("div","smsg");msg.id="st-msg";
- if(!REMOTE){const ab=el("div");ab.id="st-attn";main.append(ab);drawAttn()}
+ if(!REMOTE&&sCat==="look"){const ab=el("div");ab.id="st-attn";main.append(ab);drawAttn()}
  if(sCat==="look"){main.append(el("h3",0,"Appearance"));
   const name=sInput(d.station.name),tag=sInput(d.station.tagline);let col=d.station.color;
   const sw=el("div","sw");const pick=c=>{col=c;sDirty=true;sLeave=false;[...sw.children].forEach(b=>b.classList.toggle("on",b.dataset.c.toLowerCase()===c.toLowerCase()));hex.value=c};
