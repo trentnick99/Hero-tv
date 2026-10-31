@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.37.5": [
+        "Some downloads state a length in their header that is much longer than the video inside (an Invincible episode said 90 minutes). Fixing those used to fail with 'came out shorter'. HERO TV now checks where the picture really ends and makes the copy.",
+        "Copies that still have surround sound (made before 1.37.2) are now remade first, ahead of other background work, so a movie with no voices is fixed sooner.",
+    ],
     "1.37.4": [
         "The problem report (Settings > Report a problem) now lists the sound tracks of the last videos you played - language, type, channels - and whether a ready-to-play copy exists, so a sound problem can be found quickly.",
     ],

@@ -156,26 +156,33 @@ def why_not_playable(vcodec, acodec, vfmt="", ext=""):
     return None
 
 
-def has_video_near_end(path, runtime, ffprobe=None):
-    """Does the file really contain video close to its stated end? A download that stopped early keeps the full length in its
-    header but has no data after the cut. True when it does (or when that cannot be told), False when the end is missing."""
+def video_end(path, runtime, ffprobe=None):
+    """Where the picture of a file really ends, in seconds (None when that cannot be told). Some releases state a length in
+    their header that is far longer than the video inside (twice as long, seen on Invincible episodes), and a download that
+    stopped early keeps the full length too. Looking at the last pictures tells which."""
     exe = ffprobe or tools.find_tool("ffprobe")
     if not exe or not runtime or runtime < 60:
-        return True
+        return None
     try:
         out = tools.run([exe, "-v", "error", "-select_streams", "v:0", "-read_intervals", f"{runtime * 0.97:.1f}%",
                          "-show_entries", "packet=pts_time", "-of", "csv=p=0", path], timeout=120)
     except (OSError, subprocess.SubprocessError):
-        return True
+        return None
     if out.returncode != 0:
-        return True
+        return None
     times = []
     for x in (out.stdout or "").splitlines():
         try:
             times.append(float(x.split(",")[0]))
         except ValueError:
             pass
-    return bool(times) and max(times) >= runtime * 0.9          # a cut-off file lands on its last picture, far from the end
+    return max(times) + 0.5 if times else None
+
+
+def true_runtime(path, runtime):
+    """The length to expect of a copy: the header's length, or where the picture ends when that is clearly earlier."""
+    end = video_end(path, runtime)
+    return end if end and end < runtime * 0.9 else runtime
 
 
 def probe(path):

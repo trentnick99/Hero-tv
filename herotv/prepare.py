@@ -199,6 +199,9 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None):
         rt = row["runtime_s"] or 0
         r = run(command(ffmpeg, source or src, tmp, row["vcodec"], acodec, f"0:a:{n}?", channels=tracks[n]["channels"] if tracks else 0), rt)
         ok = r.returncode == 0 and tmp.is_file() and _same_length(tmp, rt, probe)
+        if not ok and r.returncode == 0 and tmp.is_file() and rt:
+            real = library.true_runtime(source or src, rt)            # a header that claims more than the picture has
+            ok = real < rt and _same_length(tmp, real, probe)
         if not ok and tools.sound_trouble(getattr(r, "errors", None)):
             ok, r = _rescue_sound(source or src, tmp, row, tracks, n, rt, run, ffmpeg, probe)
         if ok and os.path.getsize(src) != size:            # the original was replaced meanwhile: this copy is stale
@@ -257,6 +260,7 @@ def todo(conn, media_dir="", now=None):
     skip = _skip_dirs(media_dir) if media_dir else ()
     pref = library.pref_lang()
     out = []
+    remakes = []
 
     def pending(r, want_lang):
         if skip and os.path.normcase(os.path.abspath(r["path"])).startswith(skip):
@@ -302,11 +306,11 @@ def todo(conn, media_dir="", now=None):
         t = library.audio_tracks(str(f / p["file"]))
         if t and t[0]["channels"] > 2:
             src = saved_original(r["path"], pref, r["size"] or 0) if library.lacks_lang(r["atracks"], pref) else ""
-            out.append(dict(r, source=src, remake=True))
+            remakes.append(dict(r, source=src, remake=True))
         else:
             conn.execute("UPDATE prepared SET mix=1 WHERE media_id=?", (p["media_id"],))
             conn.commit()
-    return out
+    return remakes + out                                   # a copy that plays without voices comes first
 
 
 def tidy(conn):
