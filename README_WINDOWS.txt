@@ -409,6 +409,10 @@ EPISODE NAMES (anime too)
   "Show - 012 - Title.mp4", "Show Episode 12.mp4", "Show E012.mp4" and "Show S01E12.mp4" all work. Put a show's
   episodes in one folder inside its channel folder (Dragon Ball\Dragon Ball Z\...) and they play in order.
 
+ONE CARD PER SHOW IN THE LIBRARY (1.36)
+  The Library's All list shows each TV show as one stacked card with an episode count. Enter opens it to show its episodes in order;
+    Esc or Backspace goes back to where you were. Shows with the same name in different folders stay separate. Movies are unchanged.
+
 ENGLISH BY ITSELF FOR VIDEOS WITH SEVERAL LANGUAGES (1.35)
   Settings > Tools > 'Preferred sound language' (English to start with). A video that has an English sound track but plays
   another language first gets a hidden ready-to-play copy that plays English; the PC, phones and Roku use it. Your own files

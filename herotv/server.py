@@ -1371,6 +1371,12 @@ def make_handler(app, remote=False):
                     extra = " AND f.media_id IS NOT NULL"
                 elif view == "recent":      # found in the last 30 days, newest first
                     extra, order = f" AND m.added>{int(now) - RECENT_S}", "m.added DESC,m.id DESC"
+                lim = max(1, min(int(q.get("limit", 200)), 1000))
+                group = q.get("group") == "1" and view == "all" and not q.get("series")       # one row per show instead of one per episode
+                args = [like, like, like, like]
+                if q.get("series"):                                    # the episodes of one show (opened from the grouped list)
+                    extra += " AND m.series=? AND m.franchise=?"
+                    args += [q["series"], q.get("franchise", "")]
                 rows = c.execute(
                     "SELECT m.id,m.title,m.year,m.franchise,m.series,m.season,m.episode,m.plot,m.runtime_s,m.tags,m.added,"
                     "COALESCE(p.position,0) AS position,COALESCE(p.completed,0) AS completed,"
@@ -1379,7 +1385,24 @@ def make_handler(app, remote=False):
                     "WHERE m.available=1 AND m.verified=1 AND m.playable=1 AND "
                     "(m.title LIKE ? OR m.series LIKE ? OR m.franchise LIKE ? OR m.tags LIKE ?)" + extra +
                     " ORDER BY " + order + " LIMIT ?",
-                    (like, like, like, like, max(1, min(int(q.get("limit", 200)), 1000)))).fetchall()
+                    (*args, 20000 if group else lim)).fetchall()
+                if group:
+                    sizes = {(r[0], r[1]): (r[2], r[3]) for r in c.execute(
+                        "SELECT franchise,series,COUNT(*),COUNT(DISTINCT season) FROM media "
+                        "WHERE available=1 AND verified=1 AND playable=1 AND series<>'' GROUP BY franchise,series")}
+                    merged, seen = [], {}
+                    for r in rows:
+                        d = dict(r)
+                        if not d["series"]:
+                            merged.append(d)
+                            continue
+                        key = (d["franchise"], d["series"])
+                        if key not in seen:                           # the first episode (lowest season/episode) stands for the show
+                            n, ns = sizes.get(key, (1, 1))
+                            seen[key] = dict(d, show=True, title=d["series"], episodes=n, seasons=ns, season=0, episode=0, plot="",
+                                             position=0, completed=0, favorite=0, runtime_s=0)
+                            merged.append(seen[key])
+                    rows = merged[:lim]
                 counts = c.execute(
                     "SELECT (SELECT COUNT(*) FROM progress p JOIN media m ON m.id=p.media_id WHERE m.available=1 AND m.verified=1 AND m.playable=1 AND p.position>10 AND p.completed=0),"
                     "(SELECT COUNT(*) FROM favorites f JOIN media m ON m.id=f.media_id WHERE m.available=1 AND m.verified=1 AND m.playable=1),"

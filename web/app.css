@@ -178,6 +178,7 @@ body.big #in-plot,body.big #in-m{font-size:2.8vh}body.big #in-cast{font-size:2.4
 #q{font:inherit;font-size:calc(3.2vh*var(--tx));background:var(--panel);color:var(--text);border:0;border-bottom:.45vh solid var(--accent);border-radius:1vh 1vh 0 0;padding:1.2vh 1.2vw;outline:none;width:100%}
 #q::placeholder{color:var(--mute)}
 #list{flex:1;min-height:0;overflow:hidden;display:grid;grid-template-columns:repeat(var(--cols,4),1fr);gap:2.4vh 1.5vw;align-content:start;padding:.8vh .5vw}
+.card.show .pic{box-shadow:.9vh -.9vh 0 -.2vh var(--line),1.8vh -1.8vh 0 -.4vh var(--line);margin:1.8vh 1.8vh 0 0}
 .card{min-width:0;border-radius:1.2vh;padding:.6vh;margin:-.6vh;transition:transform .12s ease}
 .card .pic{aspect-ratio:16/9;border-radius:1vh;overflow:hidden;position:relative;background:var(--panel)}
 .card .pic i{position:absolute;left:0;bottom:0;height:.7vh;background:var(--accent);z-index:2}

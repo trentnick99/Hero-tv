@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.36.0": [
+        "The Library now groups episodes by show. Each show is one card (with a stacked look and an episode count) that opens into its episodes in order; press Esc or Backspace to go back to where you were. Shows with the same name in different folders stay separate. Movies and other videos look the same as before.",
+    ],
     "1.35.0": [
         "Videos with more than one language now play English by themselves. Settings > Tools > Videos in other formats has a new 'Preferred sound language' choice (English to start with; other languages or Off if you like).",
         "When a video has an English sound track but plays another language first, HERO TV makes a hidden ready-to-play copy that plays the English one - for the PC, phones and the Roku. Your own files are never changed, and videos that already play English are left alone.",
