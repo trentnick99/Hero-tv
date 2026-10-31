@@ -623,6 +623,20 @@ def _convert_one_locked(src, ffmpeg, phone=False):
     if v_ok and p["vcodec"] == "hevc":
         vopt += ["-tag:v", "hvc1"]               # Apple devices only play HEVC tagged this way
     aopt = ["-c:a", "copy"] if a_ok and a_copy else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
+    # A video with several languages keeps them all, the preferred one (English...) first and flagged as the one that plays.
+    tracks = library.audio_tracks(src) or []
+    amap0 = "0:a:0?"
+    if len(tracks) > 1:
+        pn = library.pick_track(tracks, library.pref_lang())
+        first = pn if pn is not None else library.playing_track(tracks)
+        order = [first] + [t["n"] for t in tracks if t["n"] != first]
+        amap0 = [f"0:a:{n}" for n in order]
+        every_copy = all(library.mp4_audio_ok(t["codec"]) for t in tracks)
+        aopt = (["-c:a", "copy"] if every_copy else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]) + \
+               ["-disposition:a:0", "default"] + [x for i in range(1, len(order)) for x in (f"-disposition:a:{i}", "0")]
+        if pn is not None and pn != library.playing_track(tracks):
+            say(f"  {len(tracks)} sound tracks kept - {tracks[pn]['language']} plays first")
+        a_ok = a_ok and every_copy
     speed = ("with the graphics card - a movie takes a few minutes" if "libx264" not in tools.h264_encoder(ffmpeg)
              else "slow: a movie can take 15-40 minutes")
     say(("  making an iPhone-friendly copy:" if phone else "  fixing for the TV:") + " video " +
@@ -631,10 +645,11 @@ def _convert_one_locked(src, ffmpeg, phone=False):
     rt = p.get("runtime_s") or 0
     work.stage("Converting the picture to standard H.264" if not v_ok else "Converting the sound to AAC")
 
-    def mk(vo, amap="0:a:0?", tolerant=False, ao=aopt):
+    def mk(vo, amap=amap0, tolerant=False, ao=aopt):
         tol = ["-err_detect", "ignore_err", "-max_error_rate", "1"] if tolerant else []
+        maps = [x for a in (amap if isinstance(amap, list) else [amap]) for x in ("-map", a)]
         return ([ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts"] + tol +
-                ["-i", src, "-map", "0:V:0", "-map", amap, *vo, *ao, "-sn", "-dn", "-max_muxing_queue_size", "9999",
+                ["-i", src, "-map", "0:V:0", *maps, *vo, *ao, "-sn", "-dn", "-max_muxing_queue_size", "9999",
                  "-movflags", "+faststart", "-f", "mp4", tmp])
     r = _encode_checked(ffmpeg, src, tmp, vopt, mk, rt)
     ok = r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)

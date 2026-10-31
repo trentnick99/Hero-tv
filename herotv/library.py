@@ -259,6 +259,13 @@ def pick_track(tracks, pref):
     return next((t["n"] for t in same if t["default"]), same[0]["n"])
 
 
+def lacks_lang(summary, pref):
+    """True when the sound languages are known and none of them is the preferred one."""
+    if not pref or not summary or summary == "-":
+        return False
+    return pref not in [t.rstrip("*") for t in summary.split(",")]
+
+
 def wants_lang(summary, pref):
     """True when the video has a track in the preferred language but its default track is another language."""
     if not pref or not summary or summary == "-":

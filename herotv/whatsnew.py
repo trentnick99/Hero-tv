@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.37.1": [
+        "Fixed videos that played Hindi (or another language) with no way to get English: when HERO TV fixed a video with several sound tracks it kept only the first one. Now it keeps every language and puts English first.",
+        "Videos already fixed that way get a hidden English copy made from the original HERO TV saved in its .originals folder. Nothing is moved or deleted. It happens in the background, so give it some time; progress shows in Settings > Tools.",
+    ],
     "1.37.0": [
         "Video names are cleaned up more: edition and streaming labels after the year (IMAX, Remastered, Directors Cut, NF, German DL...), a download site in front of the name, leftover release-group tags, and 'Season 2 Episode 4' wording are dropped so only the title, year, season and episode remain. Videos already in your library are renamed the same way the next time the library is checked. Names you set yourself are never changed, and your files are never renamed.",
     ],

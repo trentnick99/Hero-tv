@@ -415,6 +415,10 @@ ONE CARD PER SHOW IN THE LIBRARY (1.36)
 
   1.36.1: 'Invincible' and 'Invincible season 1' count as one show. A folder of episodes without numbers (Dragon Ball) is one card; folders of dated movies stay a plain list.
 
+ENGLISH LOST IN A FIXED VIDEO (1.37.1)
+  Fixing a video used to keep only its first sound track (often Hindi). Now every language is kept and the preferred one plays first.
+    Videos fixed the old way get a hidden English copy made from the original in their .originals folder (nothing is moved or deleted).
+
 CLEANER VIDEO NAMES (1.37)
   HERO TV keeps just the title, year, season and episode from a file name and drops release tags, editions (IMAX, Directors Cut),
     streaming labels (NF, AMZN), site names and group tags. Videos already in the library are renamed on the next library check.

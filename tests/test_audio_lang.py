@@ -116,6 +116,47 @@ class Real(unittest.TestCase):
         self.assertEqual((s["lang"], s["lang_need"], s["lang_ready"]), ("eng", 1, 1))
         self.assertEqual(streams(cp)["audio"], "aac")
 
+    def test_a_fixed_video_that_lost_english_gets_a_copy_from_its_saved_original(self):
+        # What an older Fix did: the .mp4 kept only the first (Hindi) sound track; the untouched file went to .originals
+        hindi_only = f"{self.root}/Movies/Iron Film 2 (2010).mp4"
+        two_tracks(hindi_only, "hin", "hin")
+        os.makedirs(f"{self.root}/Movies/.originals")
+        saved = f"{self.root}/Movies/.originals/Iron Film 2 (2010).mp4"
+        two_tracks(saved, "hin", "eng")
+        library.scan(self.c, self.root)
+        self.settle()
+        r = self.row(hindi_only)
+        self.assertEqual(r["atracks"], "hin*,hin")
+        self.assertTrue(library.lacks_lang(r["atracks"], "eng"))
+        cp = prepare.copy_path(self.c, r["id"], r["size"])
+        self.assertTrue(cp and os.path.isfile(cp))
+        self.assertLess(abs(tone_hz_guess(cp) - 900), 60)               # English, taken from the saved original
+        self.assertEqual(prepare.delivery(self.c, r["id"], "browser")[0], cp)
+        self.assertEqual(prepare.delivery(self.c, r["id"], "roku")[0], cp)
+        self.assertTrue(os.path.isfile(saved) and os.path.isfile(hindi_only))        # nothing moved or deleted
+        self.assertLess(abs(tone_hz_guess(hindi_only) - 300), 60)
+
+    def test_no_saved_original_means_no_copy_and_no_error(self):
+        lone = f"{self.root}/Movies/Lone Film (2012).mp4"
+        two_tracks(lone, "hin", "hin")
+        library.scan(self.c, self.root)
+        self.settle()
+        r = self.row(lone)
+        self.assertIsNone(prepare.copy_path(self.c, r["id"], r["size"]))
+        self.assertEqual(prepare.delivery(self.c, r["id"], "browser")[0], os.path.normpath(lone))
+
+    def test_converting_keeps_every_language_with_english_first(self):
+        from herotv import launcher
+        src = f"{self.root}/Movies/Dual Film (2018).mkv"
+        two_tracks(src, "hin", "eng", acodec="ac3")                      # Dolby sound: always converted
+        res, final = launcher._convert_one_locked(src, FF)
+        self.assertEqual(res, "converted")
+        tracks = library.audio_tracks(final)
+        self.assertEqual([t["lang"] for t in tracks], ["eng", "hin"])
+        self.assertEqual([t["default"] for t in tracks], [True, False])
+        self.assertLess(abs(tone_hz_guess(final) - 900), 60)
+        self.assertTrue(os.path.isfile(f"{self.root}/Movies/.originals/Dual Film (2018).mkv"))
+
     def test_switched_off_makes_nothing_and_serves_the_original(self):
         self.settings.write_text(json.dumps({"audio_lang": ""}))
         self.settle()

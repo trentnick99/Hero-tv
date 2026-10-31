@@ -65,7 +65,7 @@ def delivery(conn, mid, client="browser"):
     ext = _ext(r["path"])
     args = (r["vcodec"], r["acodec"], r["vfmt"] or "", ext)
     pref = library.pref_lang()
-    lang = library.wants_lang(r["atracks"], pref)
+    lang = library.wants_lang(r["atracks"], pref) or library.lacks_lang(r["atracks"], pref)   # (lacks: only a rescued copy can fix it)
     if client == "safe":
         must = True
     elif client == "roku":
@@ -147,8 +147,36 @@ def _record(conn, mid, status, size, file="", why_="", nbytes=0, alang=""):
     conn.commit()
 
 
-def prepare_one(conn, row, ffmpeg, run=None, probe=None):
-    """Make the ready copy of one video. Returns 'ready', 'failed' or 'busy'/'gone'. Never touches the original."""
+_ORIG = {}                                                 # video path -> saved original that has the preferred language ('' = none)
+
+
+def saved_original(path, pref, size=0):
+    """An earlier fix kept the untouched file in .originals. When that file has a sound track in the preferred language
+    that the fixed video lost, return its path ('' when there is none). Result is remembered while the file is unchanged."""
+    try:
+        key = (os.path.getmtime(path), size)
+    except OSError:
+        return ""
+    hit = _ORIG.get(path)
+    if hit and hit[0] == key and hit[1] == pref:
+        return hit[2]
+    keep = os.path.join(os.path.dirname(path), ".originals")
+    found = ""
+    stem = os.path.splitext(os.path.basename(path))[0]
+    if os.path.isdir(keep):
+        names = sorted(n for n in os.listdir(keep) if os.path.splitext(n)[1].lower() in library.EXTS
+                       and re.fullmatch(re.escape(stem) + r"(?: \(\d+\))?", os.path.splitext(n)[0]))
+        for n in names:
+            if library.pick_track(library.audio_tracks(os.path.join(keep, n)), pref) is not None:
+                found = os.path.join(keep, n)
+                break
+    _ORIG[path] = (key, pref, found)
+    return found
+
+
+def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None):
+    """Make the ready copy of one video. Returns 'ready', 'failed' or 'busy'/'gone'. Never touches the original.
+    `source` = a saved original to take the sound from (the video itself lost that language)."""
     from .launcher import _Claim                           # one job per file: Fix, the Inbox and this must not overlap
     src, size, mid = row["path"], row["size"], row["id"]
     if not os.path.isfile(src):
@@ -160,17 +188,17 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None):
         f = folder()
         f.mkdir(parents=True, exist_ok=True)
         final, tmp = f / f"{mid}-{size}.mp4", f / f"{mid}-{size}.part"
-        tracks = library.audio_tracks(src) or []
+        tracks = library.audio_tracks(source or src) or []
         pref = library.pref_lang()
         pn = library.pick_track(tracks, pref)              # the preferred sound language (English...) when the video has it
         n = pn if pn is not None else library.playing_track(tracks)    # else what a browser would play: default, else the first
         alang = pref if pn is not None else ""
         acodec = tracks[n]["codec"] if tracks else row["acodec"]
         rt = row["runtime_s"] or 0
-        r = run(command(ffmpeg, src, tmp, row["vcodec"], acodec, f"0:a:{n}?"), rt)
+        r = run(command(ffmpeg, source or src, tmp, row["vcodec"], acodec, f"0:a:{n}?"), rt)
         ok = r.returncode == 0 and tmp.is_file() and _same_length(tmp, rt, probe)
         if not ok and tools.sound_trouble(getattr(r, "errors", None)):
-            ok, r = _rescue_sound(src, tmp, row, tracks, n, rt, run, ffmpeg, probe)
+            ok, r = _rescue_sound(source or src, tmp, row, tracks, n, rt, run, ffmpeg, probe)
         if ok and os.path.getsize(src) != size:            # the original was replaced meanwhile: this copy is stale
             ok, r = False, tools.FFResult(1, ["the original changed while the copy was being made"])
         if not ok:
@@ -252,6 +280,12 @@ def todo(conn, media_dir="", now=None):
                               "AND playable=1 AND atracks<>'' AND atracks<>'-' ORDER BY added DESC, id").fetchall():
             if r["vcodec"] in ("h264", "hevc") and library.wants_lang(r["atracks"], pref) and pending(r, True):
                 out.append(r)
+        for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,size,runtime_s,added,atracks FROM media WHERE available=1 AND verified=1 "
+                              "AND playable=1 AND atracks<>'' AND atracks<>'-' ORDER BY added DESC, id").fetchall():
+            if library.lacks_lang(r["atracks"], pref) and r["vcodec"] in ("h264", "hevc") and pending(r, True):
+                src = saved_original(r["path"], pref, r["size"] or 0)
+                if src:
+                    out.append(dict(r, source=src))
     return out
 
 
@@ -312,7 +346,7 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
         work.stage("Making a ready-to-play copy")
         res = ""
         try:
-            res = prepare_one(conn, r, ffmpeg, run, probe)
+            res = prepare_one(conn, r, ffmpeg, run, probe, source=r["source"] if "source" in r.keys() else None)
         finally:
             work.end({"ready": "copy ready", "failed": "could not make a copy"}.get(res, "stopped"), quiet=res not in ("ready", "failed"))
             with _lock:
@@ -365,9 +399,10 @@ def status(conn):
     pref = library.pref_lang()
     lneed = lready = 0
     if pref:
-        for r in conn.execute("SELECT m.id,m.size,m.atracks,p.alang,p.src_size,p.status FROM media m LEFT JOIN prepared p ON p.media_id=m.id "
+        for r in conn.execute("SELECT m.id,m.path,m.size,m.atracks,p.alang,p.src_size,p.status FROM media m LEFT JOIN prepared p ON p.media_id=m.id "
                               "WHERE m.available=1 AND m.verified=1 AND m.atracks<>'' AND m.atracks<>'-'").fetchall():
-            if library.wants_lang(r["atracks"], pref):
+            hit = _ORIG.get(r["path"])
+            if library.wants_lang(r["atracks"], pref) or (library.lacks_lang(r["atracks"], pref) and hit and hit[1] == pref and hit[2]):
                 lneed += 1
                 lready += 1 if (r["status"] == "ready" and r["alang"] == pref and (r["src_size"] or 0) == (r["size"] or 0)) else 0
     return {"lang": pref, "lang_need": lneed, "lang_ready": lready, "on": enabled(), "need": need, "ready": ready, "failed": failed, "convert": convert, "bytes": row["b"],
