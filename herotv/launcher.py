@@ -625,13 +625,16 @@ def _convert_one_locked(src, ffmpeg, phone=False):
     aopt = ["-c:a", "copy"] if a_ok and a_copy else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
     # A video with several languages keeps them all, the preferred one (English...) first and flagged as the one that plays.
     tracks = library.audio_tracks(src) or []
+    if any(t["channels"] > 2 for t in tracks):
+        a_copy = False                                        # surround sound is mixed down to stereo (see prepare.command)
+        aopt = ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
     amap0 = "0:a:0?"
     if len(tracks) > 1:
         pn = library.pick_track(tracks, library.pref_lang())
         first = pn if pn is not None else library.playing_track(tracks)
         order = [first] + [t["n"] for t in tracks if t["n"] != first]
         amap0 = [f"0:a:{n}" for n in order]
-        every_copy = all(library.mp4_audio_ok(t["codec"]) for t in tracks)
+        every_copy = all(library.mp4_audio_ok(t["codec"]) and t["channels"] <= 2 for t in tracks)
         aopt = (["-c:a", "copy"] if every_copy else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]) + \
                ["-disposition:a:0", "default"] + [x for i in range(1, len(order)) for x in (f"-disposition:a:{i}", "0")]
         if pn is not None and pn != library.playing_track(tracks):

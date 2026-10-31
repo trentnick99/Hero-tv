@@ -415,6 +415,10 @@ ONE CARD PER SHOW IN THE LIBRARY (1.36)
 
   1.36.1: 'Invincible' and 'Invincible season 1' count as one show. A folder of episodes without numbers (Dragon Ball) is one card; folders of dated movies stay a plain list.
 
+NO VOICES ON SURROUND TRACKS (1.37.2)
+  Copies and fixed videos now mix 5.1 sound down to stereo, so players that drop the centre channel still play the voices.
+    Older surround copies are made again in the background; your own files are not touched.
+
 ENGLISH LOST IN A FIXED VIDEO (1.37.1)
   Fixing a video used to keep only its first sound track (often Hindi). Now every language is kept and the preferred one plays first.
     Videos fixed the old way get a hidden English copy made from the original in their .originals folder (nothing is moved or deleted).

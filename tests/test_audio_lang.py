@@ -157,6 +157,60 @@ class Real(unittest.TestCase):
         self.assertLess(abs(tone_hz_guess(final) - 900), 60)
         self.assertTrue(os.path.isfile(f"{self.root}/Movies/.originals/Dual Film (2018).mkv"))
 
+    def six(self, src, vcodec="libx264"):
+        subprocess.run([FF, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=10", "-f", "lavfi", "-i", "sine=frequency=300",
+                        "-f", "lavfi", "-i", "sine=frequency=900", "-t", "3", "-map", "0:v", "-map", "1:a", "-map", "2:a", "-c:v", vcodec,
+                        "-pix_fmt", "yuv420p", "-c:a", "aac", "-ac", "6", "-metadata:s:a:0", "language=hin", "-metadata:s:a:1", "language=eng",
+                        "-disposition:a:0", "default", "-disposition:a:1", "0", src], check=True)
+
+    def test_surround_sound_is_mixed_down_in_new_copies(self):
+        src = f"{self.root}/Movies/Surround Film (2013).mp4"
+        self.six(src)
+        library.scan(self.c, self.root)
+        self.settle()
+        r = self.row(src)
+        cp = prepare.copy_path(self.c, r["id"], r["size"])
+        self.assertTrue(cp)
+        self.assertEqual(library.audio_tracks(src)[1]["channels"], 6)
+        self.assertEqual(library.audio_tracks(cp)[0]["channels"], 2)      # mixed down, not copied as 5.1
+        self.assertEqual(self.c.execute("SELECT mix FROM prepared WHERE media_id=?", (r["id"],)).fetchone()[0], 1)
+
+    def test_an_old_surround_copy_is_made_again_and_nothing_else_is_touched(self):
+        src = f"{self.root}/Movies/Old Surround (2014).mp4"
+        self.six(src)
+        library.scan(self.c, self.root)
+        r = self.row(src)
+        old = prepare.folder() / f"{r['id']}-{r['size']}.mp4"
+        prepare.folder().mkdir(parents=True, exist_ok=True)
+        shutil.copy(src, old)                                            # a copy as an older version made it: 6 channels
+        prepare._record(self.c, r["id"], "ready", r["size"], old.name, nbytes=old.stat().st_size, alang="eng", mix=0)
+        self.c.execute("UPDATE media SET playable=1 WHERE id=?", (r["id"],))
+        self.c.commit()
+        self.settle()
+        self.assertEqual(library.audio_tracks(str(old))[0]["channels"], 2)
+        self.assertEqual(self.c.execute("SELECT mix FROM prepared WHERE media_id=?", (r["id"],)).fetchone()[0], 1)
+        self.assertEqual(library.audio_tracks(src)[0]["channels"], 6)    # the original is untouched
+        self.assertLess(abs(tone_hz_guess(str(old)) - 900), 60)          # and the remade copy still plays English
+
+    def test_stereo_copies_are_not_remade(self):
+        self.settle()
+        a = self.row(self.anime)
+        n = self.c.execute("SELECT made FROM prepared WHERE media_id=?", (a["id"],)).fetchone()[0]
+        self.c.execute("UPDATE prepared SET mix=0")                      # as if made by an older version
+        self.c.commit()
+        self.settle()
+        self.assertEqual(self.c.execute("SELECT made,mix FROM prepared WHERE media_id=?", (a["id"],)).fetchone()[1], 1)
+        self.assertEqual(self.c.execute("SELECT made FROM prepared WHERE media_id=?", (a["id"],)).fetchone()[0], n)
+
+    def test_converting_mixes_surround_down(self):
+        from herotv import launcher
+        src = f"{self.root}/Movies/Dolby Film (2016).mkv"
+        subprocess.run([FF, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=10", "-f", "lavfi", "-i", "sine=frequency=300",
+                        "-t", "3", "-map", "0:v", "-map", "1:a", "-c:v", "mpeg4", "-c:a", "aac", "-ac", "6", src], check=True)   # picture must be redone
+        res, final = launcher._convert_one_locked(src, FF)
+        self.assertEqual(res, "converted")
+        self.assertEqual(library.audio_tracks(final)[0]["channels"], 2)
+
     def test_switched_off_makes_nothing_and_serves_the_original(self):
         self.settings.write_text(json.dumps({"audio_lang": ""}))
         self.settle()

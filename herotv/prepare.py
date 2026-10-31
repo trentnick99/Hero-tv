@@ -125,10 +125,12 @@ def used_bytes(conn):
 
 
 # ---------- making copies ----------
-def command(ffmpeg, src, tmp, vcodec, acodec, amap="0:a:0?", tolerant=False, force_aac=False):
-    """ffmpeg arguments: copy the picture into an .mp4; copy the sound when an .mp4 can hold it, else make AAC."""
+def command(ffmpeg, src, tmp, vcodec, acodec, amap="0:a:0?", tolerant=False, force_aac=False, channels=0):
+    """ffmpeg arguments: copy the picture into an .mp4; copy the sound when an .mp4 can hold it, else make AAC.
+    Surround sound (more than 2 channels) is always mixed down to stereo AAC: some players drop the centre channel -
+    the voices - when they play a 5.1 track on two speakers."""
     v = ["-c:v", "copy"] + (["-tag:v", "hvc1"] if vcodec == "hevc" else [])    # Apple devices only play HEVC tagged this way
-    a = ["-c:a", "copy"] if library.mp4_audio_ok(acodec) and not force_aac else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
+    a = ["-c:a", "copy"] if library.mp4_audio_ok(acodec) and not force_aac and channels <= 2 else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
     tol = ["-err_detect", "ignore_err", "-max_error_rate", "1"] if tolerant else []
     return [ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts", *tol, "-i", src, "-map", "0:V:0", "-map", amap,
             *v, *a, "-sn", "-dn", "-max_muxing_queue_size", "9999", "-movflags", "+faststart", "-f", "mp4", str(tmp)]
@@ -141,9 +143,9 @@ def _same_length(path, runtime, probe=None):
     return not runtime or abs((q["runtime_s"] or 0) - runtime) <= max(5.0, runtime * 0.02)
 
 
-def _record(conn, mid, status, size, file="", why_="", nbytes=0, alang=""):
-    conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes,alang) VALUES(?,?,?,?,?,?,?,?)",
-                 (mid, file, size, status, why_[:200], int(time.time()), nbytes, alang))
+def _record(conn, mid, status, size, file="", why_="", nbytes=0, alang="", mix=0):
+    conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes,alang,mix) VALUES(?,?,?,?,?,?,?,?,?)",
+                 (mid, file, size, status, why_[:200], int(time.time()), nbytes, alang, mix))
     conn.commit()
 
 
@@ -195,7 +197,7 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None):
         alang = pref if pn is not None else ""
         acodec = tracks[n]["codec"] if tracks else row["acodec"]
         rt = row["runtime_s"] or 0
-        r = run(command(ffmpeg, source or src, tmp, row["vcodec"], acodec, f"0:a:{n}?"), rt)
+        r = run(command(ffmpeg, source or src, tmp, row["vcodec"], acodec, f"0:a:{n}?", channels=tracks[n]["channels"] if tracks else 0), rt)
         ok = r.returncode == 0 and tmp.is_file() and _same_length(tmp, rt, probe)
         if not ok and tools.sound_trouble(getattr(r, "errors", None)):
             ok, r = _rescue_sound(source or src, tmp, row, tracks, n, rt, run, ffmpeg, probe)
@@ -213,7 +215,7 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None):
                 _record(conn, mid, "failed", size, why_=why_)
             return "failed"
         os.replace(tmp, final)
-        _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang)
+        _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang, mix=1)
         conn.execute("UPDATE media SET playable=1 WHERE id=?", (mid,))
         conn.commit()
         return "ready"
@@ -286,6 +288,24 @@ def todo(conn, media_dir="", now=None):
                 src = saved_original(r["path"], pref, r["size"] or 0)
                 if src:
                     out.append(dict(r, source=src))
+    # Copies made before surround sound was mixed down: one that still has more than two channels is made again
+    # (the working copy stays until the new one is ready).
+    for p in conn.execute("SELECT media_id,file,src_size,made,why,alang FROM prepared WHERE status='ready' AND mix=0").fetchall():
+        r = conn.execute("SELECT id,path,vcodec,acodec,vfmt,size,runtime_s,added,atracks FROM media WHERE id=? AND available=1", (p["media_id"],)).fetchone()
+        f = folder()
+        if r is None or f is None or (r["size"] or 0) != (p["src_size"] or 0) or not (f / p["file"]).is_file():
+            continue
+        if skip and os.path.normcase(os.path.abspath(r["path"])).startswith(skip):
+            continue
+        if p["why"] and now - (p["made"] or 0) < RETRY_FAILED_S:
+            continue                                       # the remake failed recently
+        t = library.audio_tracks(str(f / p["file"]))
+        if t and t[0]["channels"] > 2:
+            src = saved_original(r["path"], pref, r["size"] or 0) if library.lacks_lang(r["atracks"], pref) else ""
+            out.append(dict(r, source=src, remake=True))
+        else:
+            conn.execute("UPDATE prepared SET mix=1 WHERE media_id=?", (p["media_id"],))
+            conn.commit()
     return out
 
 
@@ -327,7 +347,7 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
     cap, used = cap_gb() * 1024 ** 3, used_bytes(conn)
     _state["blocked"] = False
     for r in todo(conn, media_dir):
-        if cap and used + int((r["size"] or 0) * 1.05) > cap:
+        if cap and used + int((r["size"] or 0) * 1.05) > cap and not ("remake" in r.keys() and r["remake"]):
             _state["blocked"] = True                       # the limit you chose: no new copy (an existing copy is never removed)
             continue
         need = int((r["size"] or 0) * 1.05) + SPARE_BYTES
@@ -346,7 +366,7 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
         work.stage("Making a ready-to-play copy")
         res = ""
         try:
-            res = prepare_one(conn, r, ffmpeg, run, probe, source=r["source"] if "source" in r.keys() else None)
+            res = prepare_one(conn, r, ffmpeg, run, probe, source=(r["source"] or None) if "source" in r.keys() else None)
         finally:
             work.end({"ready": "copy ready", "failed": "could not make a copy"}.get(res, "stopped"), quiet=res not in ("ready", "failed"))
             with _lock:

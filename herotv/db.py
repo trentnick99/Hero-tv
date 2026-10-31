@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS skips(series TEXT PRIMARY KEY, intro REAL DEFAULT 0, 
 CREATE TABLE IF NOT EXISTS progress(media_id INTEGER PRIMARY KEY, position REAL DEFAULT 0,
  completed INTEGER DEFAULT 0, updated INTEGER);
 CREATE TABLE IF NOT EXISTS prepared(media_id INTEGER PRIMARY KEY, file TEXT DEFAULT '', src_size INTEGER DEFAULT 0,
- status TEXT DEFAULT 'ready', why TEXT DEFAULT '', made INTEGER DEFAULT 0, bytes INTEGER DEFAULT 0, alang TEXT DEFAULT '');  -- ready-to-play copies (prepare.py)
+ status TEXT DEFAULT 'ready', why TEXT DEFAULT '', made INTEGER DEFAULT 0, bytes INTEGER DEFAULT 0, alang TEXT DEFAULT '', mix INTEGER DEFAULT 0);  -- ready-to-play copies (prepare.py)
 """
 
 
@@ -55,6 +55,8 @@ def connect(path: str) -> sqlite3.Connection:
         conn.execute("ALTER TABLE media ADD COLUMN vfmt TEXT DEFAULT ''")
     if "atracks" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:
         conn.execute("ALTER TABLE media ADD COLUMN atracks TEXT DEFAULT ''")   # sound languages, e.g. 'jpn*,eng' (* = plays by default); '' = not read yet
+    if "mix" not in [r[1] for r in conn.execute("PRAGMA table_info(prepared)")]:
+        conn.execute("ALTER TABLE prepared ADD COLUMN mix INTEGER DEFAULT 0")   # 1 = surround sound was mixed down to stereo in this copy
     if "alang" not in [r[1] for r in conn.execute("PRAGMA table_info(prepared)")]:
         conn.execute("ALTER TABLE prepared ADD COLUMN alang TEXT DEFAULT ''")  # the preferred language this copy was made for ('' = default track)
     if "roku" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:

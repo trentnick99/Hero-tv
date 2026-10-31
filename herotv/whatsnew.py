@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.37.2": [
+        "Surround sound (5.1) is now mixed down to stereo in the ready-to-play copies and when HERO TV fixes a video. Some players lose the voices from a 5.1 track on two speakers and play only music and effects. Copies made before this that still have surround sound are made again in the background; the old copy keeps working until the new one is ready. Your own files are not touched.",
+    ],
     "1.37.1": [
         "Fixed videos that played Hindi (or another language) with no way to get English: when HERO TV fixed a video with several sound tracks it kept only the first one. Now it keeps every language and puts English first.",
         "Videos already fixed that way get a hidden English copy made from the original HERO TV saved in its .originals folder. Nothing is moved or deleted. It happens in the background, so give it some time; progress shows in Settings > Tools.",
