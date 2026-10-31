@@ -120,6 +120,30 @@ def build(c, cfg, note="", lan=False, dlna_on=False, page=""):
     except Exception:
         pass
     add("")
+    add("Videos played last (sound details):")
+    try:
+        from . import library, prepare
+        rows = c.execute("SELECT m.id,m.path,m.vcodec,m.acodec,m.atracks FROM progress p JOIN media m ON m.id=p.media_id "
+                         "WHERE p.updated IS NOT NULL ORDER BY p.updated DESC LIMIT 3").fetchall()
+        if not rows:
+            add("  (none yet)")
+        for r in rows:
+            add(f"  {os.path.basename(r['path'])}: video {r['vcodec']}, first sound {r['acodec']}, languages {r['atracks'] or 'not read yet'}")
+            for t in library.audio_tracks(r["path"]) or []:
+                add(f"    track {t['n'] + 1}: {t['lang']} {t['codec']} {t['channels']} ch{' default' if t['default'] else ''}"
+                    + (f" \"{t['title']}\"" if t["title"] else ""))
+            pr = c.execute("SELECT file,status,alang,mix,why FROM prepared WHERE media_id=?", (r["id"],)).fetchone()
+            if pr:
+                add(f"    ready copy: {pr['status']}, language {pr['alang'] or 'default'}, surround mixed down: {'yes' if pr['mix'] else 'no (older copy)'}"
+                    + (f", note: {pr['why']}" if pr["why"] else ""))
+            else:
+                add("    ready copy: none")
+            for client in ("browser", "roku"):
+                d = prepare.delivery(c, r["id"], client)
+                add(f"    {client} gets: " + (("the ready copy" if d[0] != r["path"] else "the original file") if d else "?"))
+    except Exception as e:
+        add(f"  could not be read ({e})")
+    add("")
     add("Errors on the TV page (newest last):" if PAGE_ERRORS else "Errors on the TV page: none")
     L.extend("  " + e for e in PAGE_ERRORS)
     for name, n in (("herotv.log", 60), ("update.log", 25)):

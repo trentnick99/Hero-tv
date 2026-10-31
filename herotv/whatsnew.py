@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.37.4": [
+        "The problem report (Settings > Report a problem) now lists the sound tracks of the last videos you played - language, type, channels - and whether a ready-to-play copy exists, so a sound problem can be found quickly.",
+    ],
     "1.37.3": [
         "When fixing a video fails because the file itself is cut off (a download that stopped early, so the picture ends long before the length it claims), HERO TV now says so in plain words and skips the slow second try. Download that file again.",
     ],

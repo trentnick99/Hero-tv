@@ -42,6 +42,29 @@ class ReportTests(unittest.TestCase):
         self.assertTrue(os.path.isfile(f))
         self.assertEqual(Path(f).read_text(encoding="utf-8"), t)
 
+    def test_report_lists_the_sound_of_recently_played_videos(self):
+        import subprocess
+        from herotv import tools
+        ff = tools.find_tool("ffmpeg")
+        if not ff or not tools.find_tool("ffprobe"):
+            self.skipTest("ffmpeg not installed")
+        v = os.path.join(self.d, "Iron Test 3 (2013).mp4")
+        subprocess.run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=10", "-f", "lavfi", "-i", "sine=frequency=300",
+                        "-f", "lavfi", "-i", "sine=frequency=900", "-t", "2", "-map", "0:v", "-map", "1:a", "-map", "2:a", "-c:v", "libx264",
+                        "-pix_fmt", "yuv420p", "-c:a", "aac", "-ac", "6", "-metadata:s:a:0", "language=hin", "-metadata:s:a:1", "language=eng", v], check=True)
+        self.c.execute("INSERT INTO media(path,title,franchise,series,season,episode,verified,playable,available,vcodec,acodec,atracks,ord,size) "
+                       "VALUES(?,?,?,?,?,?,1,1,1,'h264','aac','hin*,eng',1,5)", (v, "Iron Test 3", "Movies", "", 0, 0))
+        mid = self.c.execute("SELECT id FROM media").fetchone()[0]
+        self.c.execute("INSERT INTO progress(media_id,position,completed,updated) VALUES(?,?,0,?)", (mid, 30, 1000))
+        self.c.commit()
+        t = report.build(self.c, self.cfg)
+        self.assertIn("Videos played last", t)
+        self.assertIn("Iron Test 3 (2013).mp4", t)
+        self.assertIn("track 1: hin aac 6 ch default", t)
+        self.assertIn("track 2: eng aac 6 ch", t)
+        self.assertIn("ready copy: none", t)
+        self.assertIn("browser gets: the original file", t)
+
     def test_home_folder_and_user_name_are_hidden(self):
         home = os.path.expanduser("~")
         (Path(self.d) / "herotv.log").write_text(f"opened {home}{os.sep}Videos\n")
