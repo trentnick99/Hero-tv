@@ -156,6 +156,28 @@ def why_not_playable(vcodec, acodec, vfmt="", ext=""):
     return None
 
 
+def has_video_near_end(path, runtime, ffprobe=None):
+    """Does the file really contain video close to its stated end? A download that stopped early keeps the full length in its
+    header but has no data after the cut. True when it does (or when that cannot be told), False when the end is missing."""
+    exe = ffprobe or tools.find_tool("ffprobe")
+    if not exe or not runtime or runtime < 60:
+        return True
+    try:
+        out = tools.run([exe, "-v", "error", "-select_streams", "v:0", "-read_intervals", f"{runtime * 0.97:.1f}%",
+                         "-show_entries", "packet=pts_time", "-of", "csv=p=0", path], timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return True
+    if out.returncode != 0:
+        return True
+    times = []
+    for x in (out.stdout or "").splitlines():
+        try:
+            times.append(float(x.split(",")[0]))
+        except ValueError:
+            pass
+    return bool(times) and max(times) >= runtime * 0.9          # a cut-off file lands on its last picture, far from the end
+
+
 def probe(path):
     """dict(runtime_s, vcodec, acodec, title) or None if ffprobe is missing / file unreadable."""
     exe = tools.find_tool("ffprobe")

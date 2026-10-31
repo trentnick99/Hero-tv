@@ -658,6 +658,11 @@ def _convert_one_locked(src, ffmpeg, phone=False):
     ok = r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)
     if not ok and r.returncode and _sound_trouble(r.errors):     # a damaged sound track - the picture is fine
         ok, r = _rescue_sound(ffmpeg, src, tmp, vopt, mk, rt)
+    if not ok and r.returncode == 0 and rt and os.path.isfile(tmp) and not library.has_video_near_end(src, rt):
+        say(f"  [FAIL] this file looks cut off: it says it is {int(rt // 60)} minutes long but has no picture near the end")
+        say("         (usually a download that stopped early - download it again; the original was kept as it is)")
+        os.remove(tmp)
+        return "failed", src
     if not ok and v_ok and not (r.returncode and _sound_trouble(r.errors)):   # copying the picture failed: make a fresh one
         _ffmpeg_failed(r, "copy the picture as it is" if r.returncode else "make a complete copy")
         say("  trying again, re-encoding the picture (slower)")

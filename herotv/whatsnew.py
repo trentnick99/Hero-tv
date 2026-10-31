@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.37.3": [
+        "When fixing a video fails because the file itself is cut off (a download that stopped early, so the picture ends long before the length it claims), HERO TV now says so in plain words and skips the slow second try. Download that file again.",
+    ],
     "1.37.2": [
         "Surround sound (5.1) is now mixed down to stereo in the ready-to-play copies and when HERO TV fixes a video. Some players lose the voices from a 5.1 track on two speakers and play only music and effects. Copies made before this that still have surround sound are made again in the background; the old copy keeps working until the new one is ready. Your own files are not touched.",
     ],

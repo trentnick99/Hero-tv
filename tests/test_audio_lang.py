@@ -211,6 +211,28 @@ class Real(unittest.TestCase):
         self.assertEqual(res, "converted")
         self.assertEqual(library.audio_tracks(final)[0]["channels"], 2)
 
+    def test_a_cut_off_download_is_named_and_not_retried(self):
+        from herotv import launcher
+        src = f"{self.root}/Movies/Cut Film (2020).mkv"
+        subprocess.run([FF, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=25", "-f", "lavfi", "-i", "sine=frequency=300",
+                        "-t", "120", "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "ac3", src], check=True)
+        full = os.path.getsize(src)
+        with open(src, "rb") as fh:
+            data = fh.read(full // 2)
+        with open(src, "wb") as fh:
+            fh.write(data)                                                # the download stopped half way
+        self.assertFalse(library.has_video_near_end(src, 120))
+        lines = []
+        with mock.patch.object(launcher, "say", lambda m="": lines.append(m)):
+            res, _ = launcher._convert_one_locked(src, FF)
+        self.assertEqual(res, "failed")
+        self.assertTrue(any("cut off" in x for x in lines), lines)
+        self.assertFalse(any("re-encoding the picture" in x for x in lines))
+        self.assertTrue(os.path.isfile(src))                              # untouched
+        whole = f"{self.root}/Movies/Whole Film (2020).mkv"
+        two_tracks(whole, "hin", "eng", secs=70, acodec="ac3")
+        self.assertTrue(library.has_video_near_end(whole, 70))
+
     def test_switched_off_makes_nothing_and_serves_the_original(self):
         self.settings.write_text(json.dumps({"audio_lang": ""}))
         self.settle()
