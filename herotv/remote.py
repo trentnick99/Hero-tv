@@ -80,7 +80,20 @@ def lan_addresses():
             continue
         if ip.version == 4 and ip.is_private and not ip.is_loopback and not ip.is_link_local and a not in out:
             out.append(a)
-    return out
+    return sorted(out, key=_lan_rank)                      # stable: among equals the card that reaches the internet stays first
+
+
+def _lan_rank(a):
+    """Home networks first. A VPN card (Mozilla VPN 10.x.x.0, ...) often wins the 'which card is used' test while it is on,
+    but phones and TVs cannot reach it, and an address ending in .0 or .255 is a network or broadcast address, not a PC."""
+    parts = [int(x) for x in a.split(".")]
+    if parts[3] in (0, 255):
+        return 3
+    if parts[0] == 192 and parts[1] == 168:
+        return 0
+    if parts[0] == 172 and 16 <= parts[1] <= 31:
+        return 1
+    return 2                                               # 10.x.x.x: many home routers use it, many VPNs do too
 
 
 _names = {"at": 0.0, "addrs": [], "busy": False}

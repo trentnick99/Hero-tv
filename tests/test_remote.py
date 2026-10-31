@@ -16,6 +16,29 @@ from herotv.config import Config  # noqa: E402
 from herotv.db import connect  # noqa: E402
 
 
+class AddressOrder(unittest.TestCase):
+    def addresses(self, route, others):
+        class Fake:
+            def __init__(self, *a): pass
+            def connect(self, *a): pass
+            def getsockname(self): return (route, 0)
+            def close(self): pass
+        with mock.patch.object(R.socket, "socket", Fake), mock.patch.object(R, "_other_addresses", return_value=others):
+            return R.lan_addresses()
+
+    def test_the_home_network_comes_before_a_vpn_card(self):
+        # Mozilla VPN is what the PC would use to reach the internet, but a phone or TV cannot reach it
+        self.assertEqual(self.addresses("10.155.18.0", ["192.168.12.198"]), ["192.168.12.198", "10.155.18.0"])
+
+    def test_without_a_vpn_the_route_card_stays_first(self):
+        self.assertEqual(self.addresses("10.0.0.5", ["10.0.0.5", "172.20.1.9"]), ["172.20.1.9", "10.0.0.5"])
+        self.assertEqual(self.addresses("192.168.1.9", ["10.8.0.2"]), ["192.168.1.9", "10.8.0.2"])
+        self.assertEqual(self.addresses("10.0.0.5", ["10.1.0.7"]), ["10.0.0.5", "10.1.0.7"])      # equals: the route card wins
+
+    def test_a_network_address_is_last(self):
+        self.assertEqual(self.addresses("192.168.1.0", ["10.0.0.5"]), ["10.0.0.5", "192.168.1.0"])
+
+
 def free_pair_of_ports():
     """Two free neighbouring ports (PC port and the home-network port next to it). Picked outside the range
     Windows hands out for outgoing connections (49152-65535), where a port that was free a moment ago can be

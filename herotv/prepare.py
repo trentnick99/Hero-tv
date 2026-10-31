@@ -125,11 +125,11 @@ def used_bytes(conn):
 
 
 # ---------- making copies ----------
-def command(ffmpeg, src, tmp, vcodec, acodec, amap="0:a:0?", tolerant=False, force_aac=False, channels=0):
+def command(ffmpeg, src, tmp, vcodec, acodec, amap="0:a:0?", tolerant=False, force_aac=False, channels=0, vopt=None):
     """ffmpeg arguments: copy the picture into an .mp4; copy the sound when an .mp4 can hold it, else make AAC.
     Surround sound (more than 2 channels) is always mixed down to stereo AAC: some players drop the centre channel -
     the voices - when they play a 5.1 track on two speakers."""
-    v = ["-c:v", "copy"] + (["-tag:v", "hvc1"] if vcodec == "hevc" else [])    # Apple devices only play HEVC tagged this way
+    v = list(vopt) if vopt else ["-c:v", "copy"] + (["-tag:v", "hvc1"] if vcodec == "hevc" else [])   # Apple devices only play HEVC tagged this way
     a = ["-c:a", "copy"] if library.mp4_audio_ok(acodec) and not force_aac and channels <= 2 else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
     tol = ["-err_detect", "ignore_err", "-max_error_rate", "1"] if tolerant else []
     return [ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts", *tol, "-i", src, "-map", "0:V:0", "-map", amap,
@@ -182,9 +182,12 @@ def want_sound_fix(conn, mid):
     m = conn.execute("SELECT size FROM media WHERE id=?", (mid,)).fetchone()
     if m is None:
         return False
-    p = conn.execute("SELECT status,src_size,mix FROM prepared WHERE media_id=?", (mid,)).fetchone()
-    if p and (p["src_size"] or 0) == (m["size"] or 0) and (p["status"] == "fix" or (p["status"] == "ready" and p["mix"] == 2)):
-        return False
+    p = conn.execute("SELECT status,src_size,mix,made FROM prepared WHERE media_id=?", (mid,)).fetchone()
+    if p and (p["src_size"] or 0) == (m["size"] or 0):
+        if p["status"] == "fix" or (p["status"] == "ready" and p["mix"] == 2):
+            return False
+        if p["status"] == "failed" and p["mix"] == 2 and time.time() - (p["made"] or 0) < RETRY_FAILED_S:
+            return False                                     # a repair was tried and failed; not again at once
     conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes,alang,mix) VALUES(?,?,?,?,?,?,?,?,?)",
                  (mid, "", m["size"] or 0, "fix", "", int(time.time()), 0, "", 0))
     conn.commit()
@@ -219,6 +222,16 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False)
         if not ok and r.returncode == 0 and tmp.is_file() and rt:
             real = library.true_runtime(source or src, rt)            # a header that claims more than the picture has
             ok = real < rt and _same_length(tmp, real, probe)
+        if not ok and fix:                                   # the picture is damaged too: make it again (slow, but it plays)
+            _discard(tmp)
+            with _lock:
+                _state["now"] = os.path.basename(src) + " (repairing the picture)"
+            r = run(command(ffmpeg, source or src, tmp, row["vcodec"], acodec, f"0:a:{n}?", tolerant=True, force_aac=True,
+                            channels=tracks[n]["channels"] if tracks else 0, vopt=tools.h264_encoder(ffmpeg)), rt)
+            ok = r.returncode == 0 and tmp.is_file() and _same_length(tmp, rt, probe)
+            if not ok and r.returncode == 0 and tmp.is_file() and rt:
+                real = library.true_runtime(source or src, rt)
+                ok = real < rt and _same_length(tmp, real, probe)
         if not ok and tools.sound_trouble(getattr(r, "errors", None)):
             ok, r = _rescue_sound(source or src, tmp, row, tracks, n, rt, run, ffmpeg, probe)
         if ok and os.path.getsize(src) != size:            # the original was replaced meanwhile: this copy is stale
@@ -232,7 +245,7 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False)
                 conn.execute("UPDATE prepared SET why=?, made=? WHERE media_id=?", (why_[:200], int(time.time()), mid))
                 conn.commit()
             else:
-                _record(conn, mid, "failed", size, why_=why_)
+                _record(conn, mid, "failed", size, why_=why_, mix=2 if fix else 0)
             return "failed"
         os.replace(tmp, final)
         _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang, mix=2 if fix else 1)

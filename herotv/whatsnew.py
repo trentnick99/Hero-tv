@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.37.8": [
+        "A video whose picture is damaged as well as its sound is now repaired too: if copying the picture fails, HERO TV makes the picture again in the background (slower, but it plays).",
+        "HERO TV now prefers your real home network address over a VPN card (like Mozilla VPN) when it tells phones and Roku TVs where to connect. A Roku app that was set up with the VPN address is reinstalled with the right one automatically.",
+    ],
     "1.37.7": [
         "A video with a damaged piece of sound (the player stops with a decode error and the TV jumps back to live TV) is now repaired automatically: HERO TV says so on screen and makes a ready-to-play copy with the sound made again and the damaged bits skipped. Try the video again after a few minutes. Your own file is not touched.",
     ],

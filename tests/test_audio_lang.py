@@ -252,6 +252,30 @@ class Real(unittest.TestCase):
         prepare.tidy(self.c)
         self.assertTrue(os.path.isfile(cp))                                      # tidy keeps a repaired copy
 
+    def test_a_repair_that_cannot_copy_the_picture_makes_it_again(self):
+        one = self.row(self.one)
+        prepare.want_sound_fix(self.c, one["id"])
+        calls = []
+
+        def run(cmd, rt):
+            calls.append(cmd)
+            if cmd[cmd.index("-c:v") + 1] == "copy":                      # a damaged picture cannot be copied
+                return tools.FFResult(1, ["[h264] missing picture in access unit with size 233"])
+            return tools.run_ffmpeg(cmd, rt, None, low=True)
+        self.assertEqual(prepare.prepare_one(self.c, self.row(self.one), FF, run=run, fix=True), "ready")
+        self.assertEqual(len(calls), 2)
+        self.assertNotEqual(calls[1][calls[1].index("-c:v") + 1], "copy")
+        one = self.row(self.one)
+        self.assertEqual(self.c.execute("SELECT mix,status FROM prepared WHERE media_id=?", (one["id"],)).fetchone()[:], (2, "ready"))
+        self.assertTrue(prepare.copy_path(self.c, one["id"], one["size"]))
+
+    def test_a_failed_repair_is_not_queued_again_at_once(self):
+        one = self.row(self.one)
+        prepare._record(self.c, one["id"], "failed", one["size"], why_="could not", mix=2)       # a repair that failed
+        self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))
+        prepare._record(self.c, one["id"], "failed", one["size"], why_="older failure", mix=0)  # an ordinary failed copy: try the repair
+        self.assertTrue(prepare.want_sound_fix(self.c, one["id"]))
+
     def test_switched_off_makes_nothing_and_serves_the_original(self):
         self.settings.write_text(json.dumps({"audio_lang": ""}))
         self.settle()
