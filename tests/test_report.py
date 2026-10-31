@@ -65,6 +65,22 @@ class ReportTests(unittest.TestCase):
         self.assertIn("ready copy: none", t)
         self.assertIn("browser gets: the original file", t)
 
+    def test_report_names_a_video_that_failed_to_start(self):
+        v = os.path.join(self.d, "Dragon Ball Z - 042.mkv")
+        self.c.execute("INSERT INTO media(path,title,franchise,series,season,episode,verified,playable,available,vcodec,acodec,atracks,ord,size) "
+                       "VALUES(?,?,?,?,?,?,1,1,1,'hevc','eac3','jpn*,eng',1,5)", (v, "Episode 42", "Dragon Ball", "Dragon Ball Z", 1, 42))
+        mid = self.c.execute("SELECT id FROM media").fetchone()[0]
+        self.c.commit()
+        report.PLAY_ERRORS.clear()
+        report.play_error(mid, "player error 4: DEMUXER_ERROR_COULD_NOT_OPEN")
+        t = report.build(self.c, self.cfg)
+        self.assertIn("Videos that failed to start (newest last):", t)
+        self.assertIn("Dragon Ball Z - 042.mkv: player error 4: DEMUXER_ERROR_COULD_NOT_OPEN", t)
+        self.assertIn("languages jpn*,eng", t)
+        self.assertIn("the browser was given:", t)
+        report.PLAY_ERRORS.clear()
+        self.assertIn("Videos that failed to start: none", report.build(self.c, self.cfg))
+
     def test_home_folder_and_user_name_are_hidden(self):
         home = os.path.expanduser("~")
         (Path(self.d) / "herotv.log").write_text(f"opened {home}{os.sep}Videos\n")

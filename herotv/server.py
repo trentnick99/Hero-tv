@@ -1712,6 +1712,8 @@ def make_handler(app, remote=False):
                     raise ValueError("media_id must be an integer")
                 if mid <= 0:
                     raise ValueError("media_id must be positive")
+                from . import report
+                report.play_error(mid, body.get("reason"))
                 return self.send_json(self.report_error(c, mid, now, body.get("reason") == "no-picture"))
             self.send_json({"error": "not found"}, 404)
 

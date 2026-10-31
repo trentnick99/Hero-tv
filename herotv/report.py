@@ -20,6 +20,13 @@ SECRET = re.compile(r"((?:api_key|access_token|token|k)=|Bearer\s+)[A-Za-z0-9._\
 KEEP_REPORTS = 10
 
 
+PLAY_ERRORS = collections.deque(maxlen=10)       # videos the player could not start: (time, media id, what the player said)
+
+
+def play_error(mid, reason=""):
+    PLAY_ERRORS.append((time.strftime("%Y-%m-%d %H:%M:%S"), int(mid), str(reason or "")[:200]))
+
+
 def page_error(msg, where=""):
     if msg:
         PAGE_ERRORS.append(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  {msg}" + (f"  ({where})" if where else ""))
@@ -141,6 +148,24 @@ def build(c, cfg, note="", lan=False, dlna_on=False, page=""):
             for client in ("browser", "roku"):
                 d = prepare.delivery(c, r["id"], client)
                 add(f"    {client} gets: " + (("the ready copy" if d[0] != r["path"] else "the original file") if d else "?"))
+    except Exception as e:
+        add(f"  could not be read ({e})")
+    add("")
+    add("Videos that failed to start (newest last):" if PLAY_ERRORS else "Videos that failed to start: none")
+    try:
+        from . import library, prepare
+        for when, mid, why in PLAY_ERRORS:
+            r = c.execute("SELECT id,path,vcodec,acodec,vfmt,atracks,playable,available FROM media WHERE id=?", (mid,)).fetchone()
+            if r is None:
+                add(f"  {when}  video {mid} (no longer in the library): {why or 'no reason given'}")
+                continue
+            add(f"  {when}  {os.path.basename(r['path'])}: {why or 'no reason given'}")
+            add(f"    video {r['vcodec']} {r['vfmt'] or ''}, first sound {r['acodec']}, languages {r['atracks'] or 'not read yet'}, "
+                f"playable {r['playable']}, available {r['available']}")
+            for t in library.audio_tracks(r["path"]) or []:
+                add(f"    track {t['n'] + 1}: {t['lang']} {t['codec']} {t['channels']} ch{' default' if t['default'] else ''}")
+            d = prepare.delivery(c, mid, "browser")
+            add("    the browser was given: " + (("the ready copy" if d[0] != r["path"] else "the original file") if d else "?"))
     except Exception as e:
         add(f"  could not be read ({e})")
     add("")

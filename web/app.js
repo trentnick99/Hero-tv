@@ -143,7 +143,7 @@ v.addEventListener("ended",()=>{if(vod){post("/api/progress",{media_id:vod.id,po
 v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(!id)return;
  if(REMOTE)return msg("This video can't play on this device yet","Usually a .mkv file. On the PC: Settings > Tools > Make iPhone-friendly copies. Change channel to keep watching.");
  errs=errs.filter(t=>Date.now()-t<3e4);errs.push(Date.now());
- await post("/api/report-error",{media_id:id,reason:v.error&&v.error.message});
+ await post("/api/report-error",{media_id:id,reason:v.error?"player error "+v.error.code+(v.error.message?": "+v.error.message:""):""});
  if(errs.length>=5){msg("Playback keeps failing","This video may be in a format the TV cannot play. Settings > Tools > Videos that are skipped can fix it. Trying again in 10 seconds.");errs=[];return setTimeout(()=>tune(ci),1e4)}
  setTimeout(()=>tune(ci),1500)});
 setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall watchdog, progress
