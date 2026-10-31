@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.35.0": [
+        "Videos with more than one language now play English by themselves. Settings > Tools > Videos in other formats has a new 'Preferred sound language' choice (English to start with; other languages or Off if you like).",
+        "When a video has an English sound track but plays another language first, HERO TV makes a hidden ready-to-play copy that plays the English one - for the PC, phones and the Roku. Your own files are never changed, and videos that already play English are left alone.",
+        "The copies count toward the space limit in the same card, and nothing is deleted. It takes a while at first: HERO TV reads each video's sound tracks in the background, then makes the copies one at a time.",
+    ],
     "1.34.1": [
         "Settings > Tools > 'New videos: how far along' now also shows when HERO TV is checking your library for new or removed videos, and which new video it is reading.",
     ],

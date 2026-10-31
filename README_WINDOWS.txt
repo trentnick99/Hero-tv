@@ -409,6 +409,11 @@ EPISODE NAMES (anime too)
   "Show - 012 - Title.mp4", "Show Episode 12.mp4", "Show E012.mp4" and "Show S01E12.mp4" all work. Put a show's
   episodes in one folder inside its channel folder (Dragon Ball\Dragon Ball Z\...) and they play in order.
 
+ENGLISH BY ITSELF FOR VIDEOS WITH SEVERAL LANGUAGES (1.35)
+  Settings > Tools > 'Preferred sound language' (English to start with). A video that has an English sound track but plays
+  another language first gets a hidden ready-to-play copy that plays English; the PC, phones and Roku use it. Your own files
+  are never changed and nothing is deleted. The copies count toward the space limit. Choose Off to switch this off.
+
 FINISH SETTING UP, AND SMOOTHER SCREENS (1.34)
   While something is still missing (videos added, video tools installed, videos playable), the Home screen has a 'Finish setting up'
   tile that takes you to the right place; it disappears when everything is done. Screens fade in, the info bar slides up

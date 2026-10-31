@@ -239,6 +239,7 @@ class RealFiles(unittest.TestCase):
         library.scan(self.c, self.root)
         self.assertEqual(self.row(other)["playable"], 0)
         with mock.patch.object(prepare, "cap_gb", return_value=1), mock.patch.object(prepare, "used_bytes", return_value=2 * 1024 ** 3):
+            prepare.run_once(self.c, FF, self.root)                               # (first pass only reads the new file's sound tracks)
             self.assertFalse(prepare.run_once(self.c, FF, self.root))             # over the limit: no new copy
             s = prepare.status(self.c)
         self.assertEqual((s["cap_gb"], s["blocked"]), (1, True))

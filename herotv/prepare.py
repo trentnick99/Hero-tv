@@ -57,22 +57,27 @@ def has_copy(conn, mid, size):
 
 def delivery(conn, mid, client="browser"):
     """(path, extension) of the file a player should get. client: 'browser' (the PC's TV screen, phones), 'roku'
-    (plays the original whenever Roku can) or 'safe' (a Roku that refused the original: the copy if there is one)."""
-    r = conn.execute("SELECT path,vcodec,acodec,vfmt,size FROM media WHERE id=? AND available=1", (mid,)).fetchone()
+    (plays the original whenever Roku can) or 'safe' (a Roku that refused the original: the copy if there is one).
+    A copy made for the preferred sound language (English...) is used by every client once it is ready."""
+    r = conn.execute("SELECT path,vcodec,acodec,vfmt,size,atracks FROM media WHERE id=? AND available=1", (mid,)).fetchone()
     if r is None:
         return None
     ext = _ext(r["path"])
     args = (r["vcodec"], r["acodec"], r["vfmt"] or "", ext)
+    pref = library.pref_lang()
+    lang = library.wants_lang(r["atracks"], pref)
     if client == "safe":
-        use = True
+        must = True
     elif client == "roku":
-        use = not library.roku_ok(*args)
+        must = not library.roku_ok(*args)
     else:
-        use = library.pc_kind(*args) == "prepare"
-    if use:
+        must = library.pc_kind(*args) == "prepare"
+    if must or lang:
         cp = copy_path(conn, mid, r["size"])
         if cp:
-            return cp, "mp4"
+            row = conn.execute("SELECT alang FROM prepared WHERE media_id=?", (mid,)).fetchone()
+            if must or (row and row["alang"] == pref):
+                return cp, "mp4"
     return r["path"], ext.lstrip(".")
 
 
@@ -136,9 +141,9 @@ def _same_length(path, runtime, probe=None):
     return not runtime or abs((q["runtime_s"] or 0) - runtime) <= max(5.0, runtime * 0.02)
 
 
-def _record(conn, mid, status, size, file="", why_="", nbytes=0):
-    conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes) VALUES(?,?,?,?,?,?,?)",
-                 (mid, file, size, status, why_[:200], int(time.time()), nbytes))
+def _record(conn, mid, status, size, file="", why_="", nbytes=0, alang=""):
+    conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes,alang) VALUES(?,?,?,?,?,?,?,?)",
+                 (mid, file, size, status, why_[:200], int(time.time()), nbytes, alang))
     conn.commit()
 
 
@@ -156,7 +161,10 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None):
         f.mkdir(parents=True, exist_ok=True)
         final, tmp = f / f"{mid}-{size}.mp4", f / f"{mid}-{size}.part"
         tracks = library.audio_tracks(src) or []
-        n = library.playing_track(tracks)                  # the track a browser would play: default, else the first
+        pref = library.pref_lang()
+        pn = library.pick_track(tracks, pref)              # the preferred sound language (English...) when the video has it
+        n = pn if pn is not None else library.playing_track(tracks)    # else what a browser would play: default, else the first
+        alang = pref if pn is not None else ""
         acodec = tracks[n]["codec"] if tracks else row["acodec"]
         rt = row["runtime_s"] or 0
         r = run(command(ffmpeg, src, tmp, row["vcodec"], acodec, f"0:a:{n}?"), rt)
@@ -168,10 +176,16 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None):
         if not ok:
             why_ = ((getattr(r, "errors", None) or ["the copy came out shorter than the original"])[-1])
             _discard(tmp)
-            _record(conn, mid, "failed", size, why_=why_)
+            old = conn.execute("SELECT status,src_size FROM prepared WHERE media_id=?", (mid,)).fetchone()
+            if old and old["status"] == "ready" and (old["src_size"] or 0) == size and has_copy(conn, mid, size):
+                # a better copy (preferred language) could not be made: the copy that works stays, and this waits a week
+                conn.execute("UPDATE prepared SET why=?, made=? WHERE media_id=?", (why_[:200], int(time.time()), mid))
+                conn.commit()
+            else:
+                _record(conn, mid, "failed", size, why_=why_)
             return "failed"
         os.replace(tmp, final)
-        _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size)
+        _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang)
         conn.execute("UPDATE media SET playable=1 WHERE id=?", (mid,))
         conn.commit()
         return "ready"
@@ -207,23 +221,37 @@ def _skip_dirs(media_dir):
 
 
 def todo(conn, media_dir="", now=None):
-    """Videos that need a copy and have none, newest first. Failed ones wait a week."""
+    """Videos that need a copy and have none, newest first (failed ones wait a week). After those: videos that play
+    as they are but whose default sound is not the preferred language while a track in that language exists."""
     now = now or time.time()
     skip = _skip_dirs(media_dir) if media_dir else ()
+    pref = library.pref_lang()
     out = []
-    for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,size,runtime_s,added FROM media WHERE available=1 AND verified=1 "
+
+    def pending(r, want_lang):
+        if skip and os.path.normcase(os.path.abspath(r["path"])).startswith(skip):
+            return False
+        p = conn.execute("SELECT status,src_size,made,alang,why FROM prepared WHERE media_id=?", (r["id"],)).fetchone()
+        if p and (p["src_size"] or 0) == (r["size"] or 0):
+            if p["status"] == "failed" and now - (p["made"] or 0) < RETRY_FAILED_S:
+                return False
+            if p["status"] == "ready" and has_copy(conn, r["id"], r["size"]):
+                if not want_lang or p["alang"] == pref:
+                    return False
+                if p["why"] and now - (p["made"] or 0) < RETRY_FAILED_S:
+                    return False                           # the better copy failed recently; the working one stays
+        return True
+    for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,size,runtime_s,added,atracks FROM media WHERE available=1 AND verified=1 "
                           "AND playable=0 ORDER BY added DESC, id").fetchall():
         if library.pc_kind(r["vcodec"], r["acodec"], r["vfmt"] or "", _ext(r["path"])) != "prepare":
             continue
-        if skip and os.path.normcase(os.path.abspath(r["path"])).startswith(skip):
-            continue
-        p = conn.execute("SELECT status,src_size,made FROM prepared WHERE media_id=?", (r["id"],)).fetchone()
-        if p and (p["src_size"] or 0) == (r["size"] or 0):
-            if p["status"] == "failed" and now - (p["made"] or 0) < RETRY_FAILED_S:
-                continue
-            if p["status"] == "ready" and has_copy(conn, r["id"], r["size"]):
-                continue
-        out.append(r)
+        if pending(r, library.wants_lang(r["atracks"], pref)):
+            out.append(r)
+    if pref:
+        for r in conn.execute("SELECT id,path,vcodec,acodec,vfmt,size,runtime_s,added,atracks FROM media WHERE available=1 AND verified=1 "
+                              "AND playable=1 AND atracks<>'' AND atracks<>'-' ORDER BY added DESC, id").fetchall():
+            if r["vcodec"] in ("h264", "hevc") and library.wants_lang(r["atracks"], pref) and pending(r, True):
+                out.append(r)
     return out
 
 
@@ -233,10 +261,10 @@ def tidy(conn):
     if f is None or not f.is_dir():
         return 0
     keep, n = set(), 0
-    for p in conn.execute("SELECT media_id,file,src_size,status FROM prepared").fetchall():
+    for p in conn.execute("SELECT media_id,file,src_size,status,alang FROM prepared").fetchall():
         m = conn.execute("SELECT id,path,vcodec,acodec,vfmt,size FROM media WHERE id=?", (p["media_id"],)).fetchone()
         useful = (m is not None and p["status"] == "ready" and (m["size"] or 0) == (p["src_size"] or 0)
-                  and library.pc_kind(m["vcodec"], m["acodec"], m["vfmt"] or "", _ext(m["path"])) == "prepare")
+                  and (library.pc_kind(m["vcodec"], m["acodec"], m["vfmt"] or "", _ext(m["path"])) == "prepare" or bool(p["alang"])))
         if p["status"] == "failed" and m is not None and (m["size"] or 0) == (p["src_size"] or 0):
             continue                                       # remembered failure: keeps it from being retried at once
         if useful and (f / p["file"]).is_file():
@@ -261,6 +289,7 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
     if folder() is None:
         set_folder(media_dir)
     tidy(conn)
+    filled = library.fill_tracks(conn) if library.pref_lang() else 0     # read the sound languages of videos not looked at yet
     cap, used = cap_gb() * 1024 ** 3, used_bytes(conn)
     _state["blocked"] = False
     for r in todo(conn, media_dir):
@@ -293,7 +322,7 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
                 _state["done"] += 1
         if res in ("ready", "failed"):
             return True
-    return False
+    return bool(filled)
 
 
 def retry(conn):
@@ -333,7 +362,15 @@ def status(conn):
             free = shutil.disk_usage(folder().parent).free
     except OSError:
         free = None
-    return {"on": enabled(), "need": need, "ready": ready, "failed": failed, "convert": convert, "bytes": row["b"],
+    pref = library.pref_lang()
+    lneed = lready = 0
+    if pref:
+        for r in conn.execute("SELECT m.id,m.size,m.atracks,p.alang,p.src_size,p.status FROM media m LEFT JOIN prepared p ON p.media_id=m.id "
+                              "WHERE m.available=1 AND m.verified=1 AND m.atracks<>'' AND m.atracks<>'-'").fetchall():
+            if library.wants_lang(r["atracks"], pref):
+                lneed += 1
+                lready += 1 if (r["status"] == "ready" and r["alang"] == pref and (r["src_size"] or 0) == (r["size"] or 0)) else 0
+    return {"lang": pref, "lang_need": lneed, "lang_ready": lready, "on": enabled(), "need": need, "ready": ready, "failed": failed, "convert": convert, "bytes": row["b"],
             "cap_gb": cap_gb(), "blocked": _state["blocked"], "free": free, "working": _state["now"], "running": _state["running"]}
 
 

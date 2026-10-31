@@ -1169,6 +1169,13 @@ def make_handler(app, remote=False):
                         d["prepare_cap_gb"] = cap
                         settings_api._save(d)
                         prepare.WAKE.set()
+                    if "lang" in b:
+                        if b["lang"] not in [""] + [k for k, _ in L.PREF_LANGS]:
+                            raise ValueError("choose one of the listed languages (or Off)")
+                        d = settings_api._load()
+                        d["audio_lang"] = b["lang"]
+                        settings_api._save(d)
+                        prepare.WAKE.set()
                     if b.get("op") == "retry":
                         prepare.retry(c)
                     elif b.get("op") == "clear":

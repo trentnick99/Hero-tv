@@ -776,8 +776,12 @@ function prepCard(){const c=tCard("Videos in other formats (ready-to-play copies
  const lim=el("select");for(const g of[0,50,100,200,500,1000]){const o=el("option",0,g?`Stop making new copies after ${g} GB`:"No limit on how much space copies use");o.value=g;if(g===d.cap_gb)o.selected=true;lim.append(o)}
  if(d.cap_gb&&![50,100,200,500,1000].includes(d.cap_gb)){const o=el("option",0,`Stop making new copies after ${d.cap_gb} GB`);o.value=d.cap_gb;o.selected=true;lim.append(o)}
  lim.onchange=()=>run({cap:+lim.value},"Saved. Copies that already exist are never removed because of this limit.");
+ const LANGS=[["eng","English"],["spa","Spanish"],["fre","French"],["ger","German"],["jpn","Japanese"],["ita","Italian"],["por","Portuguese"],["kor","Korean"],["chi","Chinese"],["rus","Russian"],["","Off - play each video's own default sound"]];
+ const lg=el("select");for(const[k,n]of LANGS){const o=el("option",0,k?"Preferred sound language: "+n:n);o.value=k;if((d.lang||"")===k)o.selected=true;lg.append(o)}
+ lg.onchange=()=>run({lang:lg.value},"Saved. Videos with that language as a second sound track get a copy that plays it; your own files are not changed.");
+ if(d.lang&&d.lang_need)c.append(el("small",0,`${d.lang_ready} of ${d.lang_need} videos that have a ${(LANGS.find(x=>x[0]===d.lang)||[0,d.lang])[1]} sound track as a second choice now play it`+(d.lang_ready<d.lang_need?" (copies are being made in the background)":"")+"."));
  if(d.blocked)c.append(el("small",0,"The space limit is reached, so no new copies are being made. Raise the limit to carry on - nothing is deleted."));
- const bar=el("div","sbar");bar.append(lim);
+ const bar=el("div","sbar");bar.append(lg,lim);
  if(d.failed)bar.append(sBtn("Try the failed ones again",()=>run({op:"retry"},"Trying again in the background.")));
  if(d.ready){const b=sBtn("Delete all copies",()=>{if(!c.dataset.sure){c.dataset.sure=1;b.textContent="Press again to delete them";return}run({op:"clear"},"Copies deleted. Your own videos were not touched.")});bar.append(b)}
  c.append(l,bar);return c}

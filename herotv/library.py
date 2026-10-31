@@ -224,6 +224,66 @@ def playing_track(tracks):
     return next((t["n"] for t in tracks if t["default"]), 0) if tracks else 0
 
 
+_L3 = {"en": "eng", "es": "spa", "fr": "fre", "fra": "fre", "de": "ger", "deu": "ger", "ja": "jpn", "it": "ita", "pt": "por",
+       "ko": "kor", "zh": "chi", "zho": "chi", "ru": "rus", "hi": "hin", "ar": "ara"}
+PREF_LANGS = [("eng", "English"), ("spa", "Spanish"), ("fre", "French"), ("ger", "German"), ("jpn", "Japanese"), ("ita", "Italian"),
+              ("por", "Portuguese"), ("kor", "Korean"), ("chi", "Chinese"), ("rus", "Russian")]
+
+
+def lang_code(x):
+    """ISO 639-2 style three-letter code (two-letter and alternative codes mapped), 'und' when there is none."""
+    x = (x or "").lower().strip()
+    return _L3.get(x, x) or "und"
+
+
+def pref_lang():
+    """The sound language to prefer when a video has several ('' = off)."""
+    from . import settings_api
+    v = settings_api._load().get("audio_lang", "eng")
+    return v if v in dict(PREF_LANGS) else ""
+
+
+def track_summary(tracks):
+    """'jpn*,eng': the language of each sound track in order, * marking the one a browser plays on its own. '-' = none."""
+    if not tracks:
+        return "-"
+    play = playing_track(tracks)
+    return ",".join(lang_code(t["lang"]) + ("*" if t["n"] == play else "") for t in tracks)
+
+
+def pick_track(tracks, pref):
+    """Index of the track in the preferred language (the default-flagged one if several), or None."""
+    same = [t for t in tracks or [] if lang_code(t["lang"]) == pref]
+    if not pref or not same:
+        return None
+    return next((t["n"] for t in same if t["default"]), same[0]["n"])
+
+
+def wants_lang(summary, pref):
+    """True when the video has a track in the preferred language but its default track is another language."""
+    if not pref or not summary or summary == "-":
+        return False
+    toks = summary.split(",")
+    codes = [t.rstrip("*") for t in toks]
+    playing = [t.rstrip("*") for t in toks if t.endswith("*")]
+    return pref in codes and bool(playing) and playing[0] != pref
+
+
+def fill_tracks(conn, limit=25):
+    """Read the sound languages of videos that have not been looked at yet (a few at a time). Returns how many."""
+    if not tools.find_tool("ffprobe"):
+        return 0
+    n = 0
+    for r in conn.execute("SELECT id,path FROM media WHERE available=1 AND verified=1 AND atracks='' LIMIT ?", (limit,)).fetchall():
+        if os.path.isfile(r["path"]):
+            conn.execute("UPDATE media SET atracks=? WHERE id=?", (track_summary(audio_tracks(r["path"])), r["id"]))
+            n += 1
+        else:
+            conn.execute("UPDATE media SET atracks='-' WHERE id=?", (r["id"],))
+    conn.commit()
+    return n
+
+
 _JUNK = re.compile(r"\[[^\]]*\]|\([^)]*\)")        # [fansub group] [720p] (1080p) ...
 
 
@@ -472,7 +532,7 @@ def scan(conn, root, probe_fn=probe):
                 "series=excluded.series,season=excluded.season,episode=excluded.episode,tags=excluded.tags,"
                 "plot=excluded.plot,runtime_s=excluded.runtime_s,verified=excluded.verified,playable=excluded.playable,"
                 "vcodec=excluded.vcodec,acodec=excluded.acodec,vfmt=excluded.vfmt,roku=excluded.roku,ord=excluded.ord,"
-                "mtime=excluded.mtime,size=excluded.size,available=1", vals)
+                "mtime=excluded.mtime,size=excluded.size,available=1,atracks=''", vals)
             stats["updated" if row else "added"] += 1
             if not row:
                 added_paths.append(path)
