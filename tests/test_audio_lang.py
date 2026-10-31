@@ -233,6 +233,25 @@ class Real(unittest.TestCase):
         two_tracks(whole, "hin", "eng", secs=70, acodec="ac3")
         self.assertEqual(library.true_runtime(whole, 70), 70)               # a complete file is judged by its header
 
+    def test_a_damaged_sound_packet_queues_a_repaired_copy_that_everyone_gets(self):
+        one = self.row(self.one)
+        self.assertEqual(prepare.delivery(self.c, one["id"], "browser")[0], os.path.normpath(self.one))
+        self.assertTrue(prepare.want_sound_fix(self.c, one["id"]))
+        self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))             # already queued
+        self.assertEqual(prepare.delivery(self.c, one["id"], "browser")[0], os.path.normpath(self.one))   # until it is made
+        self.settle()
+        one = self.row(self.one)
+        cp = prepare.copy_path(self.c, one["id"], one["size"])
+        self.assertTrue(cp and os.path.isfile(cp))
+        self.assertEqual(self.c.execute("SELECT mix,status FROM prepared WHERE media_id=?", (one["id"],)).fetchone()[:], (2, "ready"))
+        for client in ("browser", "roku", "safe"):
+            self.assertEqual(prepare.delivery(self.c, one["id"], client)[0], cp)
+        self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))             # repaired once is enough
+        self.assertEqual(self.row(self.one)["playable"], 1)
+        self.assertTrue(os.path.isfile(self.one))                                # the original is untouched
+        prepare.tidy(self.c)
+        self.assertTrue(os.path.isfile(cp))                                      # tidy keeps a repaired copy
+
     def test_switched_off_makes_nothing_and_serves_the_original(self):
         self.settings.write_text(json.dumps({"audio_lang": ""}))
         self.settle()

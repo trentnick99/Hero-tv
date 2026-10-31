@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.37.7": [
+        "A video with a damaged piece of sound (the player stops with a decode error and the TV jumps back to live TV) is now repaired automatically: HERO TV says so on screen and makes a ready-to-play copy with the sound made again and the damaged bits skipped. Try the video again after a few minutes. Your own file is not touched.",
+    ],
     "1.37.6": [
         "When a video fails to start and the TV jumps back to live TV, the problem report (Settings > Report a problem) now names that video, says what the player complained about, and lists its sound tracks - so the reason can be found.",
     ],

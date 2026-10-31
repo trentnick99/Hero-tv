@@ -72,12 +72,12 @@ def delivery(conn, mid, client="browser"):
         must = not library.roku_ok(*args)
     else:
         must = library.pc_kind(*args) == "prepare"
-    if must or lang:
+    row = conn.execute("SELECT alang,mix FROM prepared WHERE media_id=?", (mid,)).fetchone()
+    fixed = bool(row and row["mix"] == 2)                  # a copy with the damaged sound repaired: every player gets it
+    if must or lang or fixed:
         cp = copy_path(conn, mid, r["size"])
-        if cp:
-            row = conn.execute("SELECT alang FROM prepared WHERE media_id=?", (mid,)).fetchone()
-            if must or (row and row["alang"] == pref):
-                return cp, "mp4"
+        if cp and (must or fixed or (row and row["alang"] == pref)):
+            return cp, "mp4"
     return r["path"], ext.lstrip(".")
 
 
@@ -176,7 +176,23 @@ def saved_original(path, pref, size=0):
     return found
 
 
-def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None):
+def want_sound_fix(conn, mid):
+    """The player stopped on a damaged sound packet: queue a copy whose sound is made again (damaged bits skipped).
+    Nothing happens when a ready copy exists or one is already queued."""
+    m = conn.execute("SELECT size FROM media WHERE id=?", (mid,)).fetchone()
+    if m is None:
+        return False
+    p = conn.execute("SELECT status,src_size,mix FROM prepared WHERE media_id=?", (mid,)).fetchone()
+    if p and (p["src_size"] or 0) == (m["size"] or 0) and (p["status"] == "fix" or (p["status"] == "ready" and p["mix"] == 2)):
+        return False
+    conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes,alang,mix) VALUES(?,?,?,?,?,?,?,?,?)",
+                 (mid, "", m["size"] or 0, "fix", "", int(time.time()), 0, "", 0))
+    conn.commit()
+    WAKE.set()
+    return True
+
+
+def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False):
     """Make the ready copy of one video. Returns 'ready', 'failed' or 'busy'/'gone'. Never touches the original.
     `source` = a saved original to take the sound from (the video itself lost that language)."""
     from .launcher import _Claim                           # one job per file: Fix, the Inbox and this must not overlap
@@ -197,7 +213,8 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None):
         alang = pref if pn is not None else ""
         acodec = tracks[n]["codec"] if tracks else row["acodec"]
         rt = row["runtime_s"] or 0
-        r = run(command(ffmpeg, source or src, tmp, row["vcodec"], acodec, f"0:a:{n}?", channels=tracks[n]["channels"] if tracks else 0), rt)
+        r = run(command(ffmpeg, source or src, tmp, row["vcodec"], acodec, f"0:a:{n}?", tolerant=fix, force_aac=fix,
+                        channels=tracks[n]["channels"] if tracks else 0), rt)
         ok = r.returncode == 0 and tmp.is_file() and _same_length(tmp, rt, probe)
         if not ok and r.returncode == 0 and tmp.is_file() and rt:
             real = library.true_runtime(source or src, rt)            # a header that claims more than the picture has
@@ -218,7 +235,7 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None):
                 _record(conn, mid, "failed", size, why_=why_)
             return "failed"
         os.replace(tmp, final)
-        _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang, mix=1)
+        _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang, mix=2 if fix else 1)
         conn.execute("UPDATE media SET playable=1 WHERE id=?", (mid,))
         conn.commit()
         return "ready"
@@ -261,6 +278,10 @@ def todo(conn, media_dir="", now=None):
     pref = library.pref_lang()
     out = []
     remakes = []
+    for p in conn.execute("SELECT media_id,src_size,made FROM prepared WHERE status='fix'").fetchall():
+        r = conn.execute("SELECT id,path,vcodec,acodec,vfmt,size,runtime_s,added,atracks FROM media WHERE id=? AND available=1", (p["media_id"],)).fetchone()
+        if r is not None and (r["size"] or 0) == (p["src_size"] or 0):
+            remakes.append(dict(r, source="", remake=True, fix=True))
 
     def pending(r, want_lang):
         if skip and os.path.normcase(os.path.abspath(r["path"])).startswith(skip):
@@ -319,12 +340,12 @@ def tidy(conn):
     if f is None or not f.is_dir():
         return 0
     keep, n = set(), 0
-    for p in conn.execute("SELECT media_id,file,src_size,status,alang FROM prepared").fetchall():
+    for p in conn.execute("SELECT media_id,file,src_size,status,alang,mix FROM prepared").fetchall():
         m = conn.execute("SELECT id,path,vcodec,acodec,vfmt,size FROM media WHERE id=?", (p["media_id"],)).fetchone()
         useful = (m is not None and p["status"] == "ready" and (m["size"] or 0) == (p["src_size"] or 0)
-                  and (library.pc_kind(m["vcodec"], m["acodec"], m["vfmt"] or "", _ext(m["path"])) == "prepare" or bool(p["alang"])))
-        if p["status"] == "failed" and m is not None and (m["size"] or 0) == (p["src_size"] or 0):
-            continue                                       # remembered failure: keeps it from being retried at once
+                  and (library.pc_kind(m["vcodec"], m["acodec"], m["vfmt"] or "", _ext(m["path"])) == "prepare" or bool(p["alang"]) or p["mix"] == 2))
+        if p["status"] in ("failed", "fix") and m is not None and (m["size"] or 0) == (p["src_size"] or 0):
+            continue                                       # remembered failure / a repair that is still to be made
         if useful and (f / p["file"]).is_file():
             keep.add(p["file"])
             continue
@@ -370,7 +391,8 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
         work.stage("Making a ready-to-play copy")
         res = ""
         try:
-            res = prepare_one(conn, r, ffmpeg, run, probe, source=(r["source"] or None) if "source" in r.keys() else None)
+            res = prepare_one(conn, r, ffmpeg, run, probe, source=(r["source"] or None) if "source" in r.keys() else None,
+                              fix="fix" in r.keys() and bool(r["fix"]))
         finally:
             work.end({"ready": "copy ready", "failed": "could not make a copy"}.get(res, "stopped"), quiet=res not in ("ready", "failed"))
             with _lock:

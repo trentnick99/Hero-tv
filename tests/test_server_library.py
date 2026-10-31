@@ -158,6 +158,17 @@ class LibraryAndServer(unittest.TestCase):
         self.assertEqual(it["position"], 1.5)
         self.assertEqual(json.loads(self.get("/api/library?q=zzzz")[1])["items"], [])
 
+    def test_a_damaged_sound_error_queues_a_repair(self):
+        mid = json.loads(self.get("/api/library?q=Hero%20Two")[1])["items"][0]["id"]
+        why = "player error 3: PipelineStatus::PIPELINE_ERROR_DECODE: Failed to send audio packet for decoding"
+        res = json.loads(self.get("/api/report-error", data={"media_id": mid, "reason": why})[1])
+        self.assertTrue(res.get("repair"))
+        c = make_db(self.cfg.db_path)
+        self.assertEqual(c.execute("SELECT status FROM prepared WHERE media_id=?", (mid,)).fetchone()[0], "fix")
+        other = json.loads(self.get("/api/library?q=Hero%20Two")[1])["items"][0]["id"]
+        res = json.loads(self.get("/api/report-error", data={"media_id": other, "reason": "player error 4: DEMUXER_ERROR"})[1])
+        self.assertFalse(res.get("repair"))
+
     def test_missing_file_reported_triggers_reschedule_without_gap(self):
         tmp = os.path.join(self.root, "MCU", "Gone (2023).mp4"); clip(tmp, 2)
         c = make_db(self.cfg.db_path); library.scan(c, self.root); S.extend_all(c, time.time(), 3600, rebuild=True)

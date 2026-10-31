@@ -1714,7 +1714,11 @@ def make_handler(app, remote=False):
                     raise ValueError("media_id must be positive")
                 from . import report
                 report.play_error(mid, body.get("reason"))
-                return self.send_json(self.report_error(c, mid, now, body.get("reason") == "no-picture"))
+                res = self.report_error(c, mid, now, body.get("reason") == "no-picture")
+                why = str(body.get("reason") or "").lower()
+                if "audio" in why and "decode" in why and prepare.enabled():       # a damaged sound packet: queue a repaired copy
+                    res["repair"] = prepare.want_sound_fix(c, mid) or res.get("repair", False)
+                return self.send_json(res)
             self.send_json({"error": "not found"}, 404)
 
         def help_info(self, c):
