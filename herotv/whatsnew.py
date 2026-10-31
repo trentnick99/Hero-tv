@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.37.0": [
+        "Video names are cleaned up more: edition and streaming labels after the year (IMAX, Remastered, Directors Cut, NF, German DL...), a download site in front of the name, leftover release-group tags, and 'Season 2 Episode 4' wording are dropped so only the title, year, season and episode remain. Videos already in your library are renamed the same way the next time the library is checked. Names you set yourself are never changed, and your files are never renamed.",
+    ],
     "1.36.1": [
         "Library shows are grouped better: 'Invincible' and 'Invincible season 1' are now one show, and a folder of episodes with no season/episode numbers (like Dragon Ball) shows as one card instead of one row per episode. Folders of dated movies stay a plain list.",
     ],

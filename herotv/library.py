@@ -288,7 +288,8 @@ _JUNK = re.compile(r"\[[^\]]*\]|\([^)]*\)")        # [fansub group] [720p] (1080
 
 
 def _clean(text):
-    return re.sub(r"\s+", " ", _JUNK.sub(" ", text)).strip(" ._-")
+    t = re.sub(r"\s+", " ", _JUNK.sub(" ", text)).strip(" ._-")
+    return re.sub(r"\s-[A-Za-z0-9]{2,12}$", "", t) if _JUNK.search(text) else t        # '... [WEBDL-1080p]-GROUP' -> no '-GROUP'
 
 
 _RELEASE = re.compile(r"(?i)[ ._\-\[(]+(?:(?:480|576|720|1080|2160)[pi]|4k|uhd|blu-?ray|bdrip|brrip|web-?dl|web-?rip|hdtv|"
@@ -318,16 +319,24 @@ def _drop_languages(cut):
     return c
 
 
+_EDITION = (r"imax|remastered|extended|unrated|uncut|theatrical|directors?[ ._]?cut|final[ ._]?cut|special[ ._]?edition|"
+            r"nf|amzn|dsnp|hmax|atvp|hulu|pcok|itunes|internal|limited|repack|proper|hybrid|3d|dl")
+_AFTER_YEAR = re.compile(rf"(?i)((?:19|20)\d{{2}})(?:[ ._\-\[(]+(?:{_EDITION}|{_LANGS}))+(?![A-Za-z])")
+_SITE_PREFIX = re.compile(r"(?i)^\s*(?:www\.)?[a-z0-9-]+\.(?:com|net|org|io|in|me|tv|to|cc|info|xyz|site|club)\s*[-\u2013\u2014]+\s*")
+
+
 def tidy(text, year=None, dotted_name=False):
     """Turn a download-style name into a readable one: 'Iron.Man.2008.1080p.BluRay.x264-GRP' -> ('Iron Man', 2008)."""
-    t = text.strip()
+    orig = text.strip()
+    t = _SITE_PREFIX.sub("", orig)
+    t = _AFTER_YEAR.sub(r"\1", t)             # '... 2023 IMAX 1080p' -> '... 2023 1080p' (only right after a year, so 'Extended Family' stays)
     cut = _RELEASE.sub("", t)
     dotted = " " not in cut and bool(re.search(r"[._]", cut))
     if dotted:
         cut = re.sub(r"[._]+", " ", cut)
     cut = re.sub(r"\s+", " ", cut).strip(" ._-")
     cut = _drop_languages(cut) or cut
-    if (dotted or dotted_name or cut != t) and year is None:            # 'Iron Man 2008' -> title + year (only for download-style names)
+    if (dotted or dotted_name or cut != orig) and year is None:            # 'Iron Man 2008' -> title + year (only for download-style names)
         m = re.match(r"^(.*\S)\s+\(?((?:19|20)\d{2})\)?$", cut)
         if m and int(m[2]) <= 2030:
             cut, year = m[1].strip(" ._-"), int(m[2])
@@ -441,6 +450,8 @@ def _guess_raw(parts, stem):
     m = re.search(r"[Ss](\d{1,2})[ ._-]?[Ee](\d{1,4})", stem)
     if not m:
         m = re.search(r"(?<!\d)(\d{1,2})x(\d{1,4})(?!\d)", stem)
+    if not m:
+        m = re.search(r"(?i)\bseason[ ._-]*(\d{1,2})[ ._,-]*episode[ ._-]*(\d{1,4})\b", stem)
     if m:
         season, ep = int(m[1]), int(m[2])
     else:   # anime-style numbering: "Episode 012", "Ep.12", "E012", "Dragon Ball Z - 012 - Title"
@@ -452,7 +463,10 @@ def _guess_raw(parts, stem):
                 break
     if m:
         series = _clean(stem[:m.start()])
-        title = _clean(stem[m.end():]) or (f"Episode {ep}" if series else stem)
+        title = _clean(stem[m.end():])
+        if re.fullmatch(rf"(?i)(?:{_TAG}|hd|sd|fhd|\d{{3,4}}[pi])(?:[\s._+&,-]+(?:{_TAG}|hd|sd|fhd|\d{{3,4}}[pi]))*", title or "x"):
+            title = ""                                      # 'Episode 123 English Dubbed HD' has no real title
+        title = title or (f"Episode {ep}" if series else stem)
     m = re.match(r"^(.*?)[ ._-]*\((\d{4})\)", stem)
     if m and not ep:
         title, year = m[1].strip(), int(m[2])
@@ -460,6 +474,34 @@ def _guess_raw(parts, stem):
         year = int(m[2])
     return dict(title=title.replace("_", " ").strip() or stem, year=year, season=season, episode=ep,
                 franchise=parts[0] if len(parts) > 1 else "", series=parts[1] if len(parts) > 2 else (series if ep else ""))
+
+
+def refresh_names(conn, root):
+    """Name videos that are already in the library again with the current file-name rules, so a better rule cleans up
+    old entries too. A field the user set (it is in the video's .hero.json) is never touched; neither is a title the
+    file name gave no help with. Returns how many videos changed."""
+    n = 0
+    for r in conn.execute("SELECT id,path,title,year,series,season,episode FROM media").fetchall():
+        try:
+            rel = os.path.relpath(r["path"], root)
+        except ValueError:
+            continue
+        stem = os.path.splitext(os.path.basename(r["path"]))[0]
+        g = _guess(rel.split(os.sep), stem)
+        if g["title"] == stem:
+            continue
+        try:
+            with open(sidecar_path(r["path"]), encoding="utf-8-sig") as fh:
+                sc = json.load(fh) or {}
+        except (OSError, ValueError, TypeError):
+            sc = {}
+        new = {k: g[k] for k in ("title", "year", "series", "season", "episode") if k not in sc and g[k] != r[k]}
+        if "year" in new and not new["year"] and r["year"]:
+            del new["year"]                                  # never drop a year the file name no longer shows
+        if new:
+            conn.execute("UPDATE media SET " + ",".join(f"{k}=?" for k in new) + " WHERE id=?", (*new.values(), r["id"]))
+            n += 1
+    return n
 
 
 def sidecar_path(path):
@@ -559,7 +601,7 @@ def scan(conn, root, probe_fn=probe):
             conn.execute("UPDATE media SET available=0 WHERE id=?", (r["id"],))
             stats["missing"] += 1
     stats["relinked"] = relink(conn, added_paths)
-    stats["renamed"] = fix_site_titles(conn, root)
+    stats["renamed"] = fix_site_titles(conn, root) + refresh_names(conn, root)
     tag_months(conn, root)
     conn.commit()
     return stats

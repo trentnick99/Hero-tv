@@ -415,6 +415,11 @@ ONE CARD PER SHOW IN THE LIBRARY (1.36)
 
   1.36.1: 'Invincible' and 'Invincible season 1' count as one show. A folder of episodes without numbers (Dragon Ball) is one card; folders of dated movies stay a plain list.
 
+CLEANER VIDEO NAMES (1.37)
+  HERO TV keeps just the title, year, season and episode from a file name and drops release tags, editions (IMAX, Directors Cut),
+    streaming labels (NF, AMZN), site names and group tags. Videos already in the library are renamed on the next library check.
+    A name you set yourself is kept, and your files on disk are never renamed.
+
 ENGLISH BY ITSELF FOR VIDEOS WITH SEVERAL LANGUAGES (1.35)
   Settings > Tools > 'Preferred sound language' (English to start with). A video that has an English sound track but plays
   another language first gets a hidden ready-to-play copy that plays English; the PC, phones and Roku use it. Your own files
