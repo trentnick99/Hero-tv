@@ -108,12 +108,18 @@ class App:
     def refresh_library(self):
         """Scan for added / removed / changed videos and re-plan the schedule. Returns the scan stats."""
         c = self.db()
+        work.begin("scan", "Your library")
+        work.stage("Looking for new and removed videos")
+        st = {}
         try:
             with self.scan_lock:
                 st = L.scan(c, self.cfg.media_dir)
+                work.stage("Planning the TV schedule")
                 S.extend_all(c, time.time(), self.horizon(), rebuild=True, tz=self.tz)
         finally:
             c.close()
+            bits = [f"{st[k]} {w}" for k, w in (("added", "new"), ("updated", "changed"), ("missing", "removed")) if st.get(k)]
+            work.end(", ".join(bits) or "no changes", quiet=not bits)
         thumbs.start_background(self.cfg, connect)
         art.start_background(self.cfg, connect)
         return st

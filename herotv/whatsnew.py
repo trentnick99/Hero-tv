@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.34.1": [
+        "Settings > Tools > 'New videos: how far along' now also shows when HERO TV is checking your library for new or removed videos, and which new video it is reading.",
+    ],
     "1.34.0": [
         "New 'Finish setting up' tile on the Home screen while something is still missing (videos added, video tools installed, videos playable). It takes you straight to the right place and goes away by itself when everything is done.",
         "Screens now fade in instead of snapping open, and the info bar slides up gently when you press I or change channel. (Turned off if your system asks for less motion.)",

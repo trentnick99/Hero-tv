@@ -89,6 +89,45 @@ class Tracker(unittest.TestCase):
         work.end("filed")
 
 
+class Scan(unittest.TestCase):
+    def setUp(self):
+        reset()
+        self.addCleanup(reset)
+        self.root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.root, True)
+        os.makedirs(f"{self.root}/Movies")
+        self.cfg = Config(media_dir=self.root, db_path=tmpdb(), channels_file=os.path.join(self.root, "ch.json"),
+                          tz="America/New_York", port=0)
+        Path(self.cfg.channels_file).write_text(json.dumps({"channels": []}))
+        make_db(self.cfg.db_path).close()
+        sf = mock.patch("herotv.config.settings_file", return_value=Path(self.root) / "settings.json")
+        sf.start()
+        self.addCleanup(sf.stop)
+
+    def test_scan_says_which_new_video_it_is_reading(self):
+        for n in ("A (2020).mp4", "B (2021).mp4"):
+            Path(self.root, "Movies", n).write_bytes(b"x")
+        c = make_db(self.cfg.db_path)
+        self.addCleanup(c.close)
+        stages = []
+        orig = work.stage
+        work.begin("scan", "Your library")
+        with mock.patch.object(work, "stage", side_effect=lambda t, p=None: (stages.append(t), orig(t, p))):
+            library.scan(c, self.root, probe_fn=lambda p: None)
+        work.end()
+        self.assertEqual(stages, ["Reading new video 1: A (2020).mp4", "Reading new video 2: B (2021).mp4"])
+
+    def test_refresh_is_logged_only_when_something_changed(self):
+        app = App(self.cfg)
+        Path(self.root, "Movies", "A (2020).mp4").write_bytes(b"x")
+        with mock.patch.object(library, "probe", return_value=None):
+            app.refresh_library()
+            self.assertEqual([r["result"] for r in work.snapshot()["recent"]], ["1 new"])
+            app.refresh_library()                                   # nothing changed: no new line
+        self.assertEqual(len(work.snapshot()["recent"]), 1)
+        self.assertEqual(work.snapshot()["active"], [])
+
+
 @unittest.skipUnless(HAVE_FF, "ffmpeg/ffprobe not installed")
 class Real(unittest.TestCase):
     def setUp(self):

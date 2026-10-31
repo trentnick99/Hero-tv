@@ -757,6 +757,7 @@ function drawWork(j){const b=$("#wbody");if(!b)return;b.textContent="";const act
  const w=j.inbox||{};if(w.waiting>(inb.length)){b.append(el("small",0,`Waiting in the Inbox: ${w.waiting-inb.length} (a new file is given about a minute to finish copying first)`));
   const ul=el("div","wlist");for(const n of(w.names||[]).slice(0,8))ul.append(el("small",0,"- "+n));if((w.names||[]).length>8||w.waiting-inb.length>8)ul.append(el("small",0,"...and more"));b.append(ul)}
  const cs=j.copies||{};
+ for(const t of act.filter(t=>t.kind==="scan")){const r=el("div","wrow");r.append(el("b",0,"Library: checking for changes"),el("small",0,t.stage),wBar(t.pct));b.append(r)}
  if(cp.length){for(const t of cp){const r=el("div","wrow");r.append(el("b",0,"Copy: "+t.name),el("small",0,t.stage+(t.pct!=null?` - ${t.pct}%`:"")),wBar(t.pct));b.append(r)}}
  if(cs.need)b.append(el("small",0,`Ready-to-play copies: ${cs.ready} of ${cs.need} done`),wBar(Math.round(100*cs.ready/cs.need)));
  if(!act.length&&!w.waiting)b.append(el("small",0,"Nothing new is being processed right now."));

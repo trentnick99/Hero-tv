@@ -6,7 +6,7 @@ import shutil
 import re
 import subprocess
 
-from . import tools
+from . import tools, work
 
 EXTS = {".mp4", ".m4v", ".mkv", ".webm", ".mov"}
 PLAY_V = {"h264", "hevc", "vp8", "vp9", "av1"}                  # codecs a browser may decode - see video_ok() for the details
@@ -447,6 +447,7 @@ def scan(conn, root, probe_fn=probe):
                         sc = json.load(fh)
                 except (OSError, ValueError):
                     sc = {}
+            work.stage(f"Reading new video {stats['added'] + stats['updated'] + 1}: {f}")
             p = probe_fn(path)
             if p and tag_title(p["title"]) and meta["title"] == stem:
                 meta["title"] = tag_title(p["title"])
