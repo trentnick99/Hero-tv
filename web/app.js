@@ -363,16 +363,16 @@ async function guideKey(k){const c=g.data[g.row],s=inSlot(c,g.t);
 let showCtx=null,showBack=0;let items=[],li=0,qT,cols=4,view="all",counts={continue:0,favorites:0,recent:0};const VIEWS=[["all","All"],["recent","New"],["continue","Continue watching"],["favorites","Favorites"]];
 const colCount=()=>innerWidth>1700?6:innerWidth>1400?5:innerWidth>1150?4:innerWidth>700?3:2;
 async function search(){let u="/api/library?view="+view+"&q="+encodeURIComponent($("#q").value);
- if(showCtx)u+="&series="+encodeURIComponent(showCtx.series)+"&franchise="+encodeURIComponent(showCtx.franchise)+"&limit=1000";else if(view==="all")u+="&group=1&limit=1000";
+ if(showCtx)u+="&show=1&series="+encodeURIComponent(showCtx.series)+"&franchise="+encodeURIComponent(showCtx.franchise)+"&limit=1000";else if(view==="all")u+="&group=1&limit=1000";
  const j=await api(u);items=j.items;counts=j.counts||counts;li=0;drawList()}
-function openShow(it){showBack=li;showCtx={series:it.series,franchise:it.franchise};$("#q").value="";search()}
+function openShow(it){showBack=li;showCtx={series:it.series,franchise:it.franchise,title:it.title};$("#q").value="";search()}
 function leaveShow(){const b=showBack;showCtx=null;$("#q").value="";search().then(()=>{li=Math.max(0,Math.min(b,items.length-1));drawList()})}
 const playOrOpen=it=>it.show?openShow(it):startVod(it);
 function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.height="";cols=colCount();L.style.setProperty("--cols",cols);paint(L.parentNode,chans[ci]&&chans[ci].color);
  const tb=$("#l-tabs");tb.textContent="";for(const[k,n]of VIEWS){const sp=el("span",k===view?"on":"",n+(k==="all"?"":" "+counts[k]));sp.onclick=()=>{showCtx=null;view=k;saveView();search()};tb.append(sp)}
  const q=$("#q").value.trim();const nShows=items.filter(x=>x.show).length,nRest=items.length-nShows;
  $("#l-count").textContent=!items.length?"":showCtx?`${items.length} ${items.length===1?"episode":"episodes"}`:nShows?`${nShows} ${nShows===1?"show":"shows"}${nRest?`, ${nRest} ${nRest===1?"video":"videos"}`:""}`:`${items.length} ${items.length===1?"video":"videos"}`;
- {const h=$("#lib .top h2");if(h)h.textContent=showCtx?showCtx.series:"Library"}
+ {const h=$("#lib .top h2");if(h)h.textContent=showCtx?showCtx.title:"Library"}
  if(!items.length){const e=el("div","empty");if(q){e.append(el("b",0,`Nothing matches "${q}".`),el("br"),document.createTextNode("Try a title, a series or a channel name."))}
   else if(view==="continue")e.append(el("b",0,"Nothing in progress."),el("br"),document.createTextNode("Videos you start from the library show up here so you can pick up where you left off."));
   else if(view==="favorites")e.append(el("b",0,"No favorites yet."),el("br"),document.createTextNode("Highlight a video and press F2 to add it."));
@@ -380,7 +380,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  items.forEach((it,k)=>{const c=el("div","card"+(k===li?" sel":"")),pic=el("div","pic");pic.style.background=tile(it.title);pic.append(thumb(it.id,true));
   const resume=it.position>10&&!it.completed;if(resume&&it.runtime_s){const p=el("i");p.style.width=Math.min(100,it.position/it.runtime_s*100)+"%";pic.append(p)}
   if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));
-  const meta=it.show?[it.franchise,it.seasons>1?it.seasons+" seasons":""].filter(Boolean).join(", ")||"Show":[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"");
+  const meta=it.show?[it.franchise!==it.title?it.franchise:"",it.seasons>1?it.seasons+" seasons":""].filter(Boolean).join(", ")||"Show":[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"");
   c.append(pic,el("b",0,it.show?it.title:label(it)),el("small",0,meta||" "));c.onclick=()=>{if(COARSE&&li===k)return playOrOpen(it);li=k;drawList()};c.ondblclick=()=>playOrOpen(it);L.append(c)});
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;
   if(step>0){L.style.flex="none";L.style.height=Math.max(1,Math.floor((L.parentNode.clientHeight-L.offsetTop-$("#l-hints").offsetHeight-16)/step))*step+"px"}}   /* whole rows only */
@@ -535,6 +535,7 @@ addEventListener("keydown",e=>{const k=e.key;
  if(layer==="home")return homeKey(e);
  if(layer==="check")return checkKey(e);
  if(layer==="help"){if(k==="Escape"||k==="Backspace"||k==="?"||k==="F1"||k==="h"||k==="H"){e.preventDefault();return helpBack==="home"?openHome():closeAll()}return}
+ if((k==="F3"||k==="F4")&&layer==="lib"&&items[li]&&items[li].show&&!items[li].series){e.preventDefault();return toast("This group is a folder. Open it, then press F3 on an episode to rename that one.")}
  if((k==="F3"||k==="F4")&&(layer==="lib"||layer==="guide"||layer===""||vod)){e.preventDefault();return openRename(k==="F4"||(layer==="lib"&&items[li]&&items[li].show)?"series":"title")}
  if(layer==="lib"){const mv=d=>{li=Math.max(0,Math.min(items.length-1,li+d));drawList();e.preventDefault()};
   if(k==="Tab"){e.preventDefault();showCtx=null;view=VIEWS[(VIEWS.findIndex(x=>x[0]===view)+1)%VIEWS.length][0];saveView();search();return}
@@ -1125,7 +1126,7 @@ function toggleFav(){const it=items[li];if(!it)return;const on=!it.favorite;it.f
 addEventListener("contextmenu",e=>{
  const card=e.target.closest&&e.target.closest("#list .card");
  if(layer==="lib"&&card){e.preventDefault();li=[...card.parentNode.children].indexOf(card);drawList();const it=items[li];if(!it)return;
-  if(it.show)return ctxOpen(e.clientX,e.clientY,[{t:"Open the show",fn:()=>openShow(it)},{t:"Details (picture, plot, cast)",fn:()=>openInfo()},{t:"Rename the show",fn:()=>openRename("series")}]);
+  if(it.show)return ctxOpen(e.clientX,e.clientY,[{t:"Open the show",fn:()=>openShow(it)},{t:"Details (picture, plot, cast)",fn:()=>openInfo()},...(it.series?[{t:"Rename the show",fn:()=>openRename("series")}]:[])]);
   return ctxOpen(e.clientX,e.clientY,[{t:"Play",fn:()=>startVod(it)},{t:"Details (picture, plot, cast)",fn:()=>openInfo()},{t:it.favorite?"Remove from favorites":"Add to favorites",fn:toggleFav},{t:"Rename this video",fn:()=>openRename("title")},it.series?{t:"Rename the show",fn:()=>openRename("series")}:null].filter(Boolean))}
  const blk=e.target.closest&&e.target.closest("#grid .blk");
  if(layer==="guide"&&blk&&blk.dataset.r!==undefined){e.preventDefault();g.row=+blk.dataset.r;g.t=+blk.dataset.t;drawGuide();

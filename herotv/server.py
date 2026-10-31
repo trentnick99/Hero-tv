@@ -1372,11 +1372,11 @@ def make_handler(app, remote=False):
                 elif view == "recent":      # found in the last 30 days, newest first
                     extra, order = f" AND m.added>{int(now) - RECENT_S}", "m.added DESC,m.id DESC"
                 lim = max(1, min(int(q.get("limit", 200)), 1000))
-                group = q.get("group") == "1" and view == "all" and not q.get("series")       # one row per show instead of one per episode
+                group = q.get("group") == "1" and view == "all" and not q.get("show")          # one row per show instead of one per episode
                 args = [like, like, like, like]
-                if q.get("series"):                                    # the episodes of one show (opened from the grouped list)
-                    extra += " AND m.series=? AND m.franchise=?"
-                    args += [q["series"], q.get("franchise", "")]
+                if q.get("show"):                                      # the episodes of one show (opened from the grouped list)
+                    extra += " AND m.franchise=?"
+                    args += [q.get("franchise", "")]
                 rows = c.execute(
                     "SELECT m.id,m.title,m.year,m.franchise,m.series,m.season,m.episode,m.plot,m.runtime_s,m.tags,m.added,"
                     "COALESCE(p.position,0) AS position,COALESCE(p.completed,0) AS completed,"
@@ -1385,22 +1385,43 @@ def make_handler(app, remote=False):
                     "WHERE m.available=1 AND m.verified=1 AND m.playable=1 AND "
                     "(m.title LIKE ? OR m.series LIKE ? OR m.franchise LIKE ? OR m.tags LIKE ?)" + extra +
                     " ORDER BY " + order + " LIMIT ?",
-                    (*args, 20000 if group else lim)).fetchall()
-                if group:
-                    sizes = {(r[0], r[1]): (r[2], r[3]) for r in c.execute(
-                        "SELECT franchise,series,COUNT(*),COUNT(DISTINCT season) FROM media "
-                        "WHERE available=1 AND verified=1 AND playable=1 AND series<>'' GROUP BY franchise,series")}
+                    (*args, 20000 if (group or q.get("show")) else lim)).fetchall()
+                if q.get("show") or group:
+                    # A show is its series name without any "season N" ending, or - for loose episodes in a show's folder
+                    # that have no series name - the folder itself (when most of it is not dated movies).
+                    sizes, loose = {}, {}
+                    for fr, se, sn, yr in c.execute("SELECT franchise,series,season,year FROM media "
+                                                    "WHERE available=1 AND verified=1 AND playable=1"):
+                        if se:
+                            e = sizes.setdefault((fr, L.show_key(se)), [0, set()])
+                            e[0] += 1
+                            if sn:
+                                e[1].add(sn)
+                        elif fr:
+                            e = loose.setdefault(fr, [0, 0])
+                            e[0] += 1
+                            e[1] += 1 if yr else 0
+                    folders = {fr for fr, (n, dated) in loose.items() if n >= 3 and dated * 2 < n}
+
+                    def key_of(d):
+                        if d["series"]:
+                            return (d["franchise"], L.show_key(d["series"]))
+                        return (d["franchise"], "") if d["franchise"] in folders else None
+                if q.get("show"):
+                    want = (q.get("franchise", ""), L.show_key(q.get("series", "")))
+                    rows = [r for r in rows if key_of(dict(r)) == want][:lim]
+                elif group:
                     merged, seen = [], {}
                     for r in rows:
                         d = dict(r)
-                        if not d["series"]:
+                        key = key_of(d)
+                        if key is None:
                             merged.append(d)
-                            continue
-                        key = (d["franchise"], d["series"])
-                        if key not in seen:                           # the first episode (lowest season/episode) stands for the show
-                            n, ns = sizes.get(key, (1, 1))
-                            seen[key] = dict(d, show=True, title=d["series"], episodes=n, seasons=ns, season=0, episode=0, plot="",
-                                             position=0, completed=0, favorite=0, runtime_s=0)
+                        elif key not in seen:                         # the first episode (lowest season/episode) stands for the show
+                            n, seas = sizes[key] if key[1] else (loose[key[0]][0], set())
+                            seen[key] = dict(d, show=True, title=L.show_name(d["series"]) if key[1] else key[0], episodes=n,
+                                             seasons=max(1, len(seas)), season=0, episode=0, plot="", position=0, completed=0,
+                                             favorite=0, runtime_s=0)
                             merged.append(seen[key])
                     rows = merged[:lim]
                 counts = c.execute(

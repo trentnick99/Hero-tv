@@ -413,6 +413,8 @@ ONE CARD PER SHOW IN THE LIBRARY (1.36)
   The Library's All list shows each TV show as one stacked card with an episode count. Enter opens it to show its episodes in order;
     Esc or Backspace goes back to where you were. Shows with the same name in different folders stay separate. Movies are unchanged.
 
+  1.36.1: 'Invincible' and 'Invincible season 1' count as one show. A folder of episodes without numbers (Dragon Ball) is one card; folders of dated movies stay a plain list.
+
 ENGLISH BY ITSELF FOR VIDEOS WITH SEVERAL LANGUAGES (1.35)
   Settings > Tools > 'Preferred sound language' (English to start with). A video that has an English sound track but plays
   another language first gets a hidden ready-to-play copy that plays English; the PC, phones and Roku use it. Your own files

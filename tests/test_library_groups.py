@@ -68,13 +68,13 @@ class Groups(unittest.TestCase):
     def test_same_named_shows_in_two_folders_stay_separate(self):
         gal = [i for i in self.get("view=all&group=1&limit=1000") if i.get("series") == "Galactica"]
         self.assertEqual(sorted(i["franchise"] for i in gal), ["Drama", "Sci-Fi"])
-        eps = self.get("view=all&series=Galactica&franchise=Drama&limit=1000")
+        eps = self.get("view=all&show=1&series=Galactica&franchise=Drama&limit=1000")
         self.assertEqual([e["title"] for e in eps], ["New 1", "New 2"])
-        eps = self.get("view=all&series=Galactica&franchise=Sci-Fi&limit=1000")
+        eps = self.get("view=all&show=1&series=Galactica&franchise=Sci-Fi&limit=1000")
         self.assertEqual([e["title"] for e in eps], ["Old 1", "Old 2"])
 
     def test_a_shows_episodes_come_in_order(self):
-        eps = self.get("view=all&series=South+Park&franchise=Cartoons&limit=1000")
+        eps = self.get("view=all&show=1&series=South+Park&franchise=Cartoons&limit=1000")
         self.assertEqual([(e["season"], e["episode"]) for e in eps], [(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3)])
         self.assertFalse(any(e.get("show") for e in eps))
 
@@ -89,6 +89,36 @@ class Groups(unittest.TestCase):
         self.assertFalse(any(i.get("show") for i in flat))
         self.assertFalse(any(i.get("show") for i in self.get("view=recent&group=1&limit=1000")))
         self.assertFalse(any(i.get("show") for i in self.get("view=favorites&group=1")))
+
+    def test_season_folders_and_plain_names_are_one_show(self):
+        for e in range(1, 5):
+            self.add("Invincible", "Invincible", 1, e, f"Plain {e}")
+            self.add("Invincible", "Invincible season 1", 0, e, f"Folder {e}")
+        self.c.commit()
+        inv = [i for i in self.get("view=all&group=1&limit=1000") if i["franchise"] == "Invincible"]
+        self.assertEqual(len(inv), 1)
+        self.assertEqual((inv[0]["title"], inv[0]["episodes"], inv[0]["seasons"]), ("Invincible", 8, 1))
+        eps = self.get("view=all&show=1&series=Invincible&franchise=Invincible&limit=1000")
+        self.assertEqual(len(eps), 8)
+
+    def test_a_folder_of_unnumbered_episodes_is_one_show_but_dated_movies_are_not(self):
+        for i in range(5):
+            self.add("Dragon Ball", "", 0, 0, f"Some title {i}")
+        self.c.commit()
+        db = [i for i in self.get("view=all&group=1&limit=1000") if i["franchise"] == "Dragon Ball"]
+        self.assertEqual(len(db), 1)
+        self.assertEqual((db[0]["title"], db[0]["episodes"], db[0]["series"]), ("Dragon Ball", 5, ""))
+        eps = self.get("view=all&show=1&series=&franchise=Dragon+Ball&limit=1000")
+        self.assertEqual(len(eps), 5)
+        titles = [i["title"] for i in self.get("view=all&group=1&limit=1000")]
+        self.assertIn("A Movie", titles)                                    # the Movies folder stays a plain list
+
+    def test_show_name_drops_a_season_ending(self):
+        from herotv.library import show_name
+        for raw in ("Invincible season 1", "Invincible Season 02", "Invincible (Season 1)", "Invincible S1", "Invincible - Season 3"):
+            self.assertEqual(show_name(raw), "Invincible", raw)
+        for keep in ("Invincible", "Series", "Stargate SG-1", "Seasons"):
+            self.assertEqual(show_name(keep), keep)
 
     def test_limit_applies_to_rows_after_grouping(self):
         self.assertEqual(len(self.get("view=all&group=1&limit=2")), 2)

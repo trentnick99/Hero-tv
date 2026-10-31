@@ -415,6 +415,19 @@ def fix_site_titles(conn, root):
     return n
 
 
+_SEASON_TAIL = re.compile(r"[\s._-]*[(\[]?\s*(?:season|series|s)[\s._-]*\d{1,2}\s*[)\]]?\s*$", re.I)
+
+
+def show_name(series):
+    """The show a series name belongs to: 'Invincible season 1' and 'Invincible' are the same show."""
+    s = (series or "").strip()
+    return _SEASON_TAIL.sub("", s).strip() or s
+
+
+def show_key(series):
+    return show_name(series).casefold()
+
+
 def _guess(parts, stem):
     d = _guess_raw(parts, stem)
     d["title"], d["year"] = tidy(d["title"], d["year"], " " not in stem and bool(re.search(r"[._]", stem)))

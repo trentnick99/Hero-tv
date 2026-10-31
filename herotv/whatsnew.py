@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.36.1": [
+        "Library shows are grouped better: 'Invincible' and 'Invincible season 1' are now one show, and a folder of episodes with no season/episode numbers (like Dragon Ball) shows as one card instead of one row per episode. Folders of dated movies stay a plain list.",
+    ],
     "1.36.0": [
         "The Library now groups episodes by show. Each show is one card (with a stacked look and an episode count) that opens into its episodes in order; press Esc or Backspace to go back to where you were. Shows with the same name in different folders stay separate. Movies and other videos look the same as before.",
     ],
