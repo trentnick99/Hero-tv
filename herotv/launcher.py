@@ -322,6 +322,45 @@ def _popup(text):
     say(text)
 
 
+class RotatingLog:
+    """The quiet-start log file. It also starts over while HERO TV keeps running (a PC left on for weeks): past the limit the
+    old text moves to herotv.old.log (one copy, like at start-up) and a new file begins."""
+    LIMIT = 512_000
+    CHECK_EVERY = 200                      # writes between size checks
+
+    def __init__(self, path, limit=None):
+        import threading
+        self.path, self.limit, self._n = Path(path), limit or self.LIMIT, 0
+        self._lock = threading.Lock()
+        self._open()
+
+    def _open(self):
+        self.f = open(self.path, "a", encoding="utf-8", errors="replace", buffering=1)
+
+    def rotate(self):
+        self.f.close()
+        try:
+            self.path.replace(self.path.with_suffix(".old.log"))
+        except OSError:
+            pass                           # still in use: keep appending to the same file
+        self._open()
+
+    def write(self, text):
+        with self._lock:
+            n = self.f.write(text)
+            self._n += 1
+            if self._n % self.CHECK_EVERY == 0:
+                try:
+                    if self.f.tell() > self.limit:
+                        self.rotate()
+                except (OSError, ValueError):
+                    pass
+            return n
+
+    def __getattr__(self, name):           # flush, fileno, isatty, encoding ...
+        return getattr(self.__dict__["f"], name)
+
+
 def _go_quiet():
     """No console window (pythonw / desktop shortcut): send all output to a log file and let the TV
     switch itself off when its window is closed."""
@@ -338,7 +377,7 @@ def _go_quiet():
     log.parent.mkdir(parents=True, exist_ok=True)
     if log.exists() and log.stat().st_size > 512_000:
         log.replace(log.with_suffix(".old.log"))
-    f = open(log, "a", encoding="utf-8", errors="replace", buffering=1)
+    f = RotatingLog(log)
     sys.stdout = sys.stderr = f
     say(f"\n=== HERO TV quiet start {time.strftime('%Y-%m-%d %H:%M:%S')} ===")
     return log
@@ -1794,7 +1833,7 @@ def self_update(zip_path):
     from . import selfupdate, updater
     log = app_data_dir() / "update.log"
     log.parent.mkdir(parents=True, exist_ok=True)
-    f = open(log, "a", encoding="utf-8", errors="replace", buffering=1)
+    f = RotatingLog(log)
     sys.stdout = sys.stderr = f
     say(f"\n=== HERO TV update {time.strftime('%Y-%m-%d %H:%M:%S')} from {zip_path} ===")
     rc = 1

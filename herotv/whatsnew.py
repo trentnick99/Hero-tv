@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.1": [
+        "The Home screen no longer keeps asking for pictures that do not exist yet, so it draws a little faster and the PC does less work.",
+        "The log file (Settings > Report a problem uses it) now starts over by itself when it gets big, even if you leave HERO TV running for weeks. The previous part is kept as herotv.old.log.",
+    ],
     "1.38.0": [
         "The Home screen has a new look, like Netflix or YouTube TV: a big banner for what to watch next (Resume if you are partway through something, otherwise what is on now), then rows of pictures - On now, Continue watching, New in your library and Favorites - and a row of shortcuts (TV guide, Library, Settings, Help and the rest).",
         "Use the arrow keys to move: Left and Right along a row, Up and Down between rows. Enter plays or opens the picture you are on, and 'See all' at the end of a row opens the full list in the Library.",

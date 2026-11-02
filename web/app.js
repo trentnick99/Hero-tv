@@ -22,7 +22,8 @@ function paint(node,color){const c=/^#[0-9a-f]{6}$/i.test(color||"")?color:"#ffc
 let REMOTE=false,MK="";   /* REMOTE = this is a phone/laptop on the home WiFi (watch-only); MK = its media key */
 const withK=u=>REMOTE&&MK?u+(u.includes("?")?"&":"?")+"k="+encodeURIComponent(MK):u;
 const COARSE=matchMedia("(pointer:coarse)").matches;
-const thumb=(id,lazy)=>{const i=el("img");i.alt="";i.decoding="async";if(lazy)i.loading="lazy";i.src=withK("/thumb/"+id);i.onerror=()=>i.remove();return i};
+const thumbMiss=new Map();   /* id -> when its picture was missing: not asked for again for 5 minutes (the background maker may make it by then) */
+const thumb=(id,lazy)=>{const i=el("img");i.alt="";if(Date.now()-(thumbMiss.get(id)||0)<3e5){i.hidden=true;return i}i.decoding="async";if(lazy)i.loading="lazy";i.src=withK("/thumb/"+id);i.onerror=()=>{thumbMiss.set(id,Date.now());i.remove()};return i};
 /* one line-icon set (24x24, drawn with the station color) instead of emoji, which look different on every PC */
 const ICONS={live:'<rect x="2.5" y="5.5" width="19" height="12.5" rx="2"/><path d="M8.5 21h7M12 18v3M8.5 2.5 12 5.5l3.5-3"/>',
  resume:'<circle cx="12" cy="12" r="9"/><path d="M10 8.6v6.8l5.6-3.4z"/>',
