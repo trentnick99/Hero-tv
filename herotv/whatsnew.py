@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.5": [
+        "A video that stops on its very first sound packet (The Amazing Spider-Man 2 does) now gets a new repair try: HERO TV skips that one bad packet and keeps the rest of the sound, in the right language. If the repair failed on an earlier version, play the video again and it is tried again with the new method.",
+        "Settings > Report a problem now also runs the repair on the first 30 seconds of such a video and says what happened, and a failed repair keeps ffmpeg's exit code and last lines - so a repair that still fails can be understood.",
+    ],
     "1.38.4": [
         "When a video stops on a damaged sound packet, Settings > Report a problem now also describes that sound track and what ffmpeg says about its first seconds, and it keeps more of the reason a repair failed. This is to find out why The Amazing Spider-Man 2 cannot be repaired yet.",
         "Fixed a rare error when switching to Weather or to an on-demand video at the same moment the previous channel finished loading.",

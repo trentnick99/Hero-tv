@@ -114,6 +114,34 @@ def _audio_diag(path):
         rc, so, se = run([ff, "-v", "error", "-err_detect", "ignore_err", "-i", path, "-map", "0:a:0", "-t", "20", "-f", "null", "-"], 60)
         lines = [x.strip()[:200] for x in se.splitlines() if x.strip()]
         out.append(f"    ffmpeg decoding the first 20 s of that track: exit {rc}, {len(lines)} message(s)" + ("" if not lines else ": " + " / ".join(lines[:3] + (lines[-2:] if len(lines) > 5 else lines[3:5]))))
+    if ff:
+        def said(se):
+            return [x.strip()[:160] for x in se.replace("\r", "\n").splitlines() if x.strip() and not x.startswith(("frame=", "size=")) and "bitrate=" not in x]
+        rc, so, se = run([ff, "-v", "error", "-i", path, "-map", "0:v:0", "-t", "10", "-f", "null", "-"], 60)
+        m = said(se)
+        out.append(f"    ffmpeg decoding the first 10 s of the PICTURE: exit {rc}, {len(m)} message(s)" + ("" if not m else ": " + " / ".join(m[:2])))
+        import shutil
+        import tempfile
+        from . import library, prepare
+        tmpd = tempfile.mkdtemp(prefix="herotv-diag-")
+        try:
+            tracks = library.audio_tracks(path) or []
+            for label, kw in (("the repair's own command on the first 30 s", {}), ("the same, first sound packet skipped", {"skip_first": True})):
+                dst = os.path.join(tmpd, "t.mp4")
+                cmd = prepare.command(ff, path, dst, "h264", tracks[0]["codec"] if tracks else "aac", "0:a:0?", tolerant=True, force_aac=True,
+                                      channels=tracks[0]["channels"] if tracks else 0, limit=30, **kw)
+                t0 = time.time()
+                rc, so, se = run(cmd, 90)
+                m = said(se)
+                dur = ""
+                if probe and os.path.isfile(dst):
+                    dur = run([probe, "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", dst], 20)[1] or "?"
+                out.append(f"    {label}: exit {rc} in {time.time() - t0:.0f} s, {len(m)} message(s), result {dur or 'none'} s long"
+                           + ("" if not m else ": " + " / ".join(m[:2] + (m[-1:] if len(m) > 2 else []))))
+                if os.path.isfile(dst):
+                    os.remove(dst)
+        finally:
+            shutil.rmtree(tmpd, ignore_errors=True)
     return out
 
 

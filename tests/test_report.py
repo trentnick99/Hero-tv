@@ -117,6 +117,11 @@ class ReportTests(unittest.TestCase):
         self.assertIn("aac", t)
         self.assertIn("first sound packets", t)
         self.assertIn("exit 0", t)
+        self.assertIn("the PICTURE: exit 0", t)
+        self.assertIn("the repair's own command on the first 30 s: exit 0", t)
+        self.assertIn("result 3.", t)                                                 # the 3-second test file came out whole
+        self.assertIn("the same, first sound packet skipped: exit", t)               # (an older ffmpeg may refuse that one: still reported)
+        self.assertEqual(len([x for x in os.listdir(tempfile.gettempdir()) if x.startswith("herotv-diag-")]), 0)   # no litter
         broken = os.path.join(self.d, "broken.mp4")
         Path(broken).write_bytes(b"not a video at all")
         self.assertIn("first sound packets", "\n".join(report._audio_diag(broken)))      # no crash on a file it cannot read

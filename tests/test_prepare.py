@@ -187,7 +187,8 @@ class RealFiles(unittest.TestCase):
         r = self.row(two)
         self.assertEqual(prepare.prepare_one(self.c, r, FF, run=run), "ready")
         self.assertGreaterEqual(len(calls), 2)
-        self.assertIn("0:a:1?", calls[1])                                         # tried the second track
+        self.assertIn("-bsf:a", calls[1])                                         # first the same track with its first packet skipped
+        self.assertTrue(any("0:a:1?" in c for c in calls[2:]), calls)             # then the second track
         self.assertEqual(self.row(two)["playable"], 1)
 
     def test_the_inbox_is_left_to_the_inbox_and_nothing_else_is_deleted(self):

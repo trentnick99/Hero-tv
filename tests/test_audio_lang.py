@@ -271,10 +271,51 @@ class Real(unittest.TestCase):
 
     def test_a_failed_repair_is_not_queued_again_at_once(self):
         one = self.row(self.one)
-        prepare._record(self.c, one["id"], "failed", one["size"], why_="could not", mix=2)       # a repair that failed
+        prepare._record(self.c, one["id"], "failed", one["size"], why_=prepare._repair_tag() + "could not", mix=2)   # a repair that failed
         self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))
+        prepare._record(self.c, one["id"], "failed", one["size"], why_="[r1] could not", mix=2)          # failed with older methods: try again
+        self.assertTrue(prepare.want_sound_fix(self.c, one["id"]))
+        prepare._record(self.c, one["id"], "failed", one["size"], why_="no tag at all", mix=2)            # (a failure kept before revisions existed)
+        self.assertTrue(prepare.want_sound_fix(self.c, one["id"]))
+        prepare._record(self.c, one["id"], "failed", one["size"], why_=prepare._repair_tag() + "could not", mix=2)
         prepare._record(self.c, one["id"], "failed", one["size"], why_="older failure", mix=0)  # an ordinary failed copy: try the repair
         self.assertTrue(prepare.want_sound_fix(self.c, one["id"]))
+
+    def test_the_first_bad_sound_packet_can_be_skipped_and_that_is_tried_before_other_tracks(self):
+        one = self.row(self.one)
+        prepare.want_sound_fix(self.c, one["id"])
+        calls = []
+
+        def run(cmd, rt):
+            calls.append(cmd)
+            if "-bsf:a" not in cmd:                                       # every plain attempt dies on the first packet
+                return tools.FFResult(1, ["[aist#0:1/aac] Error submitting packet to decoder: Invalid data found when processing input"])
+            return tools.run_ffmpeg([c for c in cmd if c not in ("-bsf:a", "noise=drop=not(n)")], rt, None, low=True)   # (this ffmpeg may be too old)
+        self.assertEqual(prepare.prepare_one(self.c, self.row(self.one), FF, run=run, fix=True), "ready")
+        skip = [c for c in calls if "-bsf:a" in c]
+        self.assertEqual(len(skip), 1)
+        amap = lambda c: c[c.index("-map", c.index("-map") + 1) + 1]
+        self.assertEqual(amap(skip[0]), amap(calls[0]))                                              # the same (preferred) track, not another
+        self.assertEqual(calls[-1], skip[0])                                                          # and nothing else was needed after it
+
+    def test_a_failed_repair_keeps_its_reason_with_the_exit_code_and_the_revision(self):
+        one = self.row(self.one)
+        prepare.want_sound_fix(self.c, one["id"])
+        run = lambda cmd, rt: tools.FFResult(1, ["line a", "line b", "line c", "line d"])
+        self.assertEqual(prepare.prepare_one(self.c, self.row(self.one), FF, run=run, fix=True), "failed")
+        why = self.c.execute("SELECT why FROM prepared WHERE media_id=?", (one["id"],)).fetchone()[0]
+        self.assertTrue(why.startswith(prepare._repair_tag() + "ffmpeg exit 1: "), why)
+        self.assertIn("line b | line c | line d", why)
+        self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))              # failed with these methods: not again at once
+
+    def test_the_command_can_skip_the_first_sound_packet_and_stop_early(self):
+        c = prepare.command("ffmpeg", "a.mp4", "o.mp4", "h264", "aac", skip_first=True, limit=30, tolerant=True)
+        self.assertLess(c.index("-bsf:a"), c.index("-i"))                       # an input option
+        self.assertEqual(c[c.index("-t") + 1], "30")
+        self.assertLess(c.index("-t"), c.index("-f"))
+        plain = prepare.command("ffmpeg", "a.mp4", "o.mp4", "h264", "aac")
+        self.assertNotIn("-bsf:a", plain)
+        self.assertNotIn("-t", plain)
 
     def test_switched_off_makes_nothing_and_serves_the_original(self):
         self.settings.write_text(json.dumps({"audio_lang": ""}))

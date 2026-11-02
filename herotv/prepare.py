@@ -19,6 +19,12 @@ from . import library, tools, work
 FOLDER = ".prepared"
 _OURS = re.compile(r"\d+-\d+\.(?:mp4|part)")             # the only file names this module ever makes (or deletes)
 RETRY_FAILED_S = 7 * 86400
+REPAIR_REV = 2                             # raise it when the sound repair gets new methods: a repair that failed under an older
+                                           # revision is tried again the next time that video stops (nothing else retries it for a week)
+
+
+def _repair_tag():
+    return f"[r{REPAIR_REV}] "
 SPARE_BYTES = 2 * 1024 ** 3                  # always leave this much free on the drive
 _state = {"folder": None, "running": False, "now": "", "done": 0, "blocked": False}
 _lock = threading.Lock()
@@ -125,15 +131,20 @@ def used_bytes(conn):
 
 
 # ---------- making copies ----------
-def command(ffmpeg, src, tmp, vcodec, acodec, amap="0:a:0?", tolerant=False, force_aac=False, channels=0, vopt=None):
+def command(ffmpeg, src, tmp, vcodec, acodec, amap="0:a:0?", tolerant=False, force_aac=False, channels=0, vopt=None,
+            skip_first=False, limit=0):
     """ffmpeg arguments: copy the picture into an .mp4; copy the sound when an .mp4 can hold it, else make AAC.
     Surround sound (more than 2 channels) is always mixed down to stereo AAC: some players drop the centre channel -
     the voices - when they play a 5.1 track on two speakers."""
     v = list(vopt) if vopt else ["-c:v", "copy"] + (["-tag:v", "hvc1"] if vcodec == "hevc" else [])   # Apple devices only play HEVC tagged this way
     a = ["-c:a", "copy"] if library.mp4_audio_ok(acodec) and not force_aac and channels <= 2 else ["-c:a", "aac", "-b:a", "192k", "-ac", "2"]
     tol = ["-err_detect", "ignore_err", "-max_error_rate", "1"] if tolerant else []
-    return [ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts", *tol, "-i", src, "-map", "0:V:0", "-map", amap,
-            *v, *a, "-sn", "-dn", "-max_muxing_queue_size", "9999", "-movflags", "+faststart", "-f", "mp4", str(tmp)]
+    # skip_first: drop the first sound packet before it is decoded (some files start with a 21-byte "priming" packet that
+    # no decoder accepts; needs an ffmpeg that takes -bsf on the input, 7.0 and newer - an older one just fails that attempt)
+    pre = ["-bsf:a", "noise=drop=not(n)"] if skip_first else []
+    cut = ["-t", str(limit)] if limit else []
+    return [ffmpeg, "-v", "error", "-stats", "-y", "-fflags", "+genpts", *tol, *pre, "-i", src, "-map", "0:V:0", "-map", amap,
+            *v, *a, "-sn", "-dn", "-max_muxing_queue_size", "9999", "-movflags", "+faststart", *cut, "-f", "mp4", str(tmp)]
 
 
 def _same_length(path, runtime, probe=None):
@@ -183,12 +194,13 @@ def want_sound_fix(conn, mid):
     m = conn.execute("SELECT size FROM media WHERE id=?", (mid,)).fetchone()
     if m is None:
         return False
-    p = conn.execute("SELECT status,src_size,mix,made FROM prepared WHERE media_id=?", (mid,)).fetchone()
+    p = conn.execute("SELECT status,src_size,mix,made,why FROM prepared WHERE media_id=?", (mid,)).fetchone()
     if p and (p["src_size"] or 0) == (m["size"] or 0):
         if p["status"] == "fix" or (p["status"] == "ready" and p["mix"] == 2):
             return False
-        if p["status"] == "failed" and p["mix"] == 2 and time.time() - (p["made"] or 0) < RETRY_FAILED_S:
-            return False                                     # a repair was tried and failed; not again at once
+        if (p["status"] == "failed" and p["mix"] == 2 and time.time() - (p["made"] or 0) < RETRY_FAILED_S
+                and (p["why"] or "").startswith(_repair_tag())):
+            return False                                     # a repair was tried and failed with these methods; not again at once
     conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes,alang,mix) VALUES(?,?,?,?,?,?,?,?,?)",
                  (mid, "", m["size"] or 0, "fix", "", int(time.time()), 0, "", 0))
     conn.commit()
@@ -239,8 +251,13 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False)
             ok, r = False, tools.FFResult(1, ["the original changed while the copy was being made"])
         if not ok:
             errs_ = [e for e in (getattr(r, "errors", None) or []) if e]
-            why_ = (f"ffmpeg exit {r.returncode}: " if getattr(r, "returncode", 0) else "") + (" | ".join(errs_[-3:]) if errs_ else
-                                                                                           "the copy came out shorter than the original")
+            why_ = (f"ffmpeg exit {r.returncode}: " if getattr(r, "returncode", 0) else "")
+            if getattr(r, "returncode", 1) == 0 and tmp.is_file():       # ffmpeg was content, the copy is not: say how it differs
+                q = (probe or library.probe)(str(tmp))
+                why_ += f"copy is {int((q or {}).get('runtime_s') or 0)} s long, the original {int(rt)} s | "
+            why_ += " | ".join(errs_[-3:]) if errs_ else "the copy came out shorter than the original"
+            if fix:
+                why_ = _repair_tag() + why_
             _discard(tmp)
             old = conn.execute("SELECT status,src_size FROM prepared WHERE media_id=?", (mid,)).fetchone()
             if old and old["status"] == "ready" and (old["src_size"] or 0) == size and has_copy(conn, mid, size):
@@ -270,6 +287,10 @@ def _rescue_sound(src, tmp, row, tracks, n, rt, run, ffmpeg, probe):
     (those moments are silent). Same approach as Fix (see launcher._rescue_sound)."""
     good = lambda res: res.returncode == 0 and tmp.is_file() and _same_length(tmp, rt, probe)
     last = None
+    _discard(tmp)
+    last = run(command(ffmpeg, src, tmp, row["vcodec"], row["acodec"], f"0:a:{n}?", tolerant=True, force_aac=True, skip_first=True), rt)
+    if good(last):                                     # only the first sound packet was bad: the right language, nothing lost
+        return True, last
     for t in tracks:
         if t["n"] == n:
             continue
