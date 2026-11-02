@@ -87,6 +87,22 @@ class IptvTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError):
             self.get(f"/iptv/{k}/channels.m3u")
 
+    def test_health_is_open_and_metrics_need_the_key(self):
+        h = json.loads(self.get("/health"))
+        self.assertTrue(h["ok"])
+        self.assertEqual(set(h), {"ok", "version", "uptime_s"})                    # nothing private
+        with self.assertRaises(urllib.error.HTTPError) as cm:
+            self.get("/metrics")
+        self.assertEqual(cm.exception.code, 404)                                  # live-TV key not set up: closed
+        iptv.set_enabled(True)
+        with self.assertRaises(urllib.error.HTTPError):
+            self.get("/metrics?key=wrongkeywrongkeywrong")
+        text = self.get(f"/metrics?key={iptv.key()}").decode()
+        self.assertIn("herotv_up 1", text)
+        self.assertIn("herotv_videos 1\n", text)
+        self.assertNotIn("Iron Man", text)
+        self.assertNotIn(self.d, text)
+
     @unittest.skipUnless(tools.find_tool("ffmpeg"), "needs ffmpeg")
     def test_live_stream_is_mpeg_ts(self):
         iptv.set_enabled(True)
