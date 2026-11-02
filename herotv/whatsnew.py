@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.28": [
+        "New in Settings > Appearance: Lettering. Choose Flat, Soft shadow, Satin or Glossy for the big titles (the station name and the featured title on Home). Smaller text stays flat so it is easy to read.",
+    ],
     "1.38.27": [
         "New in Settings > Appearance: a Font choice (Broadcast, Cinema, Classic guide, Modern streaming) and four new looks (Cool, Warm, HDR, Cinematic). The main colour picker is still there and works with every look. Fonts and looks also apply on paired phones.",
     ],

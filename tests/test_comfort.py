@@ -52,6 +52,14 @@ class Comfort(unittest.TestCase):
         self.assertEqual(SA.comfort({"font": "comic"})["font"], "broadcast")
         with self.assertRaises(ValueError):
             SA.update({"font": "comic"})
+        # the lettering finish added in 1.38.28
+        self.assertEqual(SA.comfort({})["finish"], "flat")
+        for fin in ("soft", "satin", "gloss"):
+            SA.update({"finish": fin})
+            self.assertEqual(SA.comfort(SA._load())["finish"], fin)
+        self.assertEqual(SA.comfort({"finish": "neon"})["finish"], "flat")
+        with self.assertRaises(ValueError):
+            SA.update({"finish": "neon"})
         for bad in ({"safe_margin": 7}, {"theme": "pink"}, {"night": {"on": True, "from": "10pm", "to": "07:00"}}):
             with self.assertRaises(ValueError):
                 SA.update(bad)

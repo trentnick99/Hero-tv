@@ -395,3 +395,9 @@ body[data-theme="hdr"]{--night:#03050a;--panel:#0f1530;--panel2:#1a2352;--line:#
 body[data-theme="hdr"] .hpic img,body[data-theme="hdr"] .ppic img,body[data-theme="hdr"] .pic img{filter:saturate(1.2) contrast(1.06)}
 body[data-theme="cinematic"]{--night:#050506;--panel:#101012;--panel2:#1a1a1d;--line:#2c2c30;--text:#e9e6df;--mute:#8d8a85}
 body[data-theme="cinematic"] .hpic img,body[data-theme="cinematic"] .ppic img,body[data-theme="cinematic"] .pic img{filter:saturate(.88) contrast(1.04)}
+
+/* lettering finish (1.38.28): only the station name and the big Home / Guide titles; small text stays flat */
+body[data-finish="soft"] :is(.top h2,.tl.hero h1,#detail h3){text-shadow:0 .4vh 1.4vh rgba(0,0,0,.85),0 .1vh .2vh rgba(0,0,0,.9)}
+body[data-finish="satin"] :is(.top h2,.tl.hero h1,#detail h3){color:transparent;background:linear-gradient(180deg,#fff 0,#e4e1db 40%,#a29f99 100%);-webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 .4vh .7vh rgba(0,0,0,.8))}
+body[data-finish="gloss"] :is(.top h2,.tl.hero h1,#detail h3){color:transparent;background:linear-gradient(180deg,#fff 0,#f3f1ee 46%,#a9afb8 50%,#69707b 100%);-webkit-background-clip:text;background-clip:text;-webkit-box-reflect:below -.2vh linear-gradient(transparent 52%,rgba(255,255,255,.28));filter:drop-shadow(0 .25vh .5vh rgba(0,0,0,.7))}
+body[data-finish="gloss"] .tl.hero h1{margin-bottom:2.8vh}
