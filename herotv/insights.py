@@ -141,6 +141,33 @@ def _episode_name(r):
 
 
 # ---------- the same video twice ----------
+KEPT = "dup_kept"
+
+
+def _kept(conn):
+    r = conn.execute("SELECT value FROM prefs WHERE key=?", (KEPT,)).fetchone()
+    try:
+        return {str(x) for x in json.loads(r[0])} if r else set()
+    except ValueError:
+        return set()
+
+
+def _gkey(ids):
+    return ",".join(str(i) for i in sorted(int(i) for i in ids))
+
+
+def keep_both(conn, ids):
+    """'These are different': this group of files is not listed as a duplicate any more. If another copy of the same
+    thing turns up later (the group changes), it is listed again."""
+    ids = [int(i) for i in ids if str(i).isdigit()]
+    if len(ids) < 2:
+        raise ValueError("Nothing to keep.")
+    k = _kept(conn)
+    k.add(_gkey(ids))
+    conn.execute("INSERT INTO prefs(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (KEPT, json.dumps(sorted(k))))
+    conn.commit()
+
+
 def duplicates(conn):
     """Groups of files that are the same film (title + year) or the same episode (show + season + episode).
     The best copy (plays here, then biggest) comes first and is marked keep."""
@@ -157,8 +184,9 @@ def duplicates(conn):
             continue                                  # no year: too easy to mistake two different films
         groups.setdefault(k, {"name": name, "copies": []})["copies"].append(r)
     out = []
+    kept = _kept(conn)
     for g in groups.values():
-        if len(g["copies"]) < 2:
+        if len(g["copies"]) < 2 or _gkey(c["id"] for c in g["copies"]) in kept:
             continue
         mins = [c["runtime_s"] for c in g["copies"] if c["runtime_s"]]
         if len(mins) > 1 and max(mins) > 1.5 * min(mins):

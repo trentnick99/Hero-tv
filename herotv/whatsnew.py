@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.14": [
+        "New: under \"The same video twice\" each group has a Keep both button. Press it when the files are really different (like episodes filed under the wrong season) and the group disappears from the list. If another copy of the same thing turns up later, it is listed again.",
+    ],
     "1.38.13": [
         "Fixed: \"The same video twice\" no longer lists episodes that only share a number. Two files with different episode names (or in different Season folders) are different episodes that were filed wrongly, not copies - so you will not be asked to set one aside.",
         "Fixed: after an update, an old HERO TV window that was still open could fail to start from the update's backup folder. It now closes itself, and starting the old program from there starts the new one instead.",

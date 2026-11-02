@@ -1213,6 +1213,12 @@ def make_handler(app, remote=False):
                         prepare.clear(c)
                         S.extend_all(c, time.time(), app.horizon(), rebuild=True, tz=app.tz)
                 return self.send_json(prepare.status(c))
+            if p == "dupkeep" and method == "POST":           # "keep both": these files are not twins
+                try:
+                    insights.keep_both(c, self.body().get("ids") or [])
+                except ValueError as e:
+                    return self.send_json({"error": str(e)}, 400)
+                return self.send_json({"ok": True})
             if p == "tidy":                                   # HERO TV's own leftovers (PC only; never videos)
                 from . import housekeeping
                 from .launcher import app_data_dir

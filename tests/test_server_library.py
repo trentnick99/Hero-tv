@@ -85,6 +85,10 @@ class LibraryAndServer(unittest.TestCase):
         self.assertEqual(s, 200)
         self.assertEqual(sorted(os.listdir(f"{self.root}/MCU")), before)
 
+    def test_keep_both_needs_two_files(self):
+        s, b, _ = self.get("/api/dupkeep", data={"ids": [1]})
+        self.assertEqual(s, 400)
+
     def test_ac3_never_scheduled(self):
         s, b, _ = self.get("/api/guide?hours=1")
         titles = {x["title"] for ch in json.loads(b)["channels"] for x in ch["slots"]}

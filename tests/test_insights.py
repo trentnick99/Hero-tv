@@ -109,6 +109,19 @@ class InsightTests(unittest.TestCase):
         self.assertEqual(d[0]["extra"], 9_000_000_000)
 
 
+    def test_keep_both_hides_the_group_until_it_changes(self):
+        self.add("Same Name", "Show B", 1, 3, "Show B")
+        self.add("Same Name", "Show B", 1, 3, "Show B")
+        g = insights.duplicates(self.c)[0]
+        ids = [x["id"] for x in g["copies"]]
+        insights.keep_both(self.c, ids)
+        self.assertEqual(insights.duplicates(self.c), [])
+        self.add("Same Name", "Show B", 1, 3, "Show B")                                       # a third copy turns up: listed again
+        self.assertEqual(len(insights.duplicates(self.c)[0]["copies"]), 3)
+        with self.assertRaises(ValueError):
+            insights.keep_both(self.c, [1])
+
+
 class AsideTests(unittest.TestCase):
     def test_set_aside_job_moves_into_originals(self):
         import threading

@@ -906,10 +906,12 @@ function drawToolsRaw(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div
    c.append(q,res);main.append(c)}
  { const c=tCard("Missing episodes",t.shows?`Checks each of your ${t.shows} show(s) against TMDB's episode lists and tells you which aired episodes you do not have. A show's Details screen shows this too.`:"No shows in your library yet.");
    if(t.shows){const b=sBtn("Check my shows",()=>runJob({name:"missing"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
- { const d=t.duplicates||[],c=tCard("The same video twice",d.length?`${d.length} film(s) or episode(s) are here more than once - ${gb(d.reduce((a,g)=>a+g.extra,0))} of extra copies. The best copy is marked keep; Set aside moves another one into the hidden .originals folder (Free space deletes it for good).`:"No video is in your library twice.");
+ { const d=t.duplicates||[],c=tCard("The same video twice",d.length?`${d.length} film(s) or episode(s) are here more than once - ${gb(d.reduce((a,g)=>a+g.extra,0))} of extra copies. The best copy is marked keep; Set aside moves another one into the hidden .originals folder (Free space deletes it for good). If they are really different episodes, press Keep both.`:"No video is in your library twice.");
    for(const g of d.slice(0,8)){const r=el("div","ibx");r.append(el("b",0,g.name));
     for(const cp of g.copies){const row=el("div","sbar"),txt=el("small",0,`${cp.folder} / ${cp.file}  -  ${gb(cp.size)}${cp.plays?"":"  -  does not play here"}`);
-     if(cp.keep){row.append(el("span","keep","Keep"),txt)}else{const b=sBtn("Set aside",()=>runJob({name:"aside",media_id:cp.id},b));row.append(b,txt)}r.append(row)}c.append(r)}
+     if(cp.keep){row.append(el("span","keep","Keep"),txt)}else{const b=sBtn("Set aside",()=>runJob({name:"aside",media_id:cp.id},b));row.append(b,txt)}r.append(row)}
+    { const kb=sBtn("Keep both - these are different",async()=>{try{await pj("/api/dupkeep",{ids:g.copies.map(x=>x.id)});tData=null;sMsg("Kept both. They are not listed here any more.","ok");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}});const kr=el("div","sbar");kr.append(kb);r.append(kr) }
+    c.append(r)}
    if(d.length>8)c.append(el("small",0,`...and ${d.length-8} more. Set these aside first, then come back.`));main.append(c)}
  { const c=tCard("iPhone-friendly copies",t.not_phone?`${t.not_phone} video(s) cannot play on an iPhone as they are (usually .mkv files). This makes .mp4 copies that play on phones, the PC and over AirPlay - normally quick, because the picture is copied, not re-encoded. Originals are kept, and so are resume points and favorites.`:"Every video can play on an iPhone.");
    if(t.not_phone){const b=sBtn("Make iPhone-friendly copies",()=>runJob({name:"phone"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
