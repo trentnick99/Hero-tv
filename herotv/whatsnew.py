@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.26": [
+        "Cleaned up: the 'Up next' card no longer sits under the menu bar that appears when you move the mouse, and on a phone it is wider so the show name is not squeezed. The arrow next to the groups in Settings > Tools now lines up with the text.",
+    ],
     "1.38.25": [
         "Continue watching no longer lists videos you got most of the way through (90% or more). To take any other video off it yourself, select it and press X on Home, or F6 in the Library's Continue watching list.",
     ],
