@@ -149,6 +149,7 @@ def _record(conn, mid, status, size, file="", why_="", nbytes=0, alang="", mix=0
     conn.commit()
 
 
+_said_room = set()                                         # videos whose "no room" was already written to the log
 _ORIG = {}                                                 # video path -> saved original that has the preferred language ('' = none)
 
 
@@ -246,6 +247,7 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False)
                 conn.commit()
             else:
                 _record(conn, mid, "failed", size, why_=why_, mix=2 if fix else 0)
+            print(f"{'Sound repair' if fix else 'Ready copy'} of {os.path.basename(src)} failed: {why_[:200]}", flush=True)
             return "failed"
         os.replace(tmp, final)
         _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang, mix=2 if fix else 1)
@@ -397,6 +399,10 @@ def run_once(conn, ffmpeg, media_dir="", run=None, probe=None):
         if free < need:
             with _lock:
                 _state["now"] = ""
+            if r["id"] not in _said_room:                  # say it once in the log: a repair that waits for room looks like nothing happening
+                _said_room.add(r["id"])
+                print(f"Ready copy of {os.path.basename(r['path'])} waits: only {free / 1024 ** 3:.1f} GB free, "
+                      f"{need / 1024 ** 3:.1f} GB needed (2 GB are always kept spare).", flush=True)
             continue                                       # not enough room for this one: maybe a smaller one fits
         with _lock:
             _state["now"] = os.path.basename(r["path"])

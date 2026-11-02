@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.3": [
+        "Settings > Report a problem now says what became of the repair of a video that would not play: waiting in line, failed (and why), or ready - plus how much room is left on the drive for ready copies. HERO TV also writes a line in its log when a repair or copy fails or has to wait for room.",
+    ],
     "1.38.2": [
         "The big picture at the top of Home is sharper and brighter: HERO TV now makes a larger still of the video for it (the first time you open Home with a new video there, it takes a moment).",
         "An episode whose file name had only download tags after the episode number (like 'S03E08 1080p AMZN') is now called 'Episode 8' instead of showing the tags.",

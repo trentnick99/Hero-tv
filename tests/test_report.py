@@ -81,6 +81,28 @@ class ReportTests(unittest.TestCase):
         report.PLAY_ERRORS.clear()
         self.assertIn("Videos that failed to start: none", report.build(self.c, self.cfg))
 
+    def test_report_says_what_became_of_the_repair_of_a_failed_video(self):
+        v = os.path.join(self.d, "Spider Man 2.mp4")
+        self.c.execute("INSERT INTO media(path,title,franchise,series,season,episode,verified,playable,available,vcodec,acodec,atracks,ord,size) "
+                       "VALUES(?,?,?,?,?,?,1,1,1,'h264','aac','eng*,hin',1,500)", (v, "Spider Man 2", "Movies", "", 0, 0))
+        mid = self.c.execute("SELECT id FROM media").fetchone()[0]
+        self.c.commit()
+        report.PLAY_ERRORS.clear()
+        self.addCleanup(report.PLAY_ERRORS.clear)
+        report.play_error(mid, "player error 3: PIPELINE_ERROR_DECODE: Failed to send audio packet for decoding")
+        self.assertIn("ready copy / repair: none, and nothing is queued for it", report.build(self.c, self.cfg))
+        self.c.execute("INSERT INTO prepared(media_id,file,src_size,status,why,made,bytes,alang,mix) VALUES(?,?,?,?,?,?,?,?,?)",
+                       (mid, "", 500, "fix", "", 1000, 0, "", 0))
+        self.c.commit()
+        self.assertIn("sound repair is waiting in line", report.build(self.c, self.cfg))
+        self.c.execute("UPDATE prepared SET status='failed', why='the copy came out shorter than the original', mix=2")
+        self.c.commit()
+        t = report.build(self.c, self.cfg)
+        self.assertIn("repair FAILED at", t)
+        self.assertIn("the copy came out shorter than the original", t)
+        self.assertIn("Ready-copy maker:", t)
+        self.assertIn("1 failed copies remembered", t)
+
     def test_home_folder_and_user_name_are_hidden(self):
         home = os.path.expanduser("~")
         (Path(self.d) / "herotv.log").write_text(f"opened {home}{os.sep}Videos\n")

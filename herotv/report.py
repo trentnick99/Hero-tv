@@ -71,6 +71,33 @@ def _tail(path, n):
         return []
 
 
+def _copy_state(c, mid):
+    """What became of the ready copy / sound repair of one video (the player's own words say nothing about it)."""
+    pr = c.execute("SELECT p.status,p.mix,p.why,p.made,p.src_size,m.size FROM prepared p JOIN media m ON m.id=p.media_id WHERE p.media_id=?",
+                   (mid,)).fetchone()
+    if pr is None:
+        return "none, and nothing is queued for it"
+    if (pr["src_size"] or 0) != (pr["size"] or 0):
+        return "an old one for a different version of the file (ignored)"
+    kind = "repair" if pr["mix"] == 2 else "copy"
+    when = time.strftime("%H:%M", time.localtime(pr["made"] or 0))
+    if pr["status"] == "fix":
+        return f"sound repair is waiting in line (asked at {when})"
+    if pr["status"] == "failed":
+        return f"{kind} FAILED at {when}: {pr['why'] or 'no reason kept'}"
+    return f"{kind} ready (made {when})"
+
+
+def _maker_state(c):
+    """The background maker of ready copies: is it on, busy, short of room, held back by the size limit?"""
+    from . import prepare
+    s = prepare.status(c)
+    free = f"{s['free'] / 1024 ** 3:.1f} GB free on the copies drive" if s.get("free") is not None else "free space unknown"
+    cap = f"size limit {s['cap_gb']} GB" + (" (reached: no NEW copies)" if s["blocked"] else "") if s["cap_gb"] else "no size limit"
+    return (f"Ready-copy maker: {'on' if s['on'] else 'OFF'}, {'working on ' + s['working'] if s['working'] else 'idle'}, "
+            f"{free} (it keeps 2 GB spare), {cap}, {s['failed']} failed copies remembered")
+
+
 def build(c, cfg, note="", lan=False, dlna_on=False, page=""):
     """The report as plain text."""
     from . import art, inbox, tools
@@ -166,6 +193,9 @@ def build(c, cfg, note="", lan=False, dlna_on=False, page=""):
                 add(f"    track {t['n'] + 1}: {t['lang']} {t['codec']} {t['channels']} ch{' default' if t['default'] else ''}")
             d = prepare.delivery(c, mid, "browser")
             add("    the browser was given: " + (("the ready copy" if d[0] != r["path"] else "the original file") if d else "?"))
+            add("    ready copy / repair: " + _copy_state(c, mid))
+        if PLAY_ERRORS:
+            add("  " + _maker_state(c))
     except Exception as e:
         add(f"  could not be read ({e})")
     add("")
