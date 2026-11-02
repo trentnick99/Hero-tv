@@ -154,7 +154,7 @@ class DroppedFiles(unittest.TestCase):
         junk = Path(d) / "notes.txt"
         junk.write_text("x")
         said = []
-        with mock.patch("shutil.disk_usage", return_value=mock.Mock(free=10 * 1024 ** 4)):
+        with mock.patch("shutil.disk_usage", return_value=mock.Mock(free=10 * 1024 ** 4)), mock.patch.object(nativewin.time, "sleep"):
             n = nativewin.add_dropped([str(film), str(junk), str(Path(d) / "missing.mp4")], said.append, cfg)
         self.assertEqual(n, 1)
         self.assertIn("1 video added", said[0])

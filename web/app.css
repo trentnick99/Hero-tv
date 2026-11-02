@@ -88,7 +88,7 @@ body.coarse .hints{display:none}     /* keyboard hints mean nothing on a touch s
 #nextep{position:fixed;right:3vw;bottom:6vh;z-index:92;display:none}#nextep.on{display:block}
 #nextep .card{background:var(--night);border:1px solid var(--accent,#ffcf1f);border-radius:1.4vh;padding:2vh 1.8vw;display:flex;flex-direction:column;gap:1vh;min-width:30vw;box-shadow:0 1vh 4vh #000a}
 #nextep small{color:var(--mute);font-size:calc(1.8vh*var(--tx))}#nextep h3{margin:0;font-size:calc(2.6vh*var(--tx))}#ne-c{font-size:calc(2vh*var(--tx));color:var(--mute)}
-#dropz{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:#000c;color:#fff;font-size:4vh;font-weight:800;text-align:center;border:.6vh dashed var(--accent,#ffcf1f);margin:2vh;border-radius:2vh}#dropz.on{display:flex}#dropz small{display:block;font-size:2vh;font-weight:400;opacity:.8;margin-top:1vh}
+#dropz{position:fixed;inset:0;z-index:90;display:none;align-items:center;justify-content:center;background:#0003;pointer-events:none;color:#fff;font-size:4vh;font-weight:800;text-align:center;border:.6vh dashed var(--accent,#ffcf1f);margin:2vh;border-radius:2vh}#dropz>div{background:#000d;padding:2.4vh 3vw;border-radius:2vh}#dropz.on{display:flex}#dropz small{display:block;font-size:2vh;font-weight:400;opacity:.8;margin-top:1vh}
 #settings{background:var(--night);padding:3.5vh 3vw 3vh;flex-direction:column;gap:1.6vh}#settings.on{display:flex}
 body.alerting #settings{padding-top:9.1vh}
 #st-body{flex:1;min-height:0;display:grid;grid-template-columns:22vw 1fr;gap:2.4vw}

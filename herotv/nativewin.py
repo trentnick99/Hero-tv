@@ -3,6 +3,7 @@ Runs as its own small process: `HERO-TV.exe window <address>`. If it cannot open
 import importlib.util
 import os
 import sys
+import time
 
 IS_WIN = sys.platform.startswith("win")
 NIGHT = "#090b13"
@@ -38,6 +39,20 @@ def stay_home(win, url):
     watch_drops(win)
 
 
+class Gentle:
+    """A file that is read a little slower than the disk allows, so a big copy does not freeze the movie that is playing."""
+    PAUSE = 0.012                    # seconds after each megabyte: about 60-80 MB/s at most
+
+    def __init__(self, fh):
+        self.fh = fh
+
+    def read(self, n):
+        b = self.fh.read(n)
+        if b:
+            time.sleep(self.PAUSE * max(1, len(b) // (1 << 20)))
+        return b
+
+
 def add_dropped(paths, say, cfg=None):
     """Copy dropped video files into the Inbox (the same safe copy the page's own drop uses). Returns how many went in."""
     from . import inbox
@@ -49,7 +64,7 @@ def add_dropped(paths, say, cfg=None):
             if not os.path.isfile(p):
                 raise ValueError("not a file")
             with open(p, "rb") as fh:
-                inbox.save_stream(cfg, os.path.basename(p), fh, os.path.getsize(p))
+                inbox.save_stream(cfg, os.path.basename(p), Gentle(fh), os.path.getsize(p))
             done += 1
         except (OSError, ValueError, ConnectionError):
             bad += 1

@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.18": [
+        "Dropping a big video on HERO TV's window no longer dims the picture so much, and the copy into your Inbox is a little gentler on the disk, so the movie you are watching is less likely to freeze while it is added.",
+    ],
     "1.38.17": [
         "Dropping a video on HERO TV's own window now adds it: the window copies it into your Inbox itself, and the \"drop videos here\" sign can no longer get stuck over the picture (it goes away by itself, or on any key or click). Your original file stays where it was.",
     ],
