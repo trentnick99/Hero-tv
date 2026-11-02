@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.29": [
+        "Lettering: a long title that wraps onto two lines now shines evenly on both lines, and the Glossy reflection is shorter so it stays clear of the text under it.",
+    ],
     "1.38.28": [
         "New in Settings > Appearance: Lettering. Choose Flat, Soft shadow, Satin or Glossy for the big titles (the station name and the featured title on Home). Smaller text stays flat so it is easy to read.",
     ],
