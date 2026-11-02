@@ -149,6 +149,9 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
     media = os.path.abspath(str(cfg.media_dir))
     work.batch(len(ready), 0)
     for src in ready:
+        if launcher.is_busy(src):                     # already being converted by something else: not a second try, not a log line
+            out["left"] += 1
+            continue
         work.begin("inbox", os.path.basename(src))
         work.stage(work.FIRST)
         result = "left in the Inbox"

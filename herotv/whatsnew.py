@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.20": [
+        "A quieter log: a video that is already being converted is no longer tried again every few seconds (no more repeated \"already being fixed\" lines), and a Roku TV that cannot be reached is mentioned once instead of on every retry. Nothing changes in how things work.",
+    ],
     "1.38.19": [
         "When a video you added cannot be placed on any channel, a quiet \"needs a channel\" shortcut now shows in the More row on Home. Nothing pops up and nothing is interrupted; it takes you to the Inbox, where you pick a channel for it.",
     ],

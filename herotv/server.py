@@ -1893,6 +1893,7 @@ def roku_keeper(app, first=90, every=6 * 3600, retry=1800):
     on it right now (installing closes the app): while one is waiting it tries every half hour."""
     def loop():
         time.sleep(first)
+        told = {}
         while True:
             pending = False
             try:
@@ -1910,7 +1911,10 @@ def roku_keeper(app, first=90, every=6 * 3600, retry=1800):
                         print(f"Roku TV app updated on {tv.get('name') or tv['ip']} ({why}).", flush=True)
                     except Exception as e:
                         pending = True
-                        print(f"Roku TV app on {tv.get('name') or tv['ip']} not updated yet: {e}", flush=True)
+                        key = tv.get("name") or tv["ip"]
+                        if told.get(key) != str(e):                # say it once, not on every retry
+                            told[key] = str(e)
+                            print(f"Roku TV app on {key} not updated yet: {e}", flush=True)
                     finally:
                         c.close()
             except Exception as e:

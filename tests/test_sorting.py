@@ -41,6 +41,26 @@ class LooseFileTests(unittest.TestCase):
         self.assertTrue(Path(d, "MCU", "Thor (2011).mp4").exists())
         self.assertEqual(inbox.waiting(cfg), 1)
 
+    def test_a_video_being_converted_right_now_is_left_alone_without_a_second_try(self):
+        from herotv import launcher
+        d = tempfile.mkdtemp()
+        cfg = _cfg(d)
+        f = Path(d, "Iron Man (2008).mp4")
+        f.write_bytes(b"x" * 10)
+        old = time.time() - 600
+        os.utime(f, (old, old))
+        got = []
+        place = lambda src, picked, media, force_move=False: got.append(src) or True
+        seen = {}
+        inbox.run_once(cfg, seen, place=place, facts=lambda s: None)
+        with launcher._Claim(str(f)) as mine:
+            self.assertTrue(mine)
+            r = inbox.run_once(cfg, seen, place=place, facts=lambda s: None)
+        self.assertEqual(got, [])
+        self.assertEqual(r["filed"], [])
+        r = inbox.run_once(cfg, seen, place=place, facts=lambda s: None)          # once it is free, it is filed as usual
+        self.assertEqual(len(got), 1)
+
     def test_move_in_keeps_a_shows_folder_together(self):
         d = tempfile.mkdtemp()
         cfg = _cfg(d)

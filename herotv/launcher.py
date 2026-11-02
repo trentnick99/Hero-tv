@@ -594,6 +594,12 @@ def _ffmpeg_failed(r, what="convert this file"):
 _busy, _busy_lock = set(), threading.Lock()
 
 
+def is_busy(path):
+    """Is this file being converted right now (by anything)?"""
+    with _busy_lock:
+        return os.path.normcase(os.path.abspath(path)) in _busy
+
+
 class _Claim:
     """One conversion per file at a time: the Inbox watcher, Fix and Fix all can otherwise pick up the same file
     together, write the same temporary file and leave a damaged copy (seen with Logan (2017).mkv in 1.29.2)."""
