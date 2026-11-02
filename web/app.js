@@ -165,7 +165,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(v.src&&!v.paused&&v.readyState>=2&&v.currentTime>3&&v.videoWidth===0){if(++nopic>=3){nopic=0;const id=vod?vod.id:slot&&slot.media_id;
    if(id){post("/api/report-error",{media_id:id,reason:"no-picture"});msg("This video has sound but no picture","Its video format cannot be shown here, so it is skipped. Settings > Tools > Videos that are skipped can fix it.");setTimeout(()=>{msg("");tune(ci)},5e3)}}}else nopic=0;
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
-setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.95})},1e4);
+setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.9})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
 const NEED_API=19;   /* must match API_LEVEL in herotv/config.py */
 let libV=null,toastT;
@@ -230,9 +230,9 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  const tuneTo=i=>{closeAll();tune(i)},pct=(a,b)=>b>0?Math.max(0,Math.min(1,a/b)):0;
  const liveCard=x=>({k:"card",t:label(x.s),s:`${x.c.number} ${x.c.name}`,img:x.s.media_id,plate:x.c.number,live:c&&x.c.id===c.id,pct:pct(nowS()-x.s.start,x.s.end-x.s.start),
   go:()=>{const i=chans.findIndex(k=>k.id===x.c.id);if(i>=0)tuneTo(i);else closeAll()}});
- const vodCard=it=>({k:"card",t:it.show?it.title:label(it),s:it.position>10?`${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":""),img:it.id,pct:it.position>10?pct(it.position,it.runtime_s):0,go:()=>startVod(it)});
+ const vodCard=it=>({k:"card",t:it.show?it.title:label(it),s:it.position>10?`${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":""),img:it.id,pct:it.position>10?pct(it.position,it.runtime_s):0,go:()=>startVod(it)}),contCard=it=>Object.assign(vodCard(it),{cid:it.id});
  const more=(t,go)=>({k:"card",more:1,t,s:"",go});
- const hero=d.cont?{k:"hero",kick:"Continue watching",t:label(d.cont),s:`${hms(d.cont.position)} in`,img:d.cont.id,pct:pct(d.cont.position,d.cont.runtime_s),btn:"Resume",ic:"resume",go:()=>startVod(d.cont)}
+ const hero=d.cont?{k:"hero",kick:"Continue watching",t:label(d.cont),s:`${hms(d.cont.position)} in`,cid:d.cont.id,img:d.cont.id,pct:pct(d.cont.position,d.cont.runtime_s),btn:"Resume",ic:"resume",go:()=>startVod(d.cont)}
   :c?{k:"hero",kick:`On now · channel ${c.number}`,t:slot?label(slot):c.name,s:c.name,img:slot&&slot.media_id,btn:"Watch live",ic:"live",go:()=>closeAll()}
   :{k:"hero",kick:"Welcome",t:theme.name,s:"Pick something from your library",btn:"Open library",ic:"search",go:()=>{closeAll();openLib()}};
  rows.push({hero:1,items:[hero]});
@@ -240,7 +240,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(d.special){const x=d.special,w=x.s.start<=nowS();on.unshift({k:"card",t:x.s.block,s:`${w?"On now":"Starts "+dayWord(x.s.start)}, channel ${x.c.number}`,img:x.s.media_id,plate:x.c.number,special:1,
   go:()=>{const i=chans.findIndex(k=>k.id===x.c.id);if(i>=0)tuneTo(i)}})}
  if(on.length)rows.push({title:"On now",sub:"Pick a channel",items:on});
- if(d.contList&&d.contList.length)rows.push({title:"Continue watching",items:[...d.contList.map(vodCard),more("See all",()=>{closeAll();openLib("continue")})]});
+ if(d.contList&&d.contList.length)rows.push({title:"Continue watching",items:[...d.contList.map(contCard),more("See all",()=>{closeAll();openLib("continue")})]});
  if(d.recentList&&d.recentList.length)rows.push({title:"New in your library",sub:`${d.recentN} new`,items:[...d.recentList.map(vodCard),more("See all",()=>{closeAll();openLib("recent")})]});
  if(d.favList&&d.favList.length)rows.push({title:"Favorites",items:[...d.favList.map(vodCard),more("See all",()=>{closeAll();openLib("favorites")})]});
  const sp=d.setup,ch=[];
@@ -281,12 +281,14 @@ function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.sty
   row.items.forEach((t,c)=>{const n=homeNode(t),i=homeList.length;t.n=n;t.r=r;t.c=c;homeList.push(t);host.append(n);n.onclick=()=>{homeSel(i);t.go();if(t.stay)drawHome()}})});
  hi=Math.max(0,Math.min(hi,homeList.length-1));homeSel(hi,true);box.scrollTop=top;if(homeList[hi]&&homeList[hi].r)homeSel(hi,true);requestAnimationFrame(()=>{box.style.scrollBehavior=""})}
 let homeList=[];
+async function clearCont(id){try{await post("/api/progress",{media_id:id,position:0,completed:true});toast("Taken off Continue watching.");await loadHome();drawHome()}catch(e){toast("Could not clear that one.")}}
 function homeKey(e){const k=e.key;
  if(k==="Escape"||k==="Backspace"||k==="h"||k==="H"||k==="Home"){e.preventDefault();return closeAll()}
  if(k==="?"||k==="F1"){e.preventDefault();return openHelp("home")}
  if(k==="s"||k==="S"){return cycleSleep()}
  if(k==="t"||k==="T"){return setBig(!document.body.classList.contains("big"),true)}
  const cur=homeList[hi];if(!cur)return;
+ if((k==="x"||k==="X"||k==="F6")&&cur.cid){e.preventDefault();return clearCont(cur.cid)}
  const at=(r,c)=>{const row=homeList.filter(t=>t.r===r);return row.length?homeList.indexOf(row[Math.max(0,Math.min(c,row.length-1))]):-1};
  if(k==="ArrowRight"||k==="ArrowLeft"){e.preventDefault();const i=at(cur.r,cur.c+(k==="ArrowRight"?1:-1));if(i>=0)homeSel(i)}
  else if(k==="ArrowDown"||k==="ArrowUp"){e.preventDefault();const r=cur.r+(k==="ArrowDown"?1:-1),i=at(r,cur.c);if(i>=0)homeSel(i)}
@@ -332,7 +334,7 @@ function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent
   if(h.inbox_waiting)row(false,`${h.inbox_waiting} video(s) are waiting in the Inbox folder.`,"HERO TV files them by itself once they have finished copying. Ones it cannot place wait for you in Settings > Tools > Inbox - pick a channel (or make a new one) there.");
   row(true,"Your videos are in: "+h.media_dir,"Settings > Media library > Open media folder.")}
  R.append(el("h3",0,"Keys"));const t=el("table");
- for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles: off / each language"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"],["R (in the guide)","Remind me when that show starts"],["M (in Details)","Move a video to another channel"],["? or F1","This help"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
+ for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["X (F6 in Library)","Take a video off Continue watching"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles: off / each language"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"],["R (in the guide)","Remind me when that show starts"],["M (in Details)","Move a video to another channel"],["? or F1","This help"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
  R.append(t);
  L.append(el("h3",0,"Where to find things"));const w=el("table");w.className="where";
  for(const[a,b]of[["Settings > Channels > a channel","Play order, start times (with shorts and Up next), breaks inside shows, time slots"],
@@ -421,7 +423,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
 function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
 function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
-async function openLib(v0){showCtx=null;layer="lib";show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
+async function openLib(v0){showCtx=null;layer="lib";show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
 function closeAll(){layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
@@ -576,6 +578,7 @@ addEventListener("keydown",e=>{const k=e.key;
   if(k==="F2"&&items[li]&&items[li].show){e.preventDefault();return toast("Open the show first, then press F2 on an episode.")}
   if(k==="F2"&&items[li]){e.preventDefault();const it=items[li],on=!it.favorite;it.favorite=on?1:0;post("/api/favorite",{media_id:it.id,on});counts.favorites+=on?1:-1;
    if(view==="favorites"&&!on){items.splice(li,1);li=Math.min(li,items.length-1)}drawList();return}
+  if(k==="F6"&&items[li]&&!items[li].show&&view==="continue"){e.preventDefault();const it=items[li];post("/api/progress",{media_id:it.id,position:0,completed:true});items.splice(li,1);li=Math.max(0,Math.min(li,items.length-1));counts.continue=Math.max(0,counts.continue-1);toast("Taken off Continue watching.");drawList();return}
   if(k==="F8"&&items[li]){e.preventDefault();return openInfo()}
   if(k==="Escape"||k==="Backspace"&&!$("#q").value){if(showCtx){e.preventDefault();leaveShow()}else closeAll()}else if(k==="ArrowDown")mv(cols);else if(k==="ArrowUp")mv(-cols);
   else if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);else if(k==="Enter"&&items[li])playOrOpen(items[li]);return}

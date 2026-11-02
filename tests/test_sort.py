@@ -73,5 +73,13 @@ class FavoritesTests(unittest.TestCase):
         self.assertEqual(get("/api/library")["counts"], {"continue": 1, "favorites": 1, "recent": 0})
         post("/api/favorite", {"media_id": a, "on": False})
         self.assertEqual(get("/api/library?view=favorites")["items"], [])
+        # nearly finished (90% or more) counts as watched: it drops off Continue watching, and so does a video cleared by hand
+        post("/api/progress", {"media_id": b, "position": 545, "completed": False})
+        self.assertEqual(get("/api/library?view=continue")["items"], [])
+        self.assertEqual(get("/api/library")["counts"]["continue"], 0)
+        post("/api/progress", {"media_id": a, "position": 100, "completed": False})
+        self.assertEqual([i["title"] for i in get("/api/library?view=continue")["items"]], ["A"])
+        post("/api/progress", {"media_id": a, "position": 0, "completed": True})
+        self.assertEqual(get("/api/library?view=continue")["items"], [])
         with self.assertRaises(Exception):
             get("/api/library?view=bogus")

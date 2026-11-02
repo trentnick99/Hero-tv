@@ -104,7 +104,7 @@ def rows(c, now, q=""):
         tiles = _grouped(found)[:ROW_MAX]
         return {"rows": [{"title": f"Results for \"{q}\"" if tiles else f"Nothing found for \"{q}\"", "items": tiles}]}
     out = []
-    cont = c.execute("SELECT " + COLS + FROM + " AND p.position>10 AND p.completed=0 ORDER BY p.updated DESC LIMIT ?",
+    cont = c.execute("SELECT " + COLS + FROM + " AND p.position>10 AND p.completed=0 AND NOT (m.runtime_s>0 AND p.position>=m.runtime_s*0.9) ORDER BY p.updated DESC LIMIT ?",
                      (ROW_MAX,)).fetchall()
     if cont:
         out.append({"title": "Continue watching", "items": [video(r) for r in cont]})

@@ -1413,7 +1413,7 @@ def make_handler(app, remote=False):
                     raise ValueError("view must be all, continue, favorites or recent")
                 extra, order = "", "m.franchise,m.ord,m.series,m.season,m.episode,m.title"
                 if view == "continue":      # started, not finished, most recent first
-                    extra, order = " AND COALESCE(p.position,0)>10 AND COALESCE(p.completed,0)=0", "p.updated DESC"
+                    extra, order = " AND COALESCE(p.position,0)>10 AND COALESCE(p.completed,0)=0 AND NOT (m.runtime_s>0 AND p.position>=m.runtime_s*0.9)", "p.updated DESC"
                 elif view == "favorites":
                     extra = " AND f.media_id IS NOT NULL"
                 elif view == "recent":      # found in the last 30 days, newest first
@@ -1472,7 +1472,7 @@ def make_handler(app, remote=False):
                             merged.append(seen[key])
                     rows = merged[:lim]
                 counts = c.execute(
-                    "SELECT (SELECT COUNT(*) FROM progress p JOIN media m ON m.id=p.media_id WHERE m.available=1 AND m.verified=1 AND m.playable=1 AND p.position>10 AND p.completed=0),"
+                    "SELECT (SELECT COUNT(*) FROM progress p JOIN media m ON m.id=p.media_id WHERE m.available=1 AND m.verified=1 AND m.playable=1 AND p.position>10 AND p.completed=0 AND NOT (m.runtime_s>0 AND p.position>=m.runtime_s*0.9)),"
                     "(SELECT COUNT(*) FROM favorites f JOIN media m ON m.id=f.media_id WHERE m.available=1 AND m.verified=1 AND m.playable=1),"
                     f"(SELECT COUNT(*) FROM media m WHERE m.available=1 AND m.verified=1 AND m.playable=1 AND m.added>{int(now) - RECENT_S})").fetchone()
                 return self.send_json({"items": [dict(r) for r in rows], "counts": {"continue": counts[0], "favorites": counts[1], "recent": counts[2]}})
