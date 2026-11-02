@@ -112,6 +112,7 @@ def read(cfg):
         "default_station": config.DEFAULT_STATION,
         "auto_inbox": inbox.enabled(),
         "windowed": bool(d.get("windowed")),
+        "native_window": bool(d.get("native_window")),
         "subs_style": subs_style(d),
         "logo": logo_mode(d),
         "comfort": comfort(d),
@@ -227,6 +228,11 @@ def update(changes, geocode=None):
             raise ValueError("windowed must be on or off")
         data["windowed"] = changes["windowed"]
         saved.append("windowed")
+    if "native_window" in changes:
+        if not isinstance(changes["native_window"], bool):
+            raise ValueError("native_window must be on or off")
+        data["native_window"] = changes["native_window"]
+        saved.append("native_window")
     if "tmdb_key" in changes:
         k = str(changes["tmdb_key"]).strip().strip('"')
         if k and not re.fullmatch(r"[A-Za-z0-9._\-]{16,}", k):

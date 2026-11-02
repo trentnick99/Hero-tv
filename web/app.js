@@ -645,6 +645,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
   const bl=el("label","lb");bl.append(big," Bigger text");bl.style.display="flex";bl.style.gap="1vw";main.append(sField("",'Makes every screen easier to read from the couch. Same as pressing T.',bl));
   const wnd=el("input");wnd.type="checkbox";wnd.checked=!!d.windowed;wnd.onchange=()=>sSave({windowed:wnd.checked},wnd.checked?"HERO TV will open in a normal window from now on.":"HERO TV will open full screen from now on.");
   const wl=el("label","lb");wl.append(wnd," Open in a window instead of full screen");wl.style.display="flex";wl.style.gap="1vw";main.append(sField("","Takes effect the next time you start HERO TV. F still switches full screen on and off.",wl));
+  const nw=el("input");nw.type="checkbox";nw.checked=!!d.native_window;nw.onchange=()=>sSave({native_window:nw.checked},nw.checked?"HERO TV will open in its own window next time (Edge is the backup).":"HERO TV will open in Edge's app window next time.");
+  const nl=el("label","lb");nl.append(nw," Open in HERO TV's own window (new)");nl.style.display="flex";nl.style.gap="1vw";main.append(sField("","No Edge around it: its own icon and taskbar button. Takes effect the next time you start HERO TV. If it cannot open, Edge is used instead.",nl));
   { const st=Object.assign({size:"normal",bg:"box",color:"white"},d.subs_style),row=el("div","sbar");
     const pick=(opts,key)=>{const sel=el("select");for(const[v,t]of opts){const o=el("option",0,t);o.value=v;if(st[key]===v)o.selected=true;sel.append(o)}
      sel.onchange=()=>{st[key]=sel.value;applyCues(st);sSave({subs_style:st},"Subtitle style saved.",async()=>{await loadTheme()})};sel.dataset.k=key;return sel};

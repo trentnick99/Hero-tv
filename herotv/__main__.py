@@ -80,8 +80,20 @@ def main(argv=None):
     fr.add_argument("--count", type=int, help="titles per list (default 3)")
     fr.add_argument("--pick", help="list numbers, e.g. 1,3 (default: ask / all)")
     fr.add_argument("--yes", action="store_true")
+    wn = sub.add_parser("window", help="open the TV in HERO TV's own window (used by the app itself)")
+    wn.add_argument("url", nargs="?")
+    wn.add_argument("--windowed", action="store_true")
+    wn.add_argument("--selftest", action="store_true")
     sub.add_parser("samples", help="create demo clips in HEROTV_MEDIA (needs ffmpeg)")
     a = ap.parse_args(argv)
+    if a.cmd == "window":
+        from . import nativewin
+        if a.selftest:
+            return nativewin.selftest()
+        from .launcher import app_data_dir
+        prof = app_data_dir() / "webview-profile"
+        prof.mkdir(parents=True, exist_ok=True)
+        return nativewin.run(a.url or f"http://127.0.0.1:{Config().port}/", fullscreen=not a.windowed, profile=prof)
     if a.cmd in ("doctor", "launch", "samples", "convert", "add", "library", "sort", "shortcut", "shrink", "cleanup", "setmedia", "weather", "free", "audio", "folders", "import", "checklist", "personalize", "backup", "restore", "posterkey", "update", "finish-update", "self-update"):
         from . import launcher
         if a.cmd == "doctor":

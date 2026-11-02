@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.9": [
+        "New: HERO TV can open in its own window with no Edge around it. Turn it on in Settings > Appearance > Open in HERO TV's own window, then start HERO TV again. If it cannot open, Edge is used like before.",
+    ],
     "1.38.8": [
         "The HERO TV window now has its own icon in the taskbar and a dark title bar that matches the picture, instead of looking like a plain Edge page.",
     ],

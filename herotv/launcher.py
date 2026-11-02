@@ -138,8 +138,35 @@ def find_browser():
     return None
 
 
+def _native_cmd(url, fullscreen):
+    """The command that opens HERO TV's own window (the built app is itself the program; otherwise python -m herotv)."""
+    base = [sys.executable] if getattr(sys, "frozen", False) else [sys.executable, "-m", "herotv"]
+    return base + ["window", url] + ([] if fullscreen else ["--windowed"])
+
+
+def open_native(url, fullscreen=True):
+    """Start the own-window process. True when it is up; False when it could not open (then Edge is used)."""
+    from . import nativewin
+    if not nativewin.available():
+        return False
+    try:
+        p = subprocess.Popen(_native_cmd(url, fullscreen), cwd=str(ROOT), **tools.HIDE)
+    except OSError:
+        return False
+    try:
+        return p.wait(timeout=8) == 0           # still running after 8 seconds = the window is open
+    except subprocess.TimeoutExpired:
+        return True
+
+
 def open_tv(cfg, fullscreen=True):
     url = f"http://127.0.0.1:{cfg.port}/"
+    try:
+        from . import settings_api
+        if settings_api._load().get("native_window") and open_native(url, fullscreen):
+            return
+    except Exception:
+        pass
     browser = find_browser()
     if not browser:
         say(f"{WARN} No Edge/Chrome found, opening your default browser. Click the page once and press F for fullscreen.")
