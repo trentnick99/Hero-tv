@@ -175,7 +175,7 @@ class RealFiles(unittest.TestCase):
 
         def run(cmd, rt):
             calls.append(cmd)
-            if len(calls) == 1:                                                   # the first try: ffmpeg cannot decode the sound
+            if len(calls) == 1 or "-bsf:a" in cmd:                                # the first try (and the skip-the-first-packet try): ffmpeg cannot decode the sound
                 return tools.FFResult(1, ["[dec:ac3 @ 0x1] Decode error rate 0.74 exceeds maximum 0.666667"])
             return tools.run_ffmpeg(cmd, rt)
         # a file with two sound tracks: the first (default) one is "damaged" by the fake first attempt
