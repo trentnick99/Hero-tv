@@ -616,7 +616,9 @@ function sMsg(t,cls){const m=$("#st-msg");if(m){m.textContent=t||"";m.className=
 function sField(label,help,input,row){const f=el("div","sf"+(row?" row":""));if(label)f.append(el("label",0,label));if(input)f.append(input);if(help)f.append(el("small",0,help));return f}
 function sBtn(text,fn,cls){const b=el("button","sbtn"+(cls?" "+cls:""),text);b.type="button";b.onclick=fn;return b}
 function sInput(val,type,ph){const i=el("input");i.type=type||"text";i.value=val||"";if(ph)i.placeholder=ph;i.autocomplete="off";i.spellcheck=false;i.addEventListener("input",()=>{sDirty=true;sLeave=false});return i}
-async function sSave(changes,okText,after){sMsg("Saving...");try{const r=await pj("/api/settings",changes);sDirty=false;sLeave=false;
+let sQ=Promise.resolve();
+function sSave(changes,okText,after){const run=()=>sSave1(changes,okText,after);sQ=sQ.then(run,run);return sQ}   // one at a time: two quick changes can no longer arrive out of order and undo each other
+async function sSave1(changes,okText,after){sMsg("Saving...");try{const r=await pj("/api/settings",changes);sDirty=false;sLeave=false;
   sData=await api("/api/settings");if(after)await after();sMsg(okText+(r&&r.restart?" Restart HERO TV for this to take effect.":""),"ok")}
  catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}}
 async function sAct(name,btn){const old=btn.textContent;btn.disabled=true;btn.textContent="Working...";

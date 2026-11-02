@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.23": [
+        "Fixed: two settings changed in quick succession could save out of order and undo each other. They now save one at a time.",
+        "Fixed: 'Keep both' choices on the duplicates screen are now part of a backup and come back after a restore.",
+    ],
     "1.38.22": [
         "Fixed: after an update from inside HERO TV, HERO TV's own window did not come back by itself. It now opens again automatically. A program file that Windows will not let the update overwrite is now renamed aside instead of failing the update.",
     ],

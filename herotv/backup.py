@@ -49,7 +49,8 @@ def make(cfg, conn, dest_dir=None, now=None):
         "seen": [{"file": _rel(paths[r["media_id"]], media), "secs": r["secs"], "last": r["last"]}
                  for r in rows("SELECT * FROM seen") if r["media_id"] in paths],
         "skips": [dict(r) for r in rows("SELECT * FROM skips")],
-        "prefs": {r["key"]: r["value"] for r in rows("SELECT * FROM prefs")},
+        "prefs": {r["key"]: r["value"] for r in rows("SELECT * FROM prefs") if r["key"] != "dup_kept"},
+        "dup_kept": _kept_files(conn, paths, media),
     }
     cfg_dir = os.path.dirname(cfg.channels_file)
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as z:
@@ -77,6 +78,18 @@ def _read_json(z, name):
     if info.file_size > MAX_JSON:
         raise ValueError(f"{name} is unreasonably large")
     return json.loads(z.read(name).decode("utf-8-sig"))
+
+
+def _kept_files(conn, paths, media):
+    from . import insights
+    out = []
+    for key in insights._kept(conn):
+        try:
+            grp = [_rel(paths[int(i)], media) for i in key.split(",")]
+        except (KeyError, ValueError):
+            continue                                              # one of the files is gone: the choice is moot
+        out.append(grp)
+    return out
 
 
 def restore(cfg, conn, zip_path):
@@ -155,6 +168,16 @@ def restore(cfg, conn, zip_path):
         if k in ("channel", "volume", "muted", "bigtext", "subs"):
             conn.execute("INSERT INTO prefs(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", (k, str(val)))
             out["prefs"] += 1
+    kept = set()
+    for grp in data.get("dup_kept") or []:                       # 'Keep both' choices: files by name, ids are new on this PC
+        m = [mid(f) for f in grp if isinstance(f, str)]
+        if len(m) >= 2 and all(m):
+            kept.add(",".join(str(i) for i in sorted(m)))
+    if kept:
+        from . import insights
+        have = insights._kept(conn)
+        conn.execute("INSERT INTO prefs(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                     (insights.KEPT, json.dumps(sorted(have | kept))))
     conn.commit()
     return out
 

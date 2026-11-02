@@ -172,6 +172,22 @@ class BackupTests(unittest.TestCase):
         self.assertEqual(conn2.execute("SELECT intro,outro FROM skips").fetchone()[:], (70, 90))
         self.assertEqual(json.loads(conn2.execute("SELECT value FROM prefs WHERE key='bigtext'").fetchone()[0]), True)
 
+    def test_keep_both_choices_survive_a_restore(self):
+        from herotv import insights
+        cfg = self.cfg()
+        conn = make_db(cfg.db_path)
+        self.add_media(conn, "MCU/Zed (2000).mp4")                          # shifts the ids so they differ after the restore
+        a, b = self.add_media(conn, "MCU/Iron Man (2008).mp4"), self.add_media(conn, "MCU/Iron Man 2 (2008).mp4")
+        insights.keep_both(conn, [a, b])
+        zpath = backup.make(cfg, conn, os.path.join(self.d, "bk"))
+        os.remove(os.path.join(self.media, "MCU", "Zed (2000).mp4"))
+        cfg2 = self.cfg(name="b")
+        conn2 = make_db(cfg2.db_path)
+        backup.restore(cfg2, conn2, zpath)
+        ids = {os.path.basename(r["path"]): r["id"] for r in conn2.execute("SELECT id,path FROM media")}
+        want = insights._gkey([ids["Iron Man (2008).mp4"], ids["Iron Man 2 (2008).mp4"]])
+        self.assertEqual(insights._kept(conn2), {want})
+
     def test_media_folder_that_does_not_exist_here_is_not_restored(self):
         cfg = self.cfg()
         conn = make_db(cfg.db_path)
