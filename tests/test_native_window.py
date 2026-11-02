@@ -140,3 +140,26 @@ class ShortcutsAndSwap(unittest.TestCase):
         self.assertEqual((b / "HERO-TV.exe").read_bytes(), b"old")
         self.assertEqual((b / "_internal" / "a.dll").read_bytes(), b"old")
         self.assertEqual((root / "_internal" / "a.dll").read_bytes(), b"new")
+
+
+class DroppedFiles(unittest.TestCase):
+    def test_dropped_videos_land_in_the_inbox_and_others_do_not(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        media = Path(d) / "media"
+        media.mkdir()
+        cfg = config.Config(media_dir=media, db_path=os.path.join(d, "t.sqlite3"))
+        film = Path(d) / "New Film (2021).mp4"
+        film.write_bytes(b"v" * 5000)
+        junk = Path(d) / "notes.txt"
+        junk.write_text("x")
+        said = []
+        with mock.patch("shutil.disk_usage", return_value=mock.Mock(free=10 * 1024 ** 4)):
+            n = nativewin.add_dropped([str(film), str(junk), str(Path(d) / "missing.mp4")], said.append, cfg)
+        self.assertEqual(n, 1)
+        self.assertIn("1 video added", said[0])
+        self.assertIn("2 could not be added", said[0])
+        self.assertEqual(film.read_bytes(), b"v" * 5000)                                  # the original stays where it was
+        got = [p for p in media.rglob("New Film*") if p.is_file()]
+        self.assertEqual(len(got), 1)
+        self.assertEqual(got[0].read_bytes(), b"v" * 5000)

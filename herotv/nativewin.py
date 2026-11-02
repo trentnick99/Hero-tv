@@ -35,10 +35,55 @@ def stay_home(win, url):
             return
     except Exception:
         return
+    watch_drops(win)
+
+
+def add_dropped(paths, say, cfg=None):
+    """Copy dropped video files into the Inbox (the same safe copy the page's own drop uses). Returns how many went in."""
+    from . import inbox
+    from .config import Config
+    cfg = cfg or Config()
+    done = bad = 0
+    for p in paths:
+        try:
+            if not os.path.isfile(p):
+                raise ValueError("not a file")
+            with open(p, "rb") as fh:
+                inbox.save_stream(cfg, os.path.basename(p), fh, os.path.getsize(p))
+            done += 1
+        except (OSError, ValueError, ConnectionError):
+            bad += 1
+    say(f"{done} video{'' if done == 1 else 's'} added to your Inbox. HERO TV will file {'it' if done == 1 else 'them'} in about a minute."
+        + (f" ({bad} could not be added)" if bad else "") if done else "Nothing could be added. Only videos (mp4, mkv, avi...) work.")
+    return done
+
+
+def watch_drops(win):
+    """Files dropped on the window are taken by the window itself (it knows their real place on the disk), so the web view
+    never opens them and the page never has to receive them."""
+    if getattr(win, "_hero_drops", False):
+        return
     try:
+        import json
+        import threading
         from webview.dom import DOMEventHandler
-        win.dom.document.events.drop += DOMEventHandler(lambda e: None, prevent_default=True)
+
+        def say(msg):
+            try:
+                win.evaluate_js("toast(%s)" % json.dumps(msg))
+            except Exception:
+                pass
+
+        def on_drop(e):
+            files = ((e or {}).get("dataTransfer") or {}).get("files") or []
+            paths = [f.get("pywebviewFullPath") for f in files if isinstance(f, dict) and f.get("pywebviewFullPath")]
+            if not paths:
+                return say("This window could not read where that file is. Copy the video into your Inbox folder instead.")
+            say("Adding %d file%s..." % (len(paths), "" if len(paths) == 1 else "s"))
+            threading.Thread(target=add_dropped, args=(paths, say), daemon=True).start()
+        win.dom.document.events.drop += DOMEventHandler(on_drop, prevent_default=True, stop_propagation=True)
         win.dom.document.events.dragover += DOMEventHandler(lambda e: None, prevent_default=True)
+        win._hero_drops = True
     except Exception:
         pass
 

@@ -1228,8 +1228,10 @@ setInterval(()=>{document.body.classList.toggle("inlayer",layer!=="");if(layer!=
 /* ---- drag videos onto the window to add them (they land in the Inbox folder) ---- */
 const VEXT=/\.(mp4|m4v|mkv|webm|mov|avi|wmv|flv|ts|m2ts|mts|mpg|mpeg|divx|ogv|3gp|srt|vtt)$/i;let dragN=0,upBusy=false;
 const hasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes("Files");
-addEventListener("dragenter",e=>{if(!hasFiles(e))return;e.preventDefault();dragN++;show("#dropz",true)});
-addEventListener("dragover",e=>{if(hasFiles(e))e.preventDefault()});
+let dzT;const dzOff=()=>{dragN=0;show("#dropz",false)};   /* the drop sign must never stay: no drag movement for a moment, any key or click = it goes */
+addEventListener("dragenter",e=>{if(!hasFiles(e))return;e.preventDefault();dragN++;show("#dropz",true);clearTimeout(dzT);dzT=setTimeout(dzOff,1500)});
+for(const ev of["keydown","mousedown","mousemove","blur"])addEventListener(ev,()=>{if(dragN||$("#dropz").classList.contains("on"))dzOff()});
+addEventListener("dragover",e=>{if(hasFiles(e)){e.preventDefault();clearTimeout(dzT);dzT=setTimeout(dzOff,1500)}});
 addEventListener("dragleave",e=>{if(!hasFiles(e))return;if(--dragN<=0){dragN=0;show("#dropz",false)}});
 async function entryFiles(en,out){if(en.isFile)await new Promise(r=>en.file(f=>{out.push(f);r()},r));
  else if(en.isDirectory){const rd=en.createReader();for(;;){const part=await new Promise(r=>rd.readEntries(r,()=>r([])));if(!part.length)break;for(const x of part)await entryFiles(x,out)}}}

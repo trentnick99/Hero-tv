@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.17": [
+        "Dropping a video on HERO TV's own window now adds it: the window copies it into your Inbox itself, and the \"drop videos here\" sign can no longer get stuck over the picture (it goes away by itself, or on any key or click). Your original file stays where it was.",
+    ],
     "1.38.16": [
         "Fixed: after an in-app update, clicking your HERO TV shortcut could start an old copy from the update's backup folder and say it cannot start. Windows had re-pointed the shortcut when the old program was moved away. Updates now copy the old program instead of moving it, and HERO TV points any shortcut (Desktop, Start menu, Startup, taskbar) that went to the backup folder back at itself every time it starts.",
         "HERO TV's own window now closes by itself when HERO TV is shut down, and an update closes it first so it cannot hold the program files.",
