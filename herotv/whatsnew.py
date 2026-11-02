@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.8": [
+        "The HERO TV window now has its own icon in the taskbar and a dark title bar that matches the picture, instead of looking like a plain Edge page.",
+    ],
     "1.38.7": [
         "For a homelab: http://your-pc:8788/health says HERO TV is up (for Uptime Kuma and similar), and /metrics gives counts for Grafana or Prometheus (videos, problems, copies, free space). On the home network /metrics needs the live-TV key (Settings > Other apps); /health shows nothing private.",
     ],
