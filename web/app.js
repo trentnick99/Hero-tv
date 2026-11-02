@@ -245,6 +245,8 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  const sp=d.setup,ch=[];
  if(sp&&!sp.done&&!REMOTE){const nx=sp.steps.find(x=>!x.done),n=sp.steps.filter(x=>x.done).length;
   ch.push({k:"chip",ic:"gear",t:"Finish setting up",s:`${n} of ${sp.steps.length} done. Next: ${nx.text}`,go:()=>{closeAll();openSettings("tools").then(()=>sJump(nx.cat,nx.card))}})}
+ { const nw=d.help&&d.help.inbox_waiting||0;if(nw&&!REMOTE){const nm=(d.help.inbox_names||[]).map(x=>x.replace(/\.[^.]+$/,"")).slice(0,2).join(", ");
+   ch.push({k:"chip",ic:"list",t:nw===1?"1 video needs a channel":`${nw} videos need a channel`,s:(nm?nm+(nw>2?"...":"")+". ":"")+"Pick one in the Inbox if it stays here",go:()=>{closeAll();openSettings("tools").then(()=>sJump("tools","Inbox"))}})}}
  ch.push({k:"chip",ic:"guide",t:"TV guide",s:"See what is on every channel",go:()=>{closeAll();openGuide()}});
  ch.push({k:"chip",ic:"search",t:"Library and search",s:"Find any movie or show",go:()=>{closeAll();openLib()}});
  if(!(d.favList&&d.favList.length)){const fv=d.counts&&d.counts.favorites||0;ch.push({k:"chip",ic:"star",t:"Favorites",s:fv?`${fv} saved`:"Press F2 on any video to save it here",dim:!fv,go:()=>{closeAll();openLib("favorites")}})}

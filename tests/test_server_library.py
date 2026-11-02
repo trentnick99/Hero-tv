@@ -85,6 +85,13 @@ class LibraryAndServer(unittest.TestCase):
         self.assertEqual(s, 200)
         self.assertEqual(sorted(os.listdir(f"{self.root}/MCU")), before)
 
+    def test_help_lists_inbox_names_for_the_quiet_home_shortcut(self):
+        s, b, _ = self.get("/api/help")
+        j = json.loads(b)
+        self.assertEqual(s, 200)
+        self.assertIsInstance(j["inbox_names"], list)
+        self.assertIn("inbox_waiting", j)
+
     def test_keep_both_needs_two_files(self):
         s, b, _ = self.get("/api/dupkeep", data={"ids": [1]})
         self.assertEqual(s, 400)

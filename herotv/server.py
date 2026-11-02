@@ -1792,7 +1792,7 @@ def make_handler(app, remote=False):
                 problems.append({"id": r["id"], "title": r["title"], "file": os.path.basename(r["path"]), "why": why, "fix": fix})
             empty = empty_channel_ids(c)
             hidden = [f'{r["number"]} {r["name"]}' for r in S.channels(c) if r["id"] in empty]
-            return {"inbox_waiting": inbox.waiting(app.cfg), "art": dict(art.stats(c), has_key=bool(art.api_key())), "playable": ok, "free": free, "hidden_channels": hidden, "problem_count": len(rows), "problems": problems,
+            return {"inbox_waiting": inbox.waiting(app.cfg), "inbox_names": inbox.waiting_names(app.cfg, 3), "art": dict(art.stats(c), has_key=bool(art.api_key())), "playable": ok, "free": free, "hidden_channels": hidden, "problem_count": len(rows), "problems": problems,
                     "ffmpeg": bool(tools.find_tool("ffprobe")), "media_dir": str(app.cfg.media_dir)}
 
         def report_error(self, c, mid, now, certain=False):

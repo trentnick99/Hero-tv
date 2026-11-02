@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.19": [
+        "When a video you added cannot be placed on any channel, a quiet \"needs a channel\" shortcut now shows in the More row on Home. Nothing pops up and nothing is interrupted; it takes you to the Inbox, where you pick a channel for it.",
+    ],
     "1.38.18": [
         "Dropping a big video on HERO TV's window no longer dims the picture so much, and the copy into your Inbox is a little gentler on the disk, so the movie you are watching is less likely to freeze while it is added.",
     ],
