@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.16": [
+        "Fixed: after an in-app update, clicking your HERO TV shortcut could start an old copy from the update's backup folder and say it cannot start. Windows had re-pointed the shortcut when the old program was moved away. Updates now copy the old program instead of moving it, and HERO TV points any shortcut (Desktop, Start menu, Startup, taskbar) that went to the backup folder back at itself every time it starts.",
+        "HERO TV's own window now closes by itself when HERO TV is shut down, and an update closes it first so it cannot hold the program files.",
+    ],
     "1.38.15": [
         "In HERO TV's own window, dropping a video on it could turn the whole window black (the window opened the file itself). The window now puts HERO TV straight back and keeps the drop for HERO TV. If a drop still does not add the video, switch off Settings > Appearance > Open in HERO TV's own window, or copy the video into your Inbox folder.",
     ],

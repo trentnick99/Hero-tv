@@ -80,6 +80,20 @@ def run(url, fullscreen=True, profile=None):
             except Exception:
                 return
     threading.Thread(target=leave_if_moved, daemon=True).start()
+
+    def leave_if_server_gone():                                # HERO TV was closed or is being updated: nothing left to show
+        import urllib.request
+        misses = 0
+        while True:
+            time.sleep(3)
+            try:
+                urllib.request.urlopen(url.rstrip("/") + "/api/health", timeout=2).close()
+                misses = 0
+            except Exception:
+                misses += 1
+                if misses >= 5:
+                    os._exit(0)
+    threading.Thread(target=leave_if_server_gone, daemon=True).start()
     try:
         import webview
         win = webview.create_window("HERO TV", url, fullscreen=fullscreen, width=1280, height=720, min_size=(800, 500),

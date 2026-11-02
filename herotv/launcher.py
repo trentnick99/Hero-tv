@@ -490,6 +490,7 @@ def launch(no_browser=False, windowed=False, quiet=False):
             _popup("Nothing playable was found in your media folder.\n\nRun Why-Isnt-It-Showing.bat to see why.")
         return 1
 
+    threading.Thread(target=repair_shortcuts, daemon=True).start()
     from .server import serve
     if not no_browser:
         def opener():
@@ -1296,6 +1297,29 @@ def show_library():
         say(f"  {ch['number']:>2} {ch['name']:<20} {n} video(s)" + ("" if n else "   <- empty: shows 'No programming'"))
     c.close()
     return 0
+
+
+REPAIR_PS = (
+    '$root=$env:HT_ROOT;$exe=Join-Path $root "HERO-TV.exe";$n=0;$sh=New-Object -ComObject WScript.Shell;'
+    '$dirs=@([Environment]::GetFolderPath("Desktop"),[Environment]::GetFolderPath("CommonDesktopDirectory"),[Environment]::GetFolderPath("Programs"),'
+    '[Environment]::GetFolderPath("StartMenu"),[Environment]::GetFolderPath("Startup"),'
+    '(Join-Path $env:APPDATA "Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar"));'
+    'foreach($d in $dirs){if($d -and (Test-Path $d)){Get-ChildItem $d -Filter *.lnk -Recurse -ErrorAction SilentlyContinue|ForEach-Object{'
+    'try{$l=$sh.CreateShortcut($_.FullName);if($l.TargetPath -like "*\\.update-backup\\*"){$l.TargetPath=$exe;$l.WorkingDirectory=$root;$l.Save();$n++}}catch{}}}};'
+    'Write-Output $n')
+
+
+def repair_shortcuts():
+    """Windows follows a program file that an update moved into .update-backup and re-points the shortcuts to it, so the next
+    click starts an old copy from there. Point any such shortcut (Desktop, Start menu, Startup, taskbar) back at this program."""
+    if not (IS_WIN and getattr(sys, "frozen", False)) or ".update-backup" in str(ROOT):
+        return 0
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", REPAIR_PS],
+                           capture_output=True, text=True, timeout=60, env=dict(os.environ, HT_ROOT=str(ROOT)), **tools.HIDE)
+        return int((r.stdout or "0").strip() or 0)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return 0
 
 
 def make_shortcut():

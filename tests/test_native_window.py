@@ -92,3 +92,51 @@ class StayHome(unittest.TestCase):
         win.get_current_url.return_value = "http://127.0.0.1:8787/"
         nativewin.stay_home(win, "http://127.0.0.1:8787/")
         win.load_url.assert_not_called()
+
+
+class UpdateFreesTheFiles(unittest.TestCase):
+    def test_other_hero_tv_processes_are_closed_before_the_swap(self):
+        from herotv import updater
+        with mock.patch.object(updater.os, "name", "nt"), mock.patch.object(updater.subprocess, "run") as run, mock.patch.object(updater.time, "sleep"):
+            updater._stop_others()
+        cmd = run.call_args[0][0]
+        self.assertEqual(cmd[:4], ["taskkill", "/F", "/IM", "HERO-TV.exe"])
+        self.assertIn(f"PID ne {os.getpid()}", cmd)                          # never itself
+
+    def test_nothing_happens_off_windows(self):
+        from herotv import updater
+        with mock.patch.object(updater.os, "name", "posix"), mock.patch.object(updater.subprocess, "run") as run:
+            updater._stop_others()
+        run.assert_not_called()
+
+
+class ShortcutsAndSwap(unittest.TestCase):
+    def test_shortcuts_pointing_into_the_backup_are_repaired_on_windows_only(self):
+        with mock.patch.object(launcher, "IS_WIN", False):
+            self.assertEqual(launcher.repair_shortcuts(), 0)
+        fake = mock.Mock(stdout="2\n")
+        with mock.patch.object(launcher, "IS_WIN", True), mock.patch.object(launcher.sys, "frozen", True, create=True), \
+             mock.patch.object(launcher.subprocess, "run", return_value=fake) as run:
+            self.assertEqual(launcher.repair_shortcuts(), 2)
+        self.assertIn("update-backup", run.call_args[0][0][-1])
+        self.assertEqual(run.call_args[1]["env"]["HT_ROOT"], str(launcher.ROOT))
+
+    def test_the_old_exe_is_copied_to_the_backup_not_moved(self):
+        from herotv import updater
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        root = Path(d)
+        (root / "HERO-TV.exe").write_bytes(b"old")
+        (root / "_internal").mkdir()
+        (root / "_internal" / "a.dll").write_bytes(b"old")
+        st = root / updater.STAGE
+        (st / "_internal").mkdir(parents=True)
+        (st / "HERO-TV.exe").write_bytes(b"new")
+        (st / "_internal" / "a.dll").write_bytes(b"new")
+        with mock.patch.object(updater, "_stop_others"):
+            updater.finish_swap(root, now=1000)
+        self.assertEqual((root / "HERO-TV.exe").read_bytes(), b"new")
+        b = next((root / ".update-backup").iterdir())
+        self.assertEqual((b / "HERO-TV.exe").read_bytes(), b"old")
+        self.assertEqual((b / "_internal" / "a.dll").read_bytes(), b"old")
+        self.assertEqual((root / "_internal" / "a.dll").read_bytes(), b"new")

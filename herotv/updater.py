@@ -7,6 +7,7 @@ Everything that gets replaced is first copied to .update-backup/<date>/ so an up
 import os
 import posixpath
 import shutil
+import subprocess
 import time
 import zipfile
 from pathlib import Path
@@ -187,6 +188,19 @@ def staged(root):
     return (Path(root) / STAGE / "HERO-TV.exe").is_file() or any((Path(root) / STAGE).glob("*"))
 
 
+def _stop_others():
+    """Other HERO-TV.exe processes (HERO TV's own window) keep the program files in use, so the swap cannot move them.
+    Close them all except this one; the new HERO TV opens its own window again when it starts."""
+    if os.name != "nt":
+        return
+    try:
+        subprocess.run(["taskkill", "/F", "/IM", "HERO-TV.exe", "/FI", f"PID ne {os.getpid()}"], capture_output=True,
+                       timeout=20, creationflags=0x08000000)
+        time.sleep(1)
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+
 def finish_swap(root, wait_pid=None, timeout=60, now=None):
     """Copy the staged application files over the old ones (the old exe and _internal are moved to .update-backup
     first). Waits for process wait_pid to end. Returns the number of files installed."""
@@ -198,13 +212,17 @@ def finish_swap(root, wait_pid=None, timeout=60, now=None):
         end = time.time() + timeout
         while time.time() < end and _alive(wait_pid):
             time.sleep(0.5)
+    _stop_others()
     bdir = root / ".update-backup" / (time.strftime("%Y-%m-%d-%H%M%S", time.localtime(now or time.time())) + "-app")
     for name in ("HERO-TV.exe", "_internal"):
         if (stage / name).exists() and (root / name).exists():
             bdir.mkdir(parents=True, exist_ok=True)
             for _ in range(20):                     # antivirus may hold the file for a moment
                 try:
-                    shutil.move(str(root / name), str(bdir / name))
+                    if name.endswith(".exe"):       # COPIED, never moved: Windows re-points shortcuts to a file that is moved away
+                        shutil.copy2(str(root / name), str(bdir / name))
+                    else:
+                        shutil.move(str(root / name), str(bdir / name))
                     break
                 except OSError:
                     time.sleep(0.5)
@@ -215,7 +233,14 @@ def finish_swap(root, wait_pid=None, timeout=60, now=None):
         if f.is_file():
             dest = root / f.relative_to(stage)
             dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(f, dest)
+            for _ in range(20):
+                try:
+                    shutil.copy2(f, dest)
+                    break
+                except PermissionError:
+                    time.sleep(0.5)
+            else:
+                raise OSError(f"{dest.name} is still in use - close HERO TV and run the update again")
             n += 1
     return n
 
