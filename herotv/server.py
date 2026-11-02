@@ -1213,6 +1213,16 @@ def make_handler(app, remote=False):
                         prepare.clear(c)
                         S.extend_all(c, time.time(), app.horizon(), rebuild=True, tz=app.tz)
                 return self.send_json(prepare.status(c))
+            if p == "tidy":                                   # HERO TV's own leftovers (PC only; never videos)
+                from . import housekeeping
+                from .launcher import app_data_dir
+                from .config import ROOT
+                if method == "POST":
+                    b = self.body()
+                    what = [w for w in (b.get("what") or []) if w in ("slots", "subs", "updates", "log")]
+                    res = housekeeping.clean(c, app.cfg, ROOT, app_data_dir(), what)
+                    return self.send_json(dict(housekeeping.report(c, app.cfg, ROOT, app_data_dir()), **res))
+                return self.send_json(housekeeping.report(c, app.cfg, ROOT, app_data_dir()))
             if p == "intros":                                 # intros and credits found by HERO TV (PC only)
                 if method == "POST":
                     b = self.body()

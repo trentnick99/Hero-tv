@@ -787,6 +787,14 @@ function introsCard(){const c=tCard("Skip intros and credits by themselves","HER
  cb.onchange=async()=>{try{nData=await pj("/api/intros",{auto:cb.checked});toast("Saved.")}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}};
  const go=sBtn("Check everything now",async()=>{try{nData=await pj("/api/intros",{op:"now"});sMsg("Checking in the background - this page shows the progress when you come back.","ok");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}});
  const bar=el("div","sbar");bar.append(go);c.append(l,bar);return c}
+/* HERO TV's own leftovers: old schedule rows, caches, update files. Never videos. */
+let tidyD=null;
+function tidyCard(){const c=tCard("Tidy HERO TV's own files","Removes old schedule rows, the subtitle cache and update files that are already installed. Your videos, favorites, resume points and settings are never touched.");
+ if(!tidyD){c.append(el("small",0,"Looking..."));api("/api/tidy").then(j=>{tidyD=j;if(layer==="settings"&&sCat==="tools")drawSettings()}).catch(()=>{});return c}
+ const d=tidyD,what=d.items.filter(i=>i.can).map(i=>i.id);
+ for(const i of d.items)c.append(el("small",0,`${i.title}: ${i.text}`+(i.bytes>=1e6?` (${gb(i.bytes)})`:"")));
+ if(what.length){const b=sBtn("Tidy up now",async()=>{try{const j=await pj("/api/tidy",{what});tidyD=j;sMsg(j.freed>=1e6?`Tidied: ${gb(j.freed)} given back.`:"Tidied.","ok");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}},"pri");const row=el("div","sbar");row.append(b);c.append(row)}
+ else c.append(el("small",0,"Nothing to tidy right now."));return c}
 /* ready-to-play copies of videos this TV screen cannot play as they are (Settings > Tools) */
 let wT=null;
 function wBar(p){const b=el("div","pbar"+(p==null?" ind":""));const i=el("i");if(p!=null)i.style.width=p+"%";b.append(i);return b}
@@ -838,7 +846,7 @@ function sJump(cat,card){jumpCard=card||"";if(cat==="tools"&&card){const g=TGROU
 const TGROUPS=[["now","Right now",["New videos: how far along","Inbox","Videos not on any channel","Videos that are skipped"]],
  ["add","Add videos",["Free movies","Bring in a folder or USB drive"]],
  ["fmt","Formats and copies",["Videos in other formats (ready-to-play copies)","H.265 (HEVC) videos","iPhone-friendly copies"]],
- ["tidy","Tidy and check",["Skip intros and credits by themselves","Sound language","Missing episodes","The same video twice","Free up space","This PC"]]];
+ ["tidy","Tidy and check",["Skip intros and credits by themselves","Sound language","Missing episodes","The same video twice","Free up space","Tidy HERO TV's own files","This PC"]]];
 let tOpen={now:true};try{const o=JSON.parse(localStorage.getItem("herotv.toolsOpen")||"null");if(o&&typeof o==="object")tOpen=o}catch(e){}
 function tSave(){try{localStorage.setItem("herotv.toolsOpen",JSON.stringify(tOpen))}catch(e){}}
 function groupTools(main){const cards=[...main.children].filter(x=>x.classList.contains("tcard")),last=TGROUPS[TGROUPS.length-1];
@@ -905,6 +913,7 @@ function drawToolsRaw(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div
    if(d.length>8)c.append(el("small",0,`...and ${d.length-8} more. Set these aside first, then come back.`));main.append(c)}
  { const c=tCard("iPhone-friendly copies",t.not_phone?`${t.not_phone} video(s) cannot play on an iPhone as they are (usually .mkv files). This makes .mp4 copies that play on phones, the PC and over AirPlay - normally quick, because the picture is copied, not re-encoded. Originals are kept, and so are resume points and favorites.`:"Every video can play on an iPhone.");
    if(t.not_phone){const b=sBtn("Make iPhone-friendly copies",()=>runJob({name:"phone"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
+ main.append(tidyCard());
  { const c=tCard("Free up space",t.originals_bytes?`Original copies kept after fixing or shrinking videos use ${gb(t.originals_bytes)}. Delete them once you are happy with the new versions. This is permanent.`:"No original copies are being kept.");
    if(t.originals_bytes){const b=sBtn("Delete the originals",()=>{if(!c.dataset.sure){c.dataset.sure=1;sMsg(`Press again to permanently delete ${gb(t.originals_bytes)} of original copies.`,"err");return}delete c.dataset.sure;runJob({name:"clean"},b)},"warn");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
  { const c=tCard("This PC",t.ffmpeg?"Video tools (ffmpeg) are installed.":"Video tools (ffmpeg) are missing: needed to read, fix and convert videos.");const row=el("div","sbar");

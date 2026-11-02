@@ -76,6 +76,15 @@ class LibraryAndServer(unittest.TestCase):
         again = library.scan(c, self.root, probe_fn=lambda p: self.fail("unchanged file re-probed"))
         self.assertEqual((again["added"], again["updated"]), (0, 0))
 
+    def test_tidy_reports_and_never_touches_videos(self):
+        before = sorted(os.listdir(f"{self.root}/MCU"))
+        s, b, _ = self.get("/api/tidy")
+        self.assertEqual(s, 200)
+        self.assertEqual({i["id"] for i in json.loads(b)["items"]}, {"slots", "subs", "updates", "log"})
+        s, b, _ = self.get("/api/tidy", data={"what": ["slots", "subs", "nonsense"]})
+        self.assertEqual(s, 200)
+        self.assertEqual(sorted(os.listdir(f"{self.root}/MCU")), before)
+
     def test_ac3_never_scheduled(self):
         s, b, _ = self.get("/api/guide?hours=1")
         titles = {x["title"] for ch in json.loads(b)["channels"] for x in ch["slots"]}

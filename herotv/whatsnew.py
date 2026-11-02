@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.12": [
+        "New: Settings > Tools > Tidy HERO TV's own files. It shows what can go - old schedule rows from days that are over, the subtitle cache, update files already installed, the old log - and tidies it with one button. Your videos, favorites, resume points and settings are never touched.",
+    ],
     "1.38.11": [
         "A video you downloaded again after it was marked as a damaged download is checked afresh instead of staying on the damaged list. Starting HERO TV again no longer opens a second own window.",
     ],
