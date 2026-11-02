@@ -23,6 +23,8 @@ let REMOTE=false,MK="";   /* REMOTE = this is a phone/laptop on the home WiFi (w
 const withK=u=>REMOTE&&MK?u+(u.includes("?")?"&":"?")+"k="+encodeURIComponent(MK):u;
 const COARSE=matchMedia("(pointer:coarse)").matches;
 const thumbMiss=new Map();   /* id -> when its picture was missing: not asked for again for 5 minutes (the background maker may make it by then) */
+/* the big banner picture: the larger grab (/hero), or the small one when that cannot be made */
+const heroPic=id=>{const i=el("img");i.alt="";i.decoding="async";i.src=withK("/hero/"+id);i.onerror=()=>{i.onerror=()=>i.remove();i.src=withK("/thumb/"+id)};return i};
 const thumb=(id,lazy)=>{const i=el("img");i.alt="";if(Date.now()-(thumbMiss.get(id)||0)<3e5){i.hidden=true;return i}i.decoding="async";if(lazy)i.loading="lazy";i.src=withK("/thumb/"+id);i.onerror=()=>{thumbMiss.set(id,Date.now());i.remove()};return i};
 /* one line-icon set (24x24, drawn with the station color) instead of emoji, which look different on every PC */
 const ICONS={live:'<rect x="2.5" y="5.5" width="19" height="12.5" rx="2"/><path d="M8.5 21h7M12 18v3M8.5 2.5 12 5.5l3.5-3"/>',
@@ -256,7 +258,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  rows.push({title:"More",items:ch});
  return rows}
 function homeNode(t){const n=el("div","tl "+(t.k==="card"?"pcd":t.k)+(t.dim?" dim":"")+(t.live?" live":"")+(t.more?" more":""));
- if(t.k==="hero"){const p=el("div","hpic");p.style.background=tile(t.t);if(t.img)p.append(thumb(t.img));n.append(p,el("div","hshade"));
+ if(t.k==="hero"){const p=el("div","hpic");p.style.background=tile(t.t);if(t.img)p.append(heroPic(t.img));n.append(p,el("div","hshade"));
   const x=el("div","ht");x.append(el("span","kick",t.kick),el("h1",0,t.t));if(t.s)x.append(el("p",0,t.s));
   if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";x.append(g)}
   const b=el("span","hbtn");b.append(iconEl(t.ic,"bi"),document.createTextNode(t.btn));x.append(b);n.append(x);return n}

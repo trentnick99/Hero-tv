@@ -502,6 +502,8 @@ def _guess_raw(parts, stem):
         title = _clean(stem[m.end():])
         if re.fullmatch(rf"(?i)(?:{_TAG}|hd|sd|fhd|\d{{3,4}}[pi])(?:[\s._+&,-]+(?:{_TAG}|hd|sd|fhd|\d{{3,4}}[pi]))*", title or "x"):
             title = ""                                      # 'Episode 123 English Dubbed HD' has no real title
+        elif title and not _RELEASE.sub("", " " + title).strip(" ._-"):
+            title = ""                                      # 'S03E08 1080p AMZN WEB-DL DDP5.1 H.264-GRP': nothing but release tags
         title = title or (f"Episode {ep}" if series else stem)
     m = re.match(r"^(.*?)[ ._-]*\((\d{4})\)", stem)
     if m and not ep:

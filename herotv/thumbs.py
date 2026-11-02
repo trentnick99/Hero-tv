@@ -30,16 +30,35 @@ def thumb_file(cfg, row):
     return os.path.join(thumb_dir(cfg), thumb_name(row))
 
 
+def hero_name(row):
+    return thumb_name(row)[:-4] + "-hero.jpg"
+
+
+def hero_file(cfg, row):
+    """A larger grab (1280 wide) for the big banner on Home. Made when first asked for, then kept."""
+    return os.path.join(thumb_dir(cfg), hero_name(row))
+
+
+_hero_lock = threading.Lock()
+
+
+def make_hero(cfg, row):
+    """The larger banner grab (one at a time, so two page loads never write the same file)."""
+    with _hero_lock:
+        return make_one(cfg, row, hero=True)
+
+
 def _grab_time(runtime):
     # Skip studio logos and black intros: ~18% in for films, a bit later for short episodes.
     t = runtime * (0.18 if runtime > 600 else 0.3)
     return max(1.0, min(t, max(1.0, runtime - 2)))
 
 
-def make_one(cfg, row):
-    """Create the thumbnail for one media row. Returns True when a file exists afterwards."""
+def make_one(cfg, row, hero=False):
+    """Create the thumbnail for one media row (hero=True: the larger banner grab). Returns True when a file exists afterwards."""
     ffmpeg = tools.find_tool("ffmpeg")
-    out = thumb_file(cfg, row)
+    out = hero_file(cfg, row) if hero else thumb_file(cfg, row)
+    width = 1280 if hero else 640
     if os.path.isfile(out):
         return True
     if not ffmpeg or not os.path.isfile(row["path"]):
@@ -48,10 +67,10 @@ def make_one(cfg, row):
     tmp = out + ".part.jpg"
     ss = f"{_grab_time(row['runtime_s'] or 0):.2f}"
     # "thumbnail" looks at ~48 frames and keeps the most representative one (avoids fades and black frames).
-    for vf in ("thumbnail=48,scale=640:-2", "scale=640:-2"):
+    for vf in (f"thumbnail=48,scale={width}:-2", f"scale={width}:-2"):
         try:
             r = tools.run([ffmpeg, "-v", "error", "-y", "-threads", "2", "-ss", ss, "-i", row["path"], "-an", "-sn",
-                           "-vf", vf, "-frames:v", "1", "-q:v", "5", tmp], timeout=180, **_FLAGS)
+                           "-vf", vf, "-frames:v", "1", "-q:v", "3" if hero else "5", tmp], timeout=180, **_FLAGS)
         except Exception:
             continue
         if r.returncode == 0 and os.path.isfile(tmp) and os.path.getsize(tmp) > 0:
@@ -90,7 +109,7 @@ def _prune(cfg, rows):
     d = thumb_dir(cfg)
     if not os.path.isdir(d):
         return
-    want = {thumb_name(r) for r in rows}
+    want = {thumb_name(r) for r in rows} | {hero_name(r) for r in rows}
     ids = {str(r["id"]) for r in rows}
     for f in os.listdir(d):
         if f.endswith(".jpg") and f not in want and f.split("-", 1)[0] in ids:

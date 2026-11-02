@@ -458,7 +458,7 @@ def make_handler(app, remote=False):
             c = app.db()
             try:
                 dev = R.device_for(c, R.cookie_token(self.headers.get("Cookie")))
-                if dev is None and method == "GET" and p.startswith(("/media/", "/thumb/", "/poster/", "/sub/")):
+                if dev is None and method == "GET" and p.startswith(("/media/", "/thumb/", "/hero/", "/poster/", "/sub/")):
                     dev = R.device_for_media_key(c, (parse_qs(u.query).get("k") or [""])[0])   # e.g. a TV fetching over AirPlay
                 if dev is not None:
                     R.touch(c, dev, self.client_address[0])
@@ -943,6 +943,8 @@ def make_handler(app, remote=False):
                 return self.media(p[7:], q)
             if p.startswith("/thumb/"):
                 return self.thumb(p[7:])
+            if p.startswith("/hero/"):
+                return self.thumb(p[6:], hero=True)
             if p.startswith("/sub/"):
                 return self.sub(p[5:])
             if p.startswith("/poster/"):
@@ -1002,7 +1004,7 @@ def make_handler(app, remote=False):
             self.end_headers()
             self.wfile.write(data)
 
-        def thumb(self, mid):
+        def thumb(self, mid, hero=False):
             try:
                 mid = int(mid)
             except ValueError:
@@ -1013,6 +1015,12 @@ def make_handler(app, remote=False):
             finally:
                 c.close()
             f = thumbs.thumb_file(app.cfg, m) if m else None
+            if hero and m:                                   # the larger banner grab, made the first time it is asked for
+                try:
+                    if thumbs.make_hero(app.cfg, m):
+                        f = thumbs.hero_file(app.cfg, m)
+                except Exception:
+                    pass                                     # the normal grab is used instead
             if not f or not os.path.isfile(f):
                 self.send_response(404)
                 self.send_header("Cache-Control", "no-store")

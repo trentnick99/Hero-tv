@@ -33,6 +33,14 @@ class Patterns(unittest.TestCase):
                                   ("Limited Partners (2012).mp4", "Limited Partners", 2012)):
             self.movie(name, title, year)
 
+    def test_an_episode_name_that_is_only_release_tags_is_not_a_title(self):
+        for name in ("Invincible.S03E08.1080p.AMZN.WEB-DL.DDP5.1.H.264-GRP.mkv", "Invincible S03E08 1080p AMZN.mkv",
+                     "Invincible S03E08 720p HDTV x264.mp4"):
+            d = guess("Invincible", name)
+            self.assertEqual((d["series"], d["season"], d["episode"], d["title"]), ("Invincible", 3, 8, "Episode 8"), name)
+        d = guess("Invincible", "Invincible S03E07 WHAT HAVE I DONE 1080p AMZN WEB-DL.mkv")      # a real title next to tags stays
+        self.assertEqual(d["title"], "WHAT HAVE I DONE")
+
     def test_episodes_keep_show_season_episode_and_title(self):
         d = guess("Invincible", "Invincible - S02E03 - Title Here [WEBDL-1080p][EAC3 5.1][h264]-GROUP.mkv")
         self.assertEqual((d["series"], d["season"], d["episode"], d["title"]), ("Invincible", 2, 3, "Title Here"))
