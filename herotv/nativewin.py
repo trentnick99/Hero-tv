@@ -26,20 +26,40 @@ def selftest():
 def run(url, fullscreen=True, profile=None):
     if not IS_WIN:
         return FAILED
+    import ctypes
     try:
-        import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)     # its own taskbar button, not Edge's
     except Exception:
         pass
     try:                                                       # one window only: starting HERO TV again must not open a second one
         import ctypes
-        _h = ctypes.windll.kernel32.CreateMutexW(None, False, "HeroTV.App.Window")
-        if ctypes.windll.kernel32.GetLastError() == 183:       # ERROR_ALREADY_EXISTS
-            return 0
+        import time as _t
+        for _try in range(10):                                 # after an update the old window needs a moment to go
+            _h = ctypes.windll.kernel32.CreateMutexW(None, False, "HeroTV.App.Window")
+            if ctypes.windll.kernel32.GetLastError() != 183:   # not ERROR_ALREADY_EXISTS: ours
+                break
+            ctypes.windll.kernel32.CloseHandle(_h)
+            _t.sleep(1)
+        else:
+            return 0                                           # a window is open already
         globals()["_mutex"] = _h                               # keep it for as long as this window lives
     except Exception:
         pass
     os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required --disable-features=Translate")
+    import threading
+    import time
+
+    def leave_if_moved():                                      # an update moved this old exe into .update-backup: the window must not outlive it
+        while True:
+            time.sleep(3)
+            try:
+                buf = ctypes.create_unicode_buffer(1024)
+                ctypes.windll.kernel32.GetModuleFileNameW(None, buf, 1024)
+                if ".update-backup" in buf.value.replace("\\", "/"):
+                    os._exit(0)
+            except Exception:
+                return
+    threading.Thread(target=leave_if_moved, daemon=True).start()
     try:
         import webview
         webview.create_window("HERO TV", url, fullscreen=fullscreen, width=1280, height=720, min_size=(800, 500),

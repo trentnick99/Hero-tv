@@ -127,6 +127,19 @@ def _ranges(nums):
     return ", ".join(out)
 
 
+def _folder_season(path):
+    m = re.search(r"season[\s._-]*(\d{1,2})\b", os.path.basename(os.path.dirname(path)), re.I)
+    return int(m.group(1)) if m else 0
+
+
+def _episode_name(r):
+    """The episode's own name, or '' when the file only says 'Episode 5' / the show's name (then it can match any name)."""
+    t = _n(r["title"])
+    if not t or re.fullmatch(r"(episode|ep|e)? ?\d+", t) or t == _n(r["series"]):
+        return ""
+    return t
+
+
 # ---------- the same video twice ----------
 def duplicates(conn):
     """Groups of files that are the same film (title + year) or the same episode (show + season + episode).
@@ -134,8 +147,9 @@ def duplicates(conn):
     groups = {}
     for r in conn.execute("SELECT id,path,title,year,series,season,episode,size,playable,verified,runtime_s FROM media WHERE available=1"):
         if r["series"] and r["episode"]:
-            k = ("e", _n(r["series"]), r["season"] or 0, r["episode"])
-            name = f"{r['series']}  S{r['season'] or 0}E{r['episode']}"
+            season = r["season"] or _folder_season(r["path"])      # a file with no season in its name may sit in a "Season 3" folder
+            k = ("e", _n(r["series"]), season, r["episode"], _episode_name(r))     # a different name = a different episode (filed wrongly, same number)
+            name = f"{r['series']}  S{season}E{r['episode']}" + (f"  {r['title']}" if _episode_name(r) else "")
         elif not r["series"] and r["year"]:
             k = ("m", _n(r["title"]), r["year"])
             name = f"{r['title']} ({r['year']})"

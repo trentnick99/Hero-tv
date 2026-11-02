@@ -95,8 +95,15 @@ class InsightTests(unittest.TestCase):
         self.add("Pilot", "Invincible", 1, 1, "Invincible", size=7)
         self.add("Untitled", franchise="X")
         self.add("Untitled", franchise="X")                                                    # no year: not sure
+        self.add("Cold Open", "Show A", 2, 5, "Show A")                                        # same number, different names: filed wrongly, NOT twins
+        self.add("The Heist", "Show A", 2, 5, "Show A")
+        self.add("Same Name", "Show B", 1, 3, "Show B")
+        self.add("Same Name", "Show B", 1, 3, "Show B")                                       # a true twin
         d = insights.duplicates(self.c)
-        self.assertEqual([g["name"] for g in d], ["Iron Man (2008)", "Invincible  S1E1"])
+        self.assertEqual([g["name"] for g in d if "Show A" in g["name"]], [])
+        self.assertEqual(sorted(g["name"] for g in d), sorted(["Iron Man (2008)", "Invincible  S1E1  Pilot", "Show B  S1E3  Same Name"]))
+        d = [g for g in d if "Show" not in g["name"]]
+        d = sorted(d, key=lambda g: g["name"] != "Iron Man (2008)")
         im = d[0]["copies"]
         self.assertTrue(im[0]["keep"] and im[0]["plays"] and im[0]["folder"] == "MCU")         # plays here beats bigger
         self.assertEqual(d[0]["extra"], 9_000_000_000)

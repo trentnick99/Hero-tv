@@ -58,3 +58,23 @@ class NativeWindow(unittest.TestCase):
         with mock.patch.object(nativewin, "IS_WIN", False):
             self.assertFalse(nativewin.available())
             self.assertEqual(nativewin.run("http://x/"), nativewin.FAILED)
+
+
+class FromBackup(unittest.TestCase):
+    def test_an_old_exe_in_the_backup_folder_starts_the_real_one(self):
+        from herotv import __main__ as M
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        (Path(d) / "HERO-TV.exe").write_bytes(b"x")
+        old = Path(d) / ".update-backup" / "2026-11-02-002533-app" / "HERO-TV.exe"
+        old.parent.mkdir(parents=True)
+        old.write_bytes(b"x")
+        with mock.patch.object(M.sys, "frozen", True, create=True), mock.patch.object(M.sys, "executable", str(old)), \
+             mock.patch.object(M.sys, "argv", [str(old), "launch", "--quiet"]), mock.patch("subprocess.Popen") as po:
+            self.assertEqual(M._from_backup(), 0)
+        self.assertEqual(po.call_args[0][0], [os.path.join(d, "HERO-TV.exe"), "launch", "--quiet"])
+
+    def test_the_normal_exe_carries_on(self):
+        from herotv import __main__ as M
+        with mock.patch.object(M.sys, "frozen", True, create=True), mock.patch.object(M.sys, "executable", "/app/HERO-TV.exe"):
+            self.assertIsNone(M._from_backup())

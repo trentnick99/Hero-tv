@@ -9,12 +9,33 @@ from .config import Config
 from .db import connect
 
 
+def _from_backup():
+    """An old copy of the app that an update moved into .update-backup must not run from there (its config and web
+    files are not there). Start the real, updated one instead and say so. Returns an exit code, or None to carry on."""
+    if not getattr(sys, "frozen", False):
+        return None
+    exe = os.path.abspath(sys.executable)
+    parts = exe.replace("\\", "/").split("/")
+    if ".update-backup" not in parts:
+        return None
+    root = os.sep.join(exe.replace("\\", "/").split("/")[:parts.index(".update-backup")])
+    real = os.path.join(root, "HERO-TV.exe")
+    if os.path.isfile(real):
+        import subprocess
+        subprocess.Popen([real] + sys.argv[1:], cwd=root, close_fds=True, creationflags=0x00000008 if os.name == "nt" else 0)
+        return 0
+    return None
+
+
 def main(argv=None):
     for stream in (sys.stdout, sys.stderr):   # Windows consoles/pipes may not be UTF-8: never crash on a movie title
         try:
             stream.reconfigure(errors="replace")
         except (AttributeError, ValueError):
             pass
+    moved = _from_backup()
+    if moved is not None:
+        return moved
     ap = argparse.ArgumentParser(prog="herotv")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("scan", help="scan media dir, verify runtimes, rebuild future schedule")

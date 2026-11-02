@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.13": [
+        "Fixed: \"The same video twice\" no longer lists episodes that only share a number. Two files with different episode names (or in different Season folders) are different episodes that were filed wrongly, not copies - so you will not be asked to set one aside.",
+        "Fixed: after an update, an old HERO TV window that was still open could fail to start from the update's backup folder. It now closes itself, and starting the old program from there starts the new one instead.",
+    ],
     "1.38.12": [
         "New: Settings > Tools > Tidy HERO TV's own files. It shows what can go - old schedule rows from days that are over, the subtitle cache, update files already installed, the old log - and tidies it with one button. Your videos, favorites, resume points and settings are never touched.",
     ],
