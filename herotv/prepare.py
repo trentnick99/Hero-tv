@@ -23,6 +23,16 @@ REPAIR_REV = 2                             # raise it when the sound repair gets
                                            # revision is tried again the next time that video stops (nothing else retries it for a week)
 
 
+BAD_PICTURE = re.compile(r"Invalid NAL unit size|missing picture in access unit|non-existing PPS|no frame!", re.I)
+DAMAGED = "DAMAGED PICTURE: "
+
+
+def damaged(conn, mid):
+    """True when a repair failed and ffmpeg said the picture itself is broken: the download is bad, a copy cannot fix it."""
+    p = conn.execute("SELECT status,why FROM prepared WHERE media_id=?", (mid,)).fetchone()
+    return bool(p and p["status"] == "failed" and DAMAGED in (p["why"] or ""))
+
+
 def _repair_tag():
     return f"[r{REPAIR_REV}] "
 SPARE_BYTES = 2 * 1024 ** 3                  # always leave this much free on the drive
@@ -257,6 +267,8 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False)
                 why_ += f"copy is {int((q or {}).get('runtime_s') or 0)} s long, the original {int(rt)} s | "
             why_ += " | ".join(errs_[-3:]) if errs_ else "the copy came out shorter than the original"
             if fix:
+                if any(BAD_PICTURE.search(e) for e in errs_):
+                    why_ = DAMAGED + "the picture is broken in the file itself | " + why_
                 why_ = _repair_tag() + why_
             _discard(tmp)
             old = conn.execute("SELECT status,src_size FROM prepared WHERE media_id=?", (mid,)).fetchone()

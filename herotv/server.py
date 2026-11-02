@@ -1736,9 +1736,15 @@ def make_handler(app, remote=False):
             free = c.execute("SELECT COUNT(*) FROM media WHERE available=1 AND verified=1 AND playable=1 AND franchise='Free Movies'").fetchone()[0]
             rows = c.execute("SELECT id,title,path,vcodec,acodec,vfmt,verified FROM media WHERE available=1 AND (playable=0 OR verified=0) "
                              "ORDER BY title LIMIT 200").fetchall()
+            bad = c.execute("SELECT m.id,m.title,m.path,m.vcodec,m.acodec,m.vfmt,m.verified FROM media m JOIN prepared p ON p.media_id=m.id "
+                            "WHERE m.available=1 AND p.status='failed' AND p.why LIKE ? ORDER BY m.title LIMIT 50", ("%" + prepare.DAMAGED + "%",)).fetchall()
+            seen = {r["id"] for r in rows}
+            rows = list(rows) + [r for r in bad if r["id"] not in seen]
             problems = []
             for r in rows[:12]:
-                if not r["verified"]:
+                if prepare.damaged(c, r["id"]):
+                    why, fix = "The picture in this download is broken, so no copy can fix it.", "Download it again, ideally a different release, then replace the file."
+                elif not r["verified"]:
                     why, fix = "HERO TV could not read it.", "Settings > Tools > Check setup (the video tools may be missing), or the file may be damaged."
                 else:
                     why = prepare.why(c, r)

@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.6": [
+        "When a repair fails because the picture inside the file is broken (not the sound), Help now lists the video as a damaged download and tells you to get it again, instead of trying to repair it over and over. The Amazing Spider-Man 2 file is one of these.",
+    ],
     "1.38.5": [
         "A video that stops on its very first sound packet (The Amazing Spider-Man 2 does) now gets a new repair try: HERO TV skips that one bad packet and keeps the rest of the sound, in the right language. If the repair failed on an earlier version, play the video again and it is tried again with the new method.",
         "Settings > Report a problem now also runs the repair on the first 30 seconds of such a video and says what happened, and a failed repair keeps ffmpeg's exit code and last lines - so a repair that still fails can be understood.",

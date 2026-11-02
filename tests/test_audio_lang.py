@@ -308,6 +308,23 @@ class Real(unittest.TestCase):
         self.assertIn("line b | line c | line d", why)
         self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))              # failed with these methods: not again at once
 
+    def test_a_repair_that_fails_on_a_broken_picture_says_the_download_is_damaged(self):
+        one = self.row(self.one)
+        prepare.want_sound_fix(self.c, one["id"])
+        run = lambda cmd, rt: tools.FFResult(1, ["[h264 @ 0x1] Invalid NAL unit size (0 > 2418).", "[h264 @ 0x1] missing picture in access unit with size 2422", "Error submitting packet to decoder"])
+        self.assertEqual(prepare.prepare_one(self.c, self.row(self.one), FF, run=run, fix=True), "failed")
+        self.assertTrue(prepare.damaged(self.c, one["id"]))
+        why = self.c.execute("SELECT why FROM prepared WHERE media_id=?", (one["id"],)).fetchone()[0]
+        self.assertTrue(why.startswith(prepare._repair_tag() + prepare.DAMAGED), why)
+        self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))              # and it is not retried at once
+
+    def test_a_plain_failure_is_not_called_damaged(self):
+        one = self.row(self.one)
+        prepare.want_sound_fix(self.c, one["id"])
+        run = lambda cmd, rt: tools.FFResult(1, ["line a", "line b"])
+        prepare.prepare_one(self.c, self.row(self.one), FF, run=run, fix=True)
+        self.assertFalse(prepare.damaged(self.c, one["id"]))
+
     def test_the_command_can_skip_the_first_sound_packet_and_stop_early(self):
         c = prepare.command("ffmpeg", "a.mp4", "o.mp4", "h264", "aac", skip_first=True, limit=30, tolerant=True)
         self.assertLess(c.index("-bsf:a"), c.index("-i"))                       # an input option
