@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.15": [
+        "In HERO TV's own window, dropping a video on it could turn the whole window black (the window opened the file itself). The window now puts HERO TV straight back and keeps the drop for HERO TV. If a drop still does not add the video, switch off Settings > Appearance > Open in HERO TV's own window, or copy the video into your Inbox folder.",
+    ],
     "1.38.14": [
         "New: under \"The same video twice\" each group has a Keep both button. Press it when the files are really different (like episodes filed under the wrong season) and the group disappears from the list. If another copy of the same thing turns up later, it is listed again.",
     ],

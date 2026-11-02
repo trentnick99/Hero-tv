@@ -23,6 +23,26 @@ def selftest():
     return 0
 
 
+def stay_home(win, url):
+    """A video dropped on the window can make the web view open that file by itself (a black window with the movie in it,
+    and HERO TV gone). Whenever the window is not showing HERO TV, put HERO TV back. Also tell the page's own drop
+    handler to keep the browser's default (opening the file) out of it."""
+    try:
+        cur = (win.get_current_url() or "").lower()
+        base = url.lower().rstrip("/")
+        if cur and not cur.startswith(base):
+            win.load_url(url)
+            return
+    except Exception:
+        return
+    try:
+        from webview.dom import DOMEventHandler
+        win.dom.document.events.drop += DOMEventHandler(lambda e: None, prevent_default=True)
+        win.dom.document.events.dragover += DOMEventHandler(lambda e: None, prevent_default=True)
+    except Exception:
+        pass
+
+
 def run(url, fullscreen=True, profile=None):
     if not IS_WIN:
         return FAILED
@@ -62,8 +82,9 @@ def run(url, fullscreen=True, profile=None):
     threading.Thread(target=leave_if_moved, daemon=True).start()
     try:
         import webview
-        webview.create_window("HERO TV", url, fullscreen=fullscreen, width=1280, height=720, min_size=(800, 500),
-                              background_color=NIGHT, text_select=False)
+        win = webview.create_window("HERO TV", url, fullscreen=fullscreen, width=1280, height=720, min_size=(800, 500),
+                                    background_color=NIGHT, text_select=False)
+        win.events.loaded += lambda *a: stay_home(win, url)
         webview.start(private_mode=False, storage_path=str(profile) if profile else None)
         return 0
     except Exception as e:

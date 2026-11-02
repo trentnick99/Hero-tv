@@ -78,3 +78,17 @@ class FromBackup(unittest.TestCase):
         from herotv import __main__ as M
         with mock.patch.object(M.sys, "frozen", True, create=True), mock.patch.object(M.sys, "executable", "/app/HERO-TV.exe"):
             self.assertIsNone(M._from_backup())
+
+
+class StayHome(unittest.TestCase):
+    def test_a_window_that_opened_a_dropped_file_goes_back(self):
+        win = mock.Mock()
+        win.get_current_url.return_value = "file:///D:/movies/New%20Movie.mp4"
+        nativewin.stay_home(win, "http://127.0.0.1:8787/")
+        win.load_url.assert_called_once_with("http://127.0.0.1:8787/")
+
+    def test_a_window_showing_hero_tv_is_left_alone(self):
+        win = mock.Mock()
+        win.get_current_url.return_value = "http://127.0.0.1:8787/"
+        nativewin.stay_home(win, "http://127.0.0.1:8787/")
+        win.load_url.assert_not_called()
