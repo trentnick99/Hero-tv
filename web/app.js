@@ -76,7 +76,7 @@ async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels hav
  if(my!==seq)return; /* a newer tune() superseded this one */
  slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Press O for Settings, then Tools > Free movies > Download."):msg("Nothing is scheduled on "+chans[ci].name,"Drag videos onto this window, or put them in this channel's folder. They appear by themselves.")}
  if(slot.card)return upCard(my);
- play(withK(`/media/${slot.media_id}`),()=>Math.min(nowS()-slot.start+(slot.seek||0),(v.duration||1e9)-.5));loadSubs(slot.media_id);osd();
+ play(withK(`/media/${slot.media_id}`),()=>slot?Math.min(nowS()-slot.start+(slot.seek||0),(v.duration||1e9)-.5):0);loadSubs(slot.media_id);osd();   /* slot can be cleared (weather, on demand) before the metadata arrives */
  if(slot.cut)cutT=setTimeout(()=>{if(my===seq&&!vod)tune(ci)},Math.max(0,(slot.end-nowS())*1e3)+80)}   /* a break (or a time slot) starts before the video ends */
 /* the channel logo in the corner: always, now and then (when a show starts, after changing channel, and briefly
    every five minutes), or off - Settings > Appearance */

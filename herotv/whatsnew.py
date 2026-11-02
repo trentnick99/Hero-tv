@@ -4,6 +4,7 @@ from . import __version__
 NOTES = {
     "1.38.4": [
         "When a video stops on a damaged sound packet, Settings > Report a problem now also describes that sound track and what ffmpeg says about its first seconds, and it keeps more of the reason a repair failed. This is to find out why The Amazing Spider-Man 2 cannot be repaired yet.",
+        "Fixed a rare error when switching to Weather or to an on-demand video at the same moment the previous channel finished loading.",
     ],
     "1.38.3": [
         "Settings > Report a problem now says what became of the repair of a video that would not play: waiting in line, failed (and why), or ready - plus how much room is left on the drive for ready copies. HERO TV also writes a line in its log when a repair or copy fails or has to wait for room.",
