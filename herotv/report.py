@@ -88,6 +88,35 @@ def _copy_state(c, mid):
     return f"{kind} ready (made {when})"
 
 
+def _audio_diag(path):
+    """A close look at the first sound track of a video that stops on a damaged sound packet: how the track is declared, its
+    first packets, and what ffmpeg says when it decodes the first seconds. (Read-only; a few seconds at most.)"""
+    import subprocess
+    from . import tools
+    out = []
+    probe, ff = tools.find_tool("ffprobe"), tools.find_tool("ffmpeg")
+
+    def run(cmd, limit=40):
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=limit, errors="replace", **tools.HIDE)
+            return r.returncode, (r.stdout or "").strip(), (r.stderr or "").strip()
+        except Exception as e:
+            return -1, "", str(e)
+    if probe:
+        rc, so, se = run([probe, "-v", "error", "-select_streams", "a:0", "-show_entries",
+                          "stream=codec_name,profile,sample_rate,channels,channel_layout,bit_rate,start_time,duration,nb_frames,extradata_size,time_base",
+                          "-of", "csv=p=0:s=|", path])
+        out.append(f"    sound track declared (codec|profile|rate|ch|layout|bit rate|start|length|frames|header bytes|time base): {so or se or '?'}")
+        rc, so, se = run([probe, "-v", "error", "-select_streams", "a:0", "-show_entries", "packet=pts_time,size,flags", "-read_intervals", "%+#8",
+                          "-of", "csv=p=0:s=|", path])
+        out.append("    first sound packets (time|bytes|flags): " + (" ; ".join(so.split()[:8]) if so else (se or "none read")))
+    if ff:
+        rc, so, se = run([ff, "-v", "error", "-err_detect", "ignore_err", "-i", path, "-map", "0:a:0", "-t", "20", "-f", "null", "-"], 60)
+        lines = [x.strip()[:200] for x in se.splitlines() if x.strip()]
+        out.append(f"    ffmpeg decoding the first 20 s of that track: exit {rc}, {len(lines)} message(s)" + ("" if not lines else ": " + " / ".join(lines[:3] + (lines[-2:] if len(lines) > 5 else lines[3:5]))))
+    return out
+
+
 def _maker_state(c):
     """The background maker of ready copies: is it on, busy, short of room, held back by the size limit?"""
     from . import prepare
@@ -194,6 +223,9 @@ def build(c, cfg, note="", lan=False, dlna_on=False, page=""):
             d = prepare.delivery(c, mid, "browser")
             add("    the browser was given: " + (("the ready copy" if d[0] != r["path"] else "the original file") if d else "?"))
             add("    ready copy / repair: " + _copy_state(c, mid))
+            if "audio" in (why or "").lower() and "decode" in (why or "").lower() and os.path.isfile(r["path"]):
+                for x in _audio_diag(r["path"]):
+                    add(x)
         if PLAY_ERRORS:
             add("  " + _maker_state(c))
     except Exception as e:

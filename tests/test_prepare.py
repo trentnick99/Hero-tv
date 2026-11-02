@@ -160,7 +160,7 @@ class RealFiles(unittest.TestCase):
         bad = lambda cmd, rt: tools.FFResult(1, ["Invalid data found"])
         self.assertTrue(prepare.run_once(self.c, FF, self.root, run=bad))
         p = self.c.execute("SELECT status,why FROM prepared WHERE media_id=?", (mid,)).fetchone()
-        self.assertEqual((p["status"], p["why"]), ("failed", "Invalid data found"))
+        self.assertEqual((p["status"], p["why"]), ("failed", "ffmpeg exit 1: Invalid data found"))
         self.assertEqual(self.row(self.dolby)["playable"], 0)
         self.assertEqual(prepare.todo(self.c, self.root), [])
         self.assertEqual(len(prepare.todo(self.c, self.root, now=time.time() + 8 * 86400)), 1)

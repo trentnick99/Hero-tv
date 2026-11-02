@@ -103,6 +103,24 @@ class ReportTests(unittest.TestCase):
         self.assertIn("Ready-copy maker:", t)
         self.assertIn("1 failed copies remembered", t)
 
+    def test_sound_diagnostic_describes_the_track_and_its_first_packets(self):
+        import subprocess
+        from herotv import tools
+        ff = tools.find_tool("ffmpeg")
+        if not ff or not tools.find_tool("ffprobe"):
+            self.skipTest("ffmpeg not installed")
+        v = os.path.join(self.d, "diag.mp4")
+        subprocess.run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=160x90:rate=10", "-f", "lavfi", "-i", "sine=frequency=300",
+                        "-t", "3", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ac", "2", v], check=True)
+        t = "\n".join(report._audio_diag(v))
+        self.assertIn("sound track declared", t)
+        self.assertIn("aac", t)
+        self.assertIn("first sound packets", t)
+        self.assertIn("exit 0", t)
+        broken = os.path.join(self.d, "broken.mp4")
+        Path(broken).write_bytes(b"not a video at all")
+        self.assertIn("first sound packets", "\n".join(report._audio_diag(broken)))      # no crash on a file it cannot read
+
     def test_home_folder_and_user_name_are_hidden(self):
         home = os.path.expanduser("~")
         (Path(self.d) / "herotv.log").write_text(f"opened {home}{os.sep}Videos\n")

@@ -145,7 +145,7 @@ def _same_length(path, runtime, probe=None):
 
 def _record(conn, mid, status, size, file="", why_="", nbytes=0, alang="", mix=0):
     conn.execute("INSERT OR REPLACE INTO prepared(media_id,file,src_size,status,why,made,bytes,alang,mix) VALUES(?,?,?,?,?,?,?,?,?)",
-                 (mid, file, size, status, why_[:200], int(time.time()), nbytes, alang, mix))
+                 (mid, file, size, status, why_[:500], int(time.time()), nbytes, alang, mix))
     conn.commit()
 
 
@@ -238,7 +238,9 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False)
         if ok and os.path.getsize(src) != size:            # the original was replaced meanwhile: this copy is stale
             ok, r = False, tools.FFResult(1, ["the original changed while the copy was being made"])
         if not ok:
-            why_ = ((getattr(r, "errors", None) or ["the copy came out shorter than the original"])[-1])
+            errs_ = [e for e in (getattr(r, "errors", None) or []) if e]
+            why_ = (f"ffmpeg exit {r.returncode}: " if getattr(r, "returncode", 0) else "") + (" | ".join(errs_[-3:]) if errs_ else
+                                                                                           "the copy came out shorter than the original")
             _discard(tmp)
             old = conn.execute("SELECT status,src_size FROM prepared WHERE media_id=?", (mid,)).fetchone()
             if old and old["status"] == "ready" and (old["src_size"] or 0) == size and has_copy(conn, mid, size):
@@ -247,7 +249,7 @@ def prepare_one(conn, row, ffmpeg, run=None, probe=None, source=None, fix=False)
                 conn.commit()
             else:
                 _record(conn, mid, "failed", size, why_=why_, mix=2 if fix else 0)
-            print(f"{'Sound repair' if fix else 'Ready copy'} of {os.path.basename(src)} failed: {why_[:200]}", flush=True)
+            print(f"{'Sound repair' if fix else 'Ready copy'} of {os.path.basename(src)} failed: {why_[:400]}", flush=True)
             return "failed"
         os.replace(tmp, final)
         _record(conn, mid, "ready", size, final.name, nbytes=final.stat().st_size, alang=alang, mix=2 if fix else 1)
