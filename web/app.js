@@ -270,13 +270,13 @@ function homeNode(t){const n=el("div","tl "+(t.k==="card"?"pcd":t.k)+(t.dim?" di
  n.append(p,el("b",0,t.t),el("small",0,t.s||" "));return n}
 function homeSel(i,instant){const L=homeList,t=L[i];if(!t||!t.n)return;const o=L[hi];if(o&&o.n)o.n.classList.remove("sel");hi=i;t.n.classList.add("sel");
  const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
-function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
+function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
  $("#h-clock").textContent=dayStr();$("#h-hello").textContent=theme.tagline;$("#home h2").textContent=theme.name;
  hints($("#h-hints"),[["← → ↑ ↓","choose"],["Enter","open"],["Esc","back to TV"],["?","help"]]);
  R.forEach((row,r)=>{let host=box;
   if(!row.hero){const s=el("section","hrow"),h=el("h3",0,row.title);if(row.sub)h.append(el("small",0,row.sub));const rc=el("div","rc");s.append(h,rc);box.append(s);host=rc}
   row.items.forEach((t,c)=>{const n=homeNode(t),i=homeList.length;t.n=n;t.r=r;t.c=c;homeList.push(t);host.append(n);n.onclick=()=>{homeSel(i);t.go();if(t.stay)drawHome()}})});
- hi=Math.max(0,Math.min(hi,homeList.length-1));homeSel(hi,true);box.scrollTop=top;if(homeList[hi]&&homeList[hi].r)homeSel(hi,true)}
+ hi=Math.max(0,Math.min(hi,homeList.length-1));homeSel(hi,true);box.scrollTop=top;if(homeList[hi]&&homeList[hi].r)homeSel(hi,true);requestAnimationFrame(()=>{box.style.scrollBehavior=""})}
 let homeList=[];
 function homeKey(e){const k=e.key;
  if(k==="Escape"||k==="Backspace"||k==="h"||k==="H"||k==="Home"){e.preventDefault();return closeAll()}
