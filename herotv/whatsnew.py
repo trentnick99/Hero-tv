@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.24": [
+        "Fixed: on Home, the greeting under the station name no longer runs into the label above the big title (the title is a little smaller).",
+    ],
     "1.38.23": [
         "Fixed: two settings changed in quick succession could save out of order and undo each other. They now save one at a time.",
         "Fixed: 'Keep both' choices on the duplicates screen are now part of a backup and come back after a restore.",
