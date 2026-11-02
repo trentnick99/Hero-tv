@@ -223,6 +223,7 @@ async function loadHome(){const d={};
  try{d.check=(await api("/api/checklist")).lists}catch(e){}
  if(!REMOTE)try{d.setup=await api("/api/setup")}catch(e){}
  homeData=d}
+const timeSpan=(a,b)=>{const x=T(a),y=T(b),m=/\s?[AP]M$/i,mx=x.match(m),my=y.match(m);return mx&&my&&mx[0]===my[0]?x.replace(m,"")+"\u2013"+y:x+"\u2013"+y};   /* 4:59\u20135:22 PM: short enough for a narrow guide cell */
 const dayWord=t=>(new Date(t*1e3).toDateString()===new Date(nowS()*1e3).toDateString()?"today ":"tomorrow ")+T(t);
 /* Home = a big banner for what to watch next, then rows of pictures (On now, Continue, New, Favorites) and a row of shortcuts. */
 function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="free"),wxc=chans.find(x=>x.kind==="weather"),rows=[];
@@ -357,7 +358,7 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
  g.data.forEach((c,r)=>{const row=el("div","row2"+(r===g.row?" cur":"")),ch=el("div","ch");paint(row,c.color);ch.append(el("span","plate",c.number),el("span",0,c.name));ch.style.cursor="pointer";ch.onclick=()=>{closeAll();tune(r)};const track=el("div","track");
   if(c.kind==="weather"){const b_=el("div","blk wxb");b_.style.left="0px";b_.style.width=(WIN*pxs-4)+"px";b_.append(el("b",0,"Local weather  ·  live"),el("small",0,"Current conditions, 7-day forecast and alerts"));if(r===g.row)b_.classList.add("sel");track.append(b_)}
   else for(const s of c.slots){const a=Math.max(s.start,g.t0),b=Math.min(s.end,g.t0+WIN),b_=el("div","blk");b_.style.left=(a-g.t0)*pxs+"px";b_.style.width=Math.max(2,(b-a)*pxs-4)+"px";
-   const on=s.start<=nowS()&&nowS()<s.end;b_.append(thumb(s.media_id),el("b",0,label(s)),el("small",0,`${T(s.start)} to ${T(s.end)}`));
+   const on=s.start<=nowS()&&nowS()<s.end;b_.append(thumb(s.media_id),el("b",0,label(s)),el("small",0,timeSpan(s.start,s.end)));
    if(remSet.has(c.id+":"+s.start)){b_.classList.add("rem");b_.append(el("span","rbadge","Reminder"))}
    if(on){const p=el("i");p.style.width=Math.min(100,(nowS()-s.start)/(s.end-s.start)*100)+"%";b_.append(p)}
    if(r===g.row&&s.start<=g.t&&g.t<s.end)b_.classList.add("sel");b_.dataset.r=r;b_.dataset.t=s.start;b_.onclick=()=>{if(COARSE&&g.row===r&&s.start<=g.t&&g.t<s.end){closeAll();return tune(r)}g.row=r;g.t=s.start;drawGuide()};b_.ondblclick=()=>{closeAll();tune(r)};track.append(b_)}
@@ -1260,5 +1261,5 @@ let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();d
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
  if(typeof pf.volume==="number")v.volume=pf.volume;if("muted" in pf)v.muted=!!pf.muted;if(pf.bigtext)setBig(true,false);if(typeof pf.subs==="string")subPref=pf.subs;
  let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();setTimeout(()=>capTest(false),8000);
- try{if(!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");setTimeout(()=>toast("Tip: press H for the home menu, or ? for help"),6000)}}catch(e){}})();
+ try{if(!localStorage.getItem("homeHint"))setTimeout(()=>{try{if(layer===""&&!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");toast("Tip: press H for the home menu, or ? for help")}}catch(e){}},6000)}catch(e){}})();
 })();

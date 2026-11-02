@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.21": [
+        "The guide shows showtimes in a shorter form (5:00\u20135:24 PM) so they fit in a narrow box instead of being cut off. The first-run tip about the H key now only appears while you are watching TV, never on top of a menu.",
+    ],
     "1.38.20": [
         "A quieter log: a video that is already being converted is no longer tried again every few seconds (no more repeated \"already being fixed\" lines), and a Roku TV that cannot be reached is mentioned once instead of on every retry. Nothing changes in how things work.",
     ],
