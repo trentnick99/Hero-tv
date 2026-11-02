@@ -2,6 +2,13 @@
 @font-face{font-family:"Atkinson Hyperlegible";src:url(fonts/AtkinsonHyperlegible-Bold.ttf) format("truetype");font-weight:600 900;font-display:swap}
 @font-face{font-family:"Barlow Condensed";src:url(fonts/BarlowCondensed-SemiBold.ttf) format("truetype");font-weight:400 600;font-display:swap}
 @font-face{font-family:"Barlow Condensed";src:url(fonts/BarlowCondensed-Bold.ttf) format("truetype");font-weight:700 900;font-display:swap}
+@font-face{font-family:"Montserrat";src:url(fonts/Montserrat-var.ttf) format("truetype");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Lato";src:url(fonts/Lato-Regular.ttf) format("truetype");font-weight:400;font-display:swap}
+@font-face{font-family:"Lato";src:url(fonts/Lato-Bold.ttf) format("truetype");font-weight:600 900;font-display:swap}
+@font-face{font-family:"Bebas Neue";src:url(fonts/BebasNeue-Regular.ttf) format("truetype");font-weight:400 900;font-display:swap}
+@font-face{font-family:"Roboto";src:url(fonts/Roboto-var.ttf) format("truetype");font-weight:100 900;font-stretch:75% 100%;font-display:swap}
+@font-face{font-family:"Inter Tight";src:url(fonts/InterTight-var.ttf) format("truetype");font-weight:100 900;font-display:swap}
+@font-face{font-family:"Inter";src:url(fonts/Inter-var.ttf) format("truetype");font-weight:100 900;font-display:swap}
 :root{--night:#090b13;--panel:#12162a;--panel2:#1c2240;--line:#2b3258;--text:#f2f0ea;--mute:#98a1c2;--accent:#ffcf1f;--on:#0b0d16;
 --tx:1;--tt:1;--fd:"Barlow Condensed",Bahnschrift,"Arial Narrow",sans-serif;--f:"Atkinson Hyperlegible",Bahnschrift,"Segoe UI Variable Display","Segoe UI","Arial Narrow","Roboto Condensed","Helvetica Neue",system-ui,sans-serif}
 *{box-sizing:border-box}
@@ -372,3 +379,19 @@ body[data-theme="retro"] .plate{border-radius:0;transform:none}
 /* Tools group headings: the arrow is drawn, not typed, so it sits on the text line in every font */
 .tgroup::before{content:"";width:0;height:0;border-left:.5em solid currentColor;border-top:.32em solid transparent;border-bottom:.32em solid transparent;margin-right:.9em;vertical-align:middle;transition:transform .15s}
 .tgroup.open::before{transform:rotate(90deg)}
+
+/* ---- fonts (Settings > Appearance > Font) ---- */
+body[data-font="cinema"]{--fd:"Montserrat","Segoe UI",system-ui,sans-serif;--f:"Lato","Segoe UI",system-ui,sans-serif}
+body[data-font="classic"]{--fd:"Bebas Neue","Barlow Condensed","Arial Narrow",sans-serif;--f:"Roboto","Segoe UI",system-ui,sans-serif}
+body[data-font="modern"]{--fd:"Inter Tight","Segoe UI",system-ui,sans-serif;--f:"Inter","Segoe UI",system-ui,sans-serif}
+/* Montserrat is wide: the big titles come down a step so they still fit */
+body[data-font="cinema"] .tl.hero h1{font-size:calc(6.2vh*var(--tt))}
+body[data-font="cinema"] #osd h1{font-size:calc(4.2vh*var(--tx))}
+body[data-font="cinema"] #upcard h2{font-size:4.6vh}
+/* ---- looks (Settings > Appearance > Look) ---- */
+body[data-theme="cool"]{--night:#06101f;--panel:#0e1d35;--panel2:#173050;--line:#2f4f7c;--text:#e8f1fc;--mute:#8fb0d6}
+body[data-theme="warm"]{--night:#150d07;--panel:#22160d;--panel2:#342215;--line:#5a4029;--text:#f8eddc;--mute:#c0a587}
+body[data-theme="hdr"]{--night:#03050a;--panel:#0f1530;--panel2:#1a2352;--line:#3a4a9a;--text:#fff;--mute:#b4c0e8}
+body[data-theme="hdr"] .hpic img,body[data-theme="hdr"] .ppic img,body[data-theme="hdr"] .pic img{filter:saturate(1.2) contrast(1.06)}
+body[data-theme="cinematic"]{--night:#050506;--panel:#101012;--panel2:#1a1a1d;--line:#2c2c30;--text:#e9e6df;--mute:#8d8a85}
+body[data-theme="cinematic"] .hpic img,body[data-theme="cinematic"] .ppic img,body[data-theme="cinematic"] .pic img{filter:saturate(.88) contrast(1.04)}

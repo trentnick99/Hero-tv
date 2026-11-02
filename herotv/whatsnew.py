@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.27": [
+        "New in Settings > Appearance: a Font choice (Broadcast, Cinema, Classic guide, Modern streaming) and four new looks (Cool, Warm, HDR, Cinematic). The main colour picker is still there and works with every look. Fonts and looks also apply on paired phones.",
+    ],
     "1.38.26": [
         "Cleaned up: the 'Up next' card no longer sits under the menu bar that appears when you move the mouse, and on a phone it is wider so the show name is not squeezed. The arrow next to the groups in Settings > Tools now lines up with the text.",
     ],

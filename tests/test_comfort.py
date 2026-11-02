@@ -41,6 +41,17 @@ class Comfort(unittest.TestCase):
         self.assertTrue(SA.comfort(d, early, z)["night"]["active"])
         self.assertFalse(SA.comfort(d, noon, z)["night"]["active"])
         self.assertEqual((SA.comfort(d)["safe_margin"], SA.comfort(d)["level"], SA.comfort(d)["theme"]), (2.5, False, "black"))
+        # the looks and fonts added in 1.38.27
+        self.assertEqual(SA.comfort({})["font"], "broadcast")
+        for look in ("cool", "warm", "hdr", "cinematic"):
+            SA.update({"theme": look})
+            self.assertEqual(SA.comfort(SA._load())["theme"], look)
+        for font in ("cinema", "classic", "modern"):
+            SA.update({"font": font})
+            self.assertEqual(SA.comfort(SA._load())["font"], font)
+        self.assertEqual(SA.comfort({"font": "comic"})["font"], "broadcast")
+        with self.assertRaises(ValueError):
+            SA.update({"font": "comic"})
         for bad in ({"safe_margin": 7}, {"theme": "pink"}, {"night": {"on": True, "from": "10pm", "to": "07:00"}}):
             with self.assertRaises(ValueError):
                 SA.update(bad)

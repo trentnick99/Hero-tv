@@ -108,7 +108,7 @@ async function evenVolume(url){const m=/\/media\/(\d+)/.exec(url||"");if(!m)retu
  if(!audioChain()&&!(g<0))return;                          /* turning down also works without the sound chain */
  if(gainN){gainN.gain.setTargetAtTime(Math.pow(10,g/20),actx.currentTime,.4);v.volume=Math.min(1,v.volume||1)}
  else v.volume=Math.max(.05,Math.min(1,Math.pow(10,g/20)))}
-function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";
+function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";
  document.documentElement.style.setProperty("--safe",(c.safe_margin||0)+"");document.body.classList.toggle("safe",(c.safe_margin||0)>0);nightSound()}
 setInterval(()=>{loadTheme()},300000);                         /* night mode starts and ends by itself */
 /* screensaver: when on-demand video is paused, or a menu is left open, for a few minutes (live TV never) */
@@ -663,8 +663,10 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
   { const lg=el("select");for(const[v,t]of[["sometimes","Now and then (when a show starts, and briefly every 5 minutes)"],["always","Always"],["off","Off"]]){const o=el("option",0,t);o.value=v;if((d.logo||"sometimes")===v)o.selected=true;lg.append(o)}
     lg.onchange=()=>sSave({logo:lg.value},"Channel logo saved.",async()=>{await loadTheme()});
     main.append(sField("Channel logo","The channel's number and name in the corner of the picture, like a TV network's logo. Also on the Roku app.",lg))}
-  { const th=el("select");for(const[v,t]of[["classic","Classic dark"],["black","Pure black (best on OLED TVs)"],["retro","Retro cable (blue, like a 90s cable box)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).theme||"classic")===v)o.selected=true;th.append(o)}
+  { const th=el("select");for(const[v,t]of[["classic","Dark (default)"],["cool","Cool (blue-grey)"],["warm","Warm (amber and brown)"],["hdr","HDR (high contrast, vivid pictures)"],["cinematic","Cinematic (soft black, muted pictures)"],["black","Pure black (best on OLED TVs)"],["retro","Retro cable (blue, like a 90s cable box)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).theme||"classic")===v)o.selected=true;th.append(o)}
     th.onchange=()=>sSave({theme:th.value},"Look saved.",async()=>{await loadTheme()});main.append(sField("Look","The colors of the menus and the guide, here and in the Roku app.",th))}
+  { const fo=el("select");for(const[v,t]of[["broadcast","Broadcast (tall and tight)"],["cinema","Cinema (wide and elegant)"],["classic","Classic guide (all capitals)"],["modern","Modern streaming (clean)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).font||"broadcast")===v)o.selected=true;fo.append(o)}
+    fo.onchange=()=>sSave({font:fo.value},"Font saved.",async()=>{await loadTheme()});main.append(sField("Font","The lettering of titles and text on the TV, on phones and on this PC. The Roku app keeps its own.",fo))}
   { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);
     const box=(key,text,on,save)=>{const i=el("input");i.type="checkbox";i.checked=on;const l=el("label","lb");l.append(i," "+text);l.style.display="flex";l.style.gap="1vw";i.onchange=()=>save(i.checked);return l};
     main.append(sField("Even volume","Quiet videos are turned up and loud ones down, so films, shorts and episodes all play at about the same volume (each video is measured once, in the background). On the TV screen and phones; Roku TVs have their own 'volume leveling' in the TV's sound settings.",

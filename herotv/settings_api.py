@@ -56,7 +56,8 @@ SUB_SIZES, SUB_BGS, SUB_COLORS = ("normal", "large", "xl"), ("box", "none"), ("w
 
 
 LOGO_MODES = ("always", "sometimes", "off")
-THEMES = ("classic", "black", "retro")
+THEMES = ("classic", "black", "retro", "cool", "warm", "hdr", "cinematic")
+FONTS = ("broadcast", "cinema", "classic", "modern")
 MARGINS = (0, 2.5, 5)
 _HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
@@ -77,7 +78,8 @@ def comfort(d=None, now=None, tz=None):
     margin = d.get("safe_margin", 0)
     return {"level": d.get("level_volume", True) is not False, "night": {"on": on, "from": a, "to": z, "active": active},
             "screensaver": d.get("screensaver", True) is not False, "safe_margin": margin if margin in MARGINS else 0,
-            "theme": d.get("theme") if d.get("theme") in THEMES else "classic"}
+            "theme": d.get("theme") if d.get("theme") in THEMES else "classic",
+            "font": d.get("font") if d.get("font") in FONTS else "broadcast"}
 
 
 def logo_mode(d=None):
@@ -206,6 +208,11 @@ def update(changes, geocode=None):
             raise ValueError("Choose a look from the list.")
         data["theme"] = changes["theme"]
         saved.append("theme")
+    if "font" in changes:
+        if changes["font"] not in FONTS:
+            raise ValueError("Choose a font from the list.")
+        data["font"] = changes["font"]
+        saved.append("font")
     if "night" in changes:
         n = changes["night"]
         if not isinstance(n, dict) or not _HHMM.fullmatch(str(n.get("from", ""))) or not _HHMM.fullmatch(str(n.get("to", ""))):
