@@ -60,6 +60,12 @@ class Comfort(unittest.TestCase):
         self.assertEqual(SA.comfort({"finish": "neon"})["finish"], "flat")
         with self.assertRaises(ValueError):
             SA.update({"finish": "neon"})
+        # the highlight colour added in 1.38.30
+        self.assertEqual(SA.comfort({})["focus"], "white")
+        SA.update({"focus": "accent"})
+        self.assertEqual(SA.comfort(SA._load())["focus"], "accent")
+        with self.assertRaises(ValueError):
+            SA.update({"focus": "pink"})
         for bad in ({"safe_margin": 7}, {"theme": "pink"}, {"night": {"on": True, "from": "10pm", "to": "07:00"}}):
             with self.assertRaises(ValueError):
                 SA.update(bad)

@@ -59,6 +59,7 @@ LOGO_MODES = ("always", "sometimes", "off")
 THEMES = ("classic", "black", "retro", "cool", "warm", "hdr", "cinematic")
 FONTS = ("broadcast", "cinema", "classic", "modern")
 FINISHES = ("flat", "soft", "satin", "gloss")
+FOCUSES = ("white", "accent")
 MARGINS = (0, 2.5, 5)
 _HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
@@ -81,7 +82,8 @@ def comfort(d=None, now=None, tz=None):
             "screensaver": d.get("screensaver", True) is not False, "safe_margin": margin if margin in MARGINS else 0,
             "theme": d.get("theme") if d.get("theme") in THEMES else "classic",
             "font": d.get("font") if d.get("font") in FONTS else "broadcast",
-            "finish": d.get("finish") if d.get("finish") in FINISHES else "flat"}
+            "finish": d.get("finish") if d.get("finish") in FINISHES else "flat",
+            "focus": d.get("focus") if d.get("focus") in FOCUSES else "white"}
 
 
 def logo_mode(d=None):
@@ -220,6 +222,11 @@ def update(changes, geocode=None):
             raise ValueError("Choose a lettering finish from the list.")
         data["finish"] = changes["finish"]
         saved.append("finish")
+    if "focus" in changes:
+        if changes["focus"] not in FOCUSES:
+            raise ValueError("Choose a highlight from the list.")
+        data["focus"] = changes["focus"]
+        saved.append("focus")
     if "night" in changes:
         n = changes["night"]
         if not isinstance(n, dict) or not _HHMM.fullmatch(str(n.get("from", ""))) or not _HHMM.fullmatch(str(n.get("to", ""))):

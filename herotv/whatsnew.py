@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.30": [
+        "New left-side menu: on Home press Left from the first picture (or move the mouse to the left edge of the screen, or use the Menu button over the picture) to open Home, Guide, Library, Continue watching, Details, Settings and Back to TV. It replaces the buttons across the top. Phones keep their button bar.",
+        "The picture you have selected now stands out more: a bold white outline, slightly larger, with the others dimmed. Settings > Appearance > Highlight lets you use your main colour instead.",
+    ],
     "1.38.29": [
         "Lettering: a long title that wraps onto two lines now shines evenly on both lines, and the Glossy reflection is shorter so it stays clear of the text under it.",
     ],

@@ -40,7 +40,11 @@ const ICONS={live:'<rect x="2.5" y="5.5" width="19" height="12.5" rx="2"/><path 
  text:'<path d="M2.5 19 7.5 5.5 12.5 19M4.4 14h6.2M14.5 19l3-8 3 8M15.6 16.2h3.8"/>',
  list:'<path d="M9.5 6.5h11M9.5 12h11M9.5 17.5h11M3.5 6.5l1.3 1.3L7.3 5.3M3.5 12l1.3 1.3L7.3 10.8M3.5 17.5l1.3 1.3 2.5-2.5"/>',
  gear:'<circle cx="12" cy="12" r="3.2"/><path d="M12 2.8l1.7 2.2 2.7-.7.5 2.8 2.4 1.5-1.2 2.5 1.2 2.5-2.4 1.5-.5 2.8-2.7-.7L12 21.2l-1.7-2.2-2.7.7-.5-2.8-2.4-1.5L5.9 12 4.7 9.5l2.4-1.5.5-2.8 2.7.7z"/>',
- help:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2 1-1.2 1.8v.6M12 17.3v.1"/>'};
+ help:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.2 1-1.2 1.8v.6M12 17.3v.1"/>',
+ home:'<path d="M3.5 11 12 3.8l8.5 7.2M5.5 9.8V20h4.5v-5.5h4V20h4.5V9.8"/>',
+ lib:'<rect x="3.5" y="3.5" width="7" height="7" rx="1"/><rect x="13.5" y="3.5" width="7" height="7" rx="1"/><rect x="3.5" y="13.5" width="7" height="7" rx="1"/><rect x="13.5" y="13.5" width="7" height="7" rx="1"/>',
+ info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8v.1"/>',
+ back:'<path d="M9 14 4.5 9.5 9 5M4.5 9.5H15a5 5 0 0 1 0 10h-3"/>'};
 function iconEl(name,cls){const w=el("span",cls||"ic");w.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]||ICONS.help}</svg>`;return w}
 const tile=t=>{let h=0;for(const ch of t||"")h=(h*31+ch.charCodeAt(0))%360;return`linear-gradient(135deg,hsl(${h} 34% 22%),hsl(${(h+50)%360} 40% 11%))`};
 function hints(box,pairs){box.textContent="";const k=el("div","kbd");for(const[a,b]of pairs){k.append(el("b",0,a),el("span",0,b))}box.append(k)}
@@ -108,7 +112,7 @@ async function evenVolume(url){const m=/\/media\/(\d+)/.exec(url||"");if(!m)retu
  if(!audioChain()&&!(g<0))return;                          /* turning down also works without the sound chain */
  if(gainN){gainN.gain.setTargetAtTime(Math.pow(10,g/20),actx.currentTime,.4);v.volume=Math.min(1,v.volume||1)}
  else v.volume=Math.max(.05,Math.min(1,Math.pow(10,g/20)))}
-function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";document.body.dataset.finish=c.finish||"flat";
+function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";document.body.dataset.finish=c.finish||"flat";document.body.dataset.focus=c.focus||"white";
  document.documentElement.style.setProperty("--safe",(c.safe_margin||0)+"");document.body.classList.toggle("safe",(c.safe_margin||0)>0);nightSound()}
 setInterval(()=>{loadTheme()},300000);                         /* night mode starts and ends by itself */
 /* screensaver: when on-demand video is paused, or a menu is left open, for a few minutes (live TV never) */
@@ -275,7 +279,7 @@ function homeSel(i,instant){const L=homeList,t=L[i];if(!t||!t.n)return;const o=L
  const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
 function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
  $("#h-clock").textContent=dayStr();$("#h-hello").textContent=theme.tagline;$("#home h2").textContent=theme.name;
- hints($("#h-hints"),[["← → ↑ ↓","choose"],["Enter","open"],["Esc","back to TV"],["?","help"]]);
+ hints($("#h-hints"),[["← → ↑ ↓","choose"],["←","menu"],["Enter","open"],["Esc","back to TV"],["?","help"]]);
  R.forEach((row,r)=>{let host=box;
   if(!row.hero){const s=el("section","hrow"),h=el("h3",0,row.title);if(row.sub)h.append(el("small",0,row.sub));const rc=el("div","rc");s.append(h,rc);box.append(s);host=rc}
   row.items.forEach((t,c)=>{const n=homeNode(t),i=homeList.length;t.n=n;t.r=r;t.c=c;homeList.push(t);host.append(n);n.onclick=()=>{homeSel(i);t.go();if(t.stay)drawHome()}})});
@@ -290,6 +294,7 @@ function homeKey(e){const k=e.key;
  const cur=homeList[hi];if(!cur)return;
  if((k==="x"||k==="X"||k==="F6")&&cur.cid){e.preventDefault();return clearCont(cur.cid)}
  const at=(r,c)=>{const row=homeList.filter(t=>t.r===r);return row.length?homeList.indexOf(row[Math.max(0,Math.min(c,row.length-1))]):-1};
+ if(k==="ArrowLeft"&&cur.c===0&&!COARSE){e.preventDefault();return lmShow("key")}
  if(k==="ArrowRight"||k==="ArrowLeft"){e.preventDefault();const i=at(cur.r,cur.c+(k==="ArrowRight"?1:-1));if(i>=0)homeSel(i)}
  else if(k==="ArrowDown"||k==="ArrowUp"){e.preventDefault();const r=cur.r+(k==="ArrowDown"?1:-1),i=at(r,cur.c);if(i>=0)homeSel(i)}
  else if(k==="Enter"){e.preventDefault();cur.go();if(cur.stay)drawHome()}}
@@ -560,6 +565,7 @@ addEventListener("keydown",e=>{const k=e.key;
   if($("#news").dataset.kind==="lineup"&&k.startsWith("Arrow")){e.preventDefault();spatialMove(k,$("#news"),true);return}
   if(inPick&&(k==="Enter"||k===" "))return;                       /* the focused channel button toggles itself */
   if(k==="Enter"||k==="Escape"||k===" "){e.preventDefault();closeNews()}return}
+ if(lmIsOpen())return lmKey(e);
  if(ctxIsOpen())return ctxKey(e);
  if(layer==="settings")return settingsKey(e);
  if(layer==="info"){const a=document.activeElement,inside=!!(a&&a.closest&&a.closest("#info")&&/^(BUTTON|INPUT|SELECT)$/.test(a.tagName));
@@ -669,6 +675,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     fo.onchange=()=>sSave({font:fo.value},"Font saved.",async()=>{await loadTheme()});main.append(sField("Font","The lettering of titles and text on the TV, on phones and on this PC. The Roku app keeps its own.",fo))}
   { const fi=el("select");for(const[v,t]of[["flat","Flat (default)"],["soft","Soft shadow"],["satin","Satin (brushed metal)"],["gloss","Glossy (shine and reflection)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).finish||"flat")===v)o.selected=true;fi.append(o)}
     fi.onchange=()=>sSave({finish:fi.value},"Lettering saved.",async()=>{await loadTheme()});main.append(sField("Lettering","How the big titles look: the station name and the featured title on Home. Smaller text stays flat so it is easy to read.",fi))}
+  { const fc=el("select");for(const[v,t]of[["white","White (default)"],["accent","Main colour"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).focus||"white")===v)o.selected=true;fc.append(o)}
+    fc.onchange=()=>sSave({focus:fc.value},"Highlight saved.",async()=>{await loadTheme()});main.append(sField("Highlight","The outline around the picture you have selected on Home, in the library and in the guide.",fc))}
   { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);
     const box=(key,text,on,save)=>{const i=el("input");i.type="checkbox";i.checked=on;const l=el("label","lb");l.append(i," "+text);l.style.display="flex";l.style.gap="1vw";i.onchange=()=>save(i.checked);return l};
     main.append(sField("Even volume","Quiet videos are turned up and loud ones down, so films, shorts and episodes all play at about the same volume (each video is measured once, in the background). On the TV screen and phones; Roku TVs have their own 'volume leveling' in the TV's sound settings.",
@@ -1167,7 +1175,25 @@ function settingsKey(e){const k=e.key;
 /* ---- on-screen buttons for the mouse + right-click menus ---- */
 let mbarT;function mbarInit(){const b=$("#mbar");if(b.dataset.ok)return;b.dataset.ok=1;
  for(const[t,fn]of[...(COARSE?[["Ch ▲",()=>tune(ci+1)],["Ch ▼",()=>tune(ci-1)]]:[]),["Home",()=>openHome()],["Guide",()=>openGuide()],["Library",()=>openLib()],["Details",()=>openInfo()],...(REMOTE?[]:[["Settings",()=>openSettings()]]),["Full screen",()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})]]){const x=el("button",0,t);x.type="button";x.onclick=fn;b.append(x)}}
-function mbarShow(){if(layer!==""){show("#mbar",false);return}mbarInit();paint($("#mbar"),theme.color);show("#mbar",true);clearTimeout(mbarT);mbarT=setTimeout(()=>show("#mbar",false),3000)}
+function mbarShow(){if(layer!==""){show("#mbar",false);show("#lchip",false);return}if(!COARSE){lchipShow();return}mbarInit();paint($("#mbar"),theme.color);show("#mbar",true);clearTimeout(mbarT);mbarT=setTimeout(()=>show("#mbar",false),3000)}
+/* ---- the left-side menu: mouse (left edge or the Menu chip) and keyboard / remote (Left from the first tile on Home).
+   Phones and tablets keep the button bar above. ---- */
+let lmI=0,lmL=[],lmT,lcT;const lmIsOpen=()=>$("#lmenu").classList.contains("on");
+function lchipShow(){const c=$("#lchip");if(!c.dataset.ok){c.dataset.ok=1;c.onclick=()=>lmShow("mouse")}paint(c,theme.color);show("#lchip",true);clearTimeout(lcT);lcT=setTimeout(()=>show("#lchip",false),3000)}
+function lmShow(by){if(lmIsOpen())return;const fs=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});
+ const main=[{t:"Home",ic:"home",on:layer==="home",fn:()=>openHome()},{t:"Guide",ic:"guide",on:layer==="guide",fn:()=>openGuide()},{t:"Library",ic:"lib",on:layer==="lib",fn:()=>openLib()},{t:"Continue watching",ic:"resume",fn:()=>openLib("continue")},{t:"Details",ic:"info",on:layer==="info",fn:()=>openInfo()}];
+ const low=[...(REMOTE?[]:[{t:"Settings",ic:"gear",on:layer==="settings",fn:()=>openSettings()}]),{t:"Full screen",ic:"live",fn:fs},{t:"Back to TV",ic:"back",fn:()=>closeAll()}];
+ lmL=[...main,...low];const m=$("#lmenu"),nav=m.querySelector(".lm-panel");nav.textContent="";paint(m,theme.color);
+ const who=el("div","lm-who");who.append(el("b",0,theme.name||"HERO TV"),el("small",0,theme.tagline||""));nav.append(who);
+ lmL.forEach((it,i)=>{if(i===main.length)nav.append(el("div","lm-gap"));const b=el("button","lm-it"+(it.on?" cur":""));b.type="button";b.append(iconEl(it.ic,"lm-ic"),el("span",0,it.t));b.onmouseenter=()=>{lmI=i;lmDraw()};b.onclick=()=>{lmClose();it.fn()};nav.append(b)});
+ lmI=Math.max(0,lmL.findIndex(x=>x.on));m.dataset.by=by||"key";show("#lmenu",true);lmDraw()}
+function lmDraw(){[...$("#lmenu").querySelectorAll(".lm-it")].forEach((b,i)=>b.classList.toggle("sel",i===lmI))}
+function lmClose(){show("#lmenu",false);clearTimeout(lmT)}
+function lmKey(e){const k=e.key;e.preventDefault();e.stopPropagation();
+ if(k==="Escape"||k==="ArrowLeft"||k==="ArrowRight"||k==="Backspace")lmClose();
+ else if(k==="ArrowDown"){lmI=(lmI+1)%lmL.length;lmDraw()}else if(k==="ArrowUp"){lmI=(lmI-1+lmL.length)%lmL.length;lmDraw()}
+ else if(k==="Enter"||k===" "){const it=lmL[lmI];lmClose();if(it)it.fn()}}
+{const p=$("#lmenu");p.querySelector(".lm-dim").onclick=lmClose;p.querySelector(".lm-panel").onmouseleave=()=>{if(p.dataset.by==="mouse"){clearTimeout(lmT);lmT=setTimeout(lmClose,500)}};p.querySelector(".lm-panel").onmouseenter=()=>clearTimeout(lmT)}
 let ctxI=0,ctxL=[];
 function ctxOpen(x,y,list){ctxL=list;ctxI=0;const m=$("#ctx");m.textContent="";paint(m,theme.color);list.forEach((it,i)=>{const d=el("div",i===0?"sel":"",it.t);d.setAttribute("role","menuitem");d.onmouseenter=()=>{ctxI=i;ctxDraw()};d.onclick=()=>{ctxClose();it.fn()};m.append(d)});
  show("#ctx",true);m.style.left=Math.min(x,innerWidth-m.offsetWidth-8)+"px";m.style.top=Math.min(y,innerHeight-m.offsetHeight-8)+"px"}
@@ -1236,7 +1262,7 @@ $("#tapgo").onclick=()=>{show("#tapgo",false);v.muted=false;v.play().catch(()=>{
 $("#xclose").onclick=()=>dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));
 document.body.classList.toggle("coarse",COARSE);
 addEventListener("touchstart",()=>{if(layer==="")mbarShow()},{passive:true});
-setInterval(()=>{document.body.classList.toggle("inlayer",layer!=="");if(layer!=="")show("#mbar",false)},300);
+setInterval(()=>{document.body.classList.toggle("inlayer",layer!=="");if(layer!==""){show("#mbar",false);show("#lchip",false)}},300);
 /* ---- drag videos onto the window to add them (they land in the Inbox folder) ---- */
 const VEXT=/\.(mp4|m4v|mkv|webm|mov|avi|wmv|flv|ts|m2ts|mts|mpg|mpeg|divx|ogv|3gp|srt|vtt)$/i;let dragN=0,upBusy=false;
 const hasFiles=e=>e.dataTransfer&&[...(e.dataTransfer.types||[])].includes("Files");
@@ -1262,7 +1288,7 @@ addEventListener("drop",async e=>{if(!hasFiles(e))return;e.preventDefault();drag
  catch(x){bad=ok.length}
  upBusy=false;toast(done?`${done} video${done===1?"":"s"} added to your Inbox. HERO TV will file ${done===1?"it":"them"} in about a minute.${bad?` (${bad} failed)`:""}`:"Nothing could be added.")});
 /* the mouse pointer only shows while it is being used */
-let curT;addEventListener("mousemove",()=>{mbarShow();if(vod&&layer==="")osd();document.body.classList.remove("hide-cursor");clearTimeout(curT);curT=setTimeout(()=>document.body.classList.add("hide-cursor"),3e3)});
+let curT;addEventListener("mousemove",e=>{if(!COARSE&&e.clientX<=8&&(layer===""||layer==="home")&&!lmIsOpen())lmShow("mouse");mbarShow();if(vod&&layer==="")osd();document.body.classList.remove("hide-cursor");clearTimeout(curT);curT=setTimeout(()=>document.body.classList.add("hide-cursor"),3e3)});
 (async()=>{try{const dv=await api("/api/device");REMOTE=!!dv.remote;MK=dv.mk||"";document.body.classList.toggle("remote",REMOTE)}catch(e){}
  try{await sync();setChans((await api("/api/channels")).channels)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open, then press F5.")}
  try{const h=await api("/api/health");if(h.api!==NEED_API)toast(h.frozen?"This HERO TV program is older than its files. Settings > Backup and about > Check now, then Install now, puts the matching version in place (or run the latest HERO TV Setup).":"HERO TV is an older version than this page. Close it completely and start it again to get the newest features.")}catch(e){}
