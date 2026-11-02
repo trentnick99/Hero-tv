@@ -201,6 +201,15 @@ def _stop_others():
         pass
 
 
+def clean_old_exes(root):
+    """Leftovers of the rename fallback above (HERO-TV.exe.old<time>): remove those no longer running."""
+    for f in Path(root).glob("HERO-TV.exe.old*"):
+        try:
+            f.unlink()
+        except OSError:
+            pass
+
+
 def finish_swap(root, wait_pid=None, timeout=60, now=None):
     """Copy the staged application files over the old ones (the old exe and _internal are moved to .update-backup
     first). Waits for process wait_pid to end. Returns the number of files installed."""
@@ -240,7 +249,11 @@ def finish_swap(root, wait_pid=None, timeout=60, now=None):
                 except PermissionError:
                     time.sleep(0.5)
             else:
-                raise OSError(f"{dest.name} is still in use - close HERO TV and run the update again")
+                if dest.suffix.lower() != ".exe" or not dest.exists():
+                    raise OSError(f"{dest.name} is still in use - close HERO TV and run the update again")
+                aside = dest.with_name(dest.name + f".old{int(time.time())}")       # a running program can be renamed, not overwritten
+                os.replace(dest, aside)
+                shutil.copy2(f, dest)
             n += 1
     return n
 

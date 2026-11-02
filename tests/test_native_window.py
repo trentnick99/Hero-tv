@@ -163,3 +163,45 @@ class DroppedFiles(unittest.TestCase):
         got = [p for p in media.rglob("New Film*") if p.is_file()]
         self.assertEqual(len(got), 1)
         self.assertEqual(got[0].read_bytes(), b"v" * 5000)
+
+
+class RestartAfterUpdate(unittest.TestCase):
+    def _run(self, own):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        (Path(d) / "HERO-TV.exe").write_bytes(b"x")
+        with mock.patch.dict(os.environ, {"HEROTV_RESTART_NO_BROWSER": "1"}), \
+             mock.patch.object(launcher, "_own_window_on", return_value=own), \
+             mock.patch.object(launcher.updater if hasattr(launcher, "updater") else __import__("herotv.updater", fromlist=["x"]), "finish_swap", return_value=3), \
+             mock.patch.object(launcher.subprocess, "Popen") as po:
+            launcher.finish_update(d, None, True)
+        return po.call_args[0][0]
+
+    def test_an_edge_window_reconnects_so_no_new_window(self):
+        self.assertIn("--no-browser", self._run(False))
+
+    def test_the_own_window_is_closed_by_the_update_so_a_new_one_opens(self):
+        self.assertNotIn("--no-browser", self._run(True))
+
+    def test_a_program_that_cannot_be_overwritten_is_renamed_aside(self):
+        from herotv import updater
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        root = Path(d)
+        (root / "HERO-TV.exe").write_bytes(b"old")
+        st = root / updater.STAGE
+        st.mkdir()
+        (st / "HERO-TV.exe").write_bytes(b"new")
+        real = shutil.copy2
+
+        def busy(src, dst, *a, **k):
+            if str(dst) == str(root / "HERO-TV.exe") and (root / "HERO-TV.exe").exists():
+                raise PermissionError("in use")
+            return real(src, dst, *a, **k)
+        with mock.patch.object(updater, "_stop_others"), mock.patch.object(updater.shutil, "copy2", side_effect=busy), mock.patch.object(updater.time, "sleep"):
+            updater.finish_swap(root, now=1000)
+        self.assertEqual((root / "HERO-TV.exe").read_bytes(), b"new")
+        left = list(root.glob("HERO-TV.exe.old*"))
+        self.assertEqual(len(left), 1)
+        updater.clean_old_exes(root)
+        self.assertEqual(list(root.glob("HERO-TV.exe.old*")), [])

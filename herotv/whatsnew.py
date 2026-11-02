@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.22": [
+        "Fixed: after an update from inside HERO TV, HERO TV's own window did not come back by itself. It now opens again automatically. A program file that Windows will not let the update overwrite is now renamed aside instead of failing the update.",
+    ],
     "1.38.21": [
         "The guide shows showtimes in a shorter form (5:00\u20135:24 PM) so they fit in a narrow box instead of being cut off. The first-run tip about the H key now only appears while you are watching TV, never on top of a menu.",
     ],

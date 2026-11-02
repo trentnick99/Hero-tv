@@ -491,6 +491,11 @@ def launch(no_browser=False, windowed=False, quiet=False):
         return 1
 
     threading.Thread(target=repair_shortcuts, daemon=True).start()
+    try:
+        from . import updater as _u
+        _u.clean_old_exes(ROOT)
+    except Exception:
+        pass
     from .server import serve
     if not no_browser:
         def opener():
@@ -1914,6 +1919,14 @@ def self_update(zip_path):
     return rc
 
 
+def _own_window_on():
+    try:
+        from . import settings_api
+        return bool(settings_api._load().get("native_window"))
+    except Exception:
+        return False
+
+
 def finish_update(root, pid=None, start=True):
     """Run by the NEW exe from the staging folder after the old one has closed: swap it in, then start HERO TV."""
     from . import updater
@@ -1925,7 +1938,7 @@ def finish_update(root, pid=None, start=True):
         return 1
     say(f"{OK} Installed {n} application file(s).")
     if start and os.environ.get("HEROTV_UPDATE_NO_START") != "1" and (root / "HERO-TV.exe").is_file():
-        extra = ["--no-browser"] if os.environ.get("HEROTV_RESTART_NO_BROWSER") == "1" else []   # the TV window is still open
+        extra = ["--no-browser"] if os.environ.get("HEROTV_RESTART_NO_BROWSER") == "1" and not _own_window_on() else []   # an Edge window is still open and reconnects; HERO TV's own window was closed by the update, so a new one opens
         subprocess.Popen([str(root / "HERO-TV.exe"), "launch", "--quiet"] + extra, cwd=str(root), close_fds=True,
                          creationflags=0x00000008 if IS_WIN else 0)
     return 0
