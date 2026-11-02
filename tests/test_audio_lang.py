@@ -318,6 +318,15 @@ class Real(unittest.TestCase):
         self.assertTrue(why.startswith(prepare._repair_tag() + prepare.DAMAGED), why)
         self.assertFalse(prepare.want_sound_fix(self.c, one["id"]))              # and it is not retried at once
 
+    def test_a_new_download_is_not_called_damaged_because_of_the_old_one(self):
+        one = self.row(self.one)
+        prepare.want_sound_fix(self.c, one["id"])
+        run = lambda cmd, rt: tools.FFResult(1, ["Invalid NAL unit size (0 > 9)", "missing picture in access unit"])
+        prepare.prepare_one(self.c, self.row(self.one), FF, run=run, fix=True)
+        self.assertTrue(prepare.damaged(self.c, one["id"]))
+        self.c.execute("UPDATE media SET size=size+1 WHERE id=?", (one["id"],))        # the file was downloaded again
+        self.assertFalse(prepare.damaged(self.c, one["id"]))
+
     def test_a_plain_failure_is_not_called_damaged(self):
         one = self.row(self.one)
         prepare.want_sound_fix(self.c, one["id"])

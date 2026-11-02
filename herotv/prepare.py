@@ -29,8 +29,8 @@ DAMAGED = "DAMAGED PICTURE: "
 
 def damaged(conn, mid):
     """True when a repair failed and ffmpeg said the picture itself is broken: the download is bad, a copy cannot fix it."""
-    p = conn.execute("SELECT status,why FROM prepared WHERE media_id=?", (mid,)).fetchone()
-    return bool(p and p["status"] == "failed" and DAMAGED in (p["why"] or ""))
+    p = conn.execute("SELECT p.status,p.why FROM prepared p JOIN media m ON m.id=p.media_id WHERE p.media_id=? AND p.src_size=m.size", (mid,)).fetchone()
+    return bool(p and p["status"] == "failed" and DAMAGED in (p["why"] or ""))      # a re-downloaded file (new size) is judged afresh
 
 
 def _repair_tag():

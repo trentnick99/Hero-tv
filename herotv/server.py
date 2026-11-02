@@ -1760,7 +1760,7 @@ def make_handler(app, remote=False):
             rows = c.execute("SELECT id,title,path,vcodec,acodec,vfmt,verified FROM media WHERE available=1 AND (playable=0 OR verified=0) "
                              "ORDER BY title LIMIT 200").fetchall()
             bad = c.execute("SELECT m.id,m.title,m.path,m.vcodec,m.acodec,m.vfmt,m.verified FROM media m JOIN prepared p ON p.media_id=m.id "
-                            "WHERE m.available=1 AND p.status='failed' AND p.why LIKE ? ORDER BY m.title LIMIT 50", ("%" + prepare.DAMAGED + "%",)).fetchall()
+                            "WHERE m.available=1 AND p.status='failed' AND p.src_size=m.size AND p.why LIKE ? ORDER BY m.title LIMIT 50", ("%" + prepare.DAMAGED + "%",)).fetchall()
             seen = {r["id"] for r in rows}
             rows = list(rows) + [r for r in bad if r["id"] not in seen]
             problems = []

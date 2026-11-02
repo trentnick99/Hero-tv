@@ -31,6 +31,14 @@ def run(url, fullscreen=True, profile=None):
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)     # its own taskbar button, not Edge's
     except Exception:
         pass
+    try:                                                       # one window only: starting HERO TV again must not open a second one
+        import ctypes
+        _h = ctypes.windll.kernel32.CreateMutexW(None, False, "HeroTV.App.Window")
+        if ctypes.windll.kernel32.GetLastError() == 183:       # ERROR_ALREADY_EXISTS
+            return 0
+        globals()["_mutex"] = _h                               # keep it for as long as this window lives
+    except Exception:
+        pass
     os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required --disable-features=Translate")
     try:
         import webview

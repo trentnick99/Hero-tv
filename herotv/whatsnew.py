@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.11": [
+        "A video you downloaded again after it was marked as a damaged download is checked afresh instead of staying on the damaged list. Starting HERO TV again no longer opens a second own window.",
+    ],
     "1.38.10": [
         "Fixed the Home screen bouncing up and down for a moment when you open it (it was sliding back to where you were after it filled in).",
     ],
