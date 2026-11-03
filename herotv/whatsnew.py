@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.37": [
+        "Fixed the TV guide: a long description no longer spills over the time ruler or cuts off the channel name at the top.",
+    ],
     "1.38.36": [
         "New setting: Home rows (Settings > Appearance). Choose which rows show on Home (On now, Continue watching, New in your library, Favorites) and put them in the order you like.",
     ],
