@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.36": [
+        "New setting: Home rows (Settings > Appearance). Choose which rows show on Home (On now, Continue watching, New in your library, Favorites) and put them in the order you like.",
+    ],
     "1.38.35": [
         "New setting: Text colour (Settings > Appearance). Soft grey is a little dimmer than white and easier on the eyes; Warm and Cool are also there.",
     ],

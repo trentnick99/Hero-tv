@@ -100,6 +100,7 @@ function upCard(my){const c=chans[ci],box=$("#upcard");v.pause();v.removeAttribu
   if(s<=0)return tune(ci);cardT=setTimeout(tick,1e3)};tick();osd()}
 /* ---- comfort: even volume, night mode, screensaver, TV edge margin, look (Settings > Appearance) ---- */
 let actx=null,gainN=null,compN=null,gainFor="";
+const HOME_ROWS=["onnow","continue","new","favorites"];
 function comfortOf(){return theme.comfort||{level:true,night:{active:false},screensaver:true,safe_margin:0,theme:"classic"}}
 function audioChain(){if(gainN)return true;try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return false}
  if(actx.state!=="running"){actx.resume().catch(()=>{});return false}   /* never route the sound through a stopped player */
@@ -243,10 +244,12 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  const on=(d.onnow||[]).slice().sort((a,b)=>(c&&b.c.id===c.id)-(c&&a.c.id===c.id)).slice(0,14).map(liveCard);
  if(d.special){const x=d.special,w=x.s.start<=nowS();on.unshift({k:"card",t:x.s.block,s:`${w?"On now":"Starts "+dayWord(x.s.start)}, channel ${x.c.number}`,img:x.s.media_id,plate:x.c.number,special:1,
   go:()=>{const i=chans.findIndex(k=>k.id===x.c.id);if(i>=0)tuneTo(i)}})}
- if(on.length)rows.push({title:"On now",sub:"Pick a channel",items:on});
- if(d.contList&&d.contList.length)rows.push({title:"Continue watching",items:[...d.contList.map(contCard),more("See all",()=>{closeAll();openLib("continue")})]});
- if(d.recentList&&d.recentList.length)rows.push({title:"New in your library",sub:`${d.recentN} new`,items:[...d.recentList.map(vodCard),more("See all",()=>{closeAll();openLib("recent")})]});
- if(d.favList&&d.favList.length)rows.push({title:"Favorites",items:[...d.favList.map(vodCard),more("See all",()=>{closeAll();openLib("favorites")})]});
+ const R={};
+ if(on.length)R.onnow={title:"On now",sub:"Pick a channel",items:on};
+ if(d.contList&&d.contList.length)R.continue={title:"Continue watching",items:[...d.contList.map(contCard),more("See all",()=>{closeAll();openLib("continue")})]};
+ if(d.recentList&&d.recentList.length)R.new={title:"New in your library",sub:`${d.recentN} new`,items:[...d.recentList.map(vodCard),more("See all",()=>{closeAll();openLib("recent")})]};
+ if(d.favList&&d.favList.length)R.favorites={title:"Favorites",items:[...d.favList.map(vodCard),more("See all",()=>{closeAll();openLib("favorites")})]};
+ for(const id of (comfortOf().home_rows||HOME_ROWS))if(R[id])rows.push(R[id]);
  const sp=d.setup,ch=[];
  if(sp&&!sp.done&&!REMOTE){const nx=sp.steps.find(x=>!x.done),n=sp.steps.filter(x=>x.done).length;
   ch.push({k:"chip",ic:"gear",t:"Finish setting up",s:`${n} of ${sp.steps.length} done. Next: ${nx.text}`,go:()=>{closeAll();openSettings("tools").then(()=>sJump(nx.cat,nx.card))}})}
@@ -681,6 +684,19 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     gl.onchange=()=>sSave({glow:gl.value},"Glow saved.",async()=>{await loadTheme()});main.append(sField("Highlight glow","A soft light around the highlight outline, in the same colour.",gl))}
   { const ik=el("select");for(const[v,t]of[["standard","Standard (default)"],["soft","Soft grey (easy on the eyes)"],["warm","Warm"],["cool","Cool"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).ink||"standard")===v)o.selected=true;ik.append(o)}
     ik.onchange=()=>sSave({ink:ik.value},"Text colour saved.",async()=>{await loadTheme()});main.append(sField("Text colour","The colour of titles and text on the TV and PC. Soft grey is a little dimmer than white.",ik))}
+  { const names={onnow:"On now",continue:"Continue watching",new:"New in your library",favorites:"Favorites"},box=el("div","hrows");
+    let order=((d.comfort||{}).home_rows||HOME_ROWS).slice();
+    const draw=()=>{box.textContent="";const all=[...order,...HOME_ROWS.filter(x=>!order.includes(x))];
+      all.forEach((id,i)=>{const on=order.includes(id),row=el("div","hrr");
+        const cb=el("input");cb.type="checkbox";cb.checked=on;cb.onchange=()=>{order=cb.checked?[...order,id]:order.filter(x=>x!==id);save();draw()};
+        const lab=el("label",0,names[id]);lab.prepend(cb);row.append(lab);
+        if(on){const k=order.indexOf(id);
+          const up=sBtn("Up",()=>{if(k>0){[order[k-1],order[k]]=[order[k],order[k-1]];save();draw()}});up.disabled=k===0;
+          const dn=sBtn("Down",()=>{if(k<order.length-1){[order[k+1],order[k]]=[order[k],order[k+1]];save();draw()}});dn.disabled=k===order.length-1;
+          row.append(up,dn)}
+        box.append(row)})};
+    const save=()=>sSave({home_rows:order.slice()},"Home rows saved.",async()=>{await loadTheme()});
+    draw();main.append(sField("Home rows","Which rows show on Home, and in what order. Tick to show a row; Up and Down move it.",box))}
   { const mn=el("select");for(const[v,t]of[["smoked","Smoked glass"],["light","Light glass (default)"],["solid","Solid (easiest to read)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).menu||"light")===v)o.selected=true;mn.append(o)}
     mn.onchange=()=>sSave({menu:mn.value},"Menu style saved.",async()=>{await loadTheme()});main.append(sField("Menu style","How the left-side menu looks. Glass shows a blurred copy of the picture behind it; Solid is a plain dark panel.",mn))}
   { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);

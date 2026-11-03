@@ -443,3 +443,6 @@ body[data-ink="warm"]{--text:#f6efe2;--mute:#a79d8a}
 body[data-ink="cool"]{--text:#eaf1fa;--mute:#8f9db0}
 body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"]) :is(.lm-it,.tl.pcd b,.hrow h3,.tl.hero h1,#in-t){color:var(--text)}
 body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="satin"] :is(.tl.hero h1,#in-t),body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="gloss"] :is(.tl.hero h1,#in-t){color:transparent}
+
+/* Home rows setting (1.38.36) */
+.hrows{display:flex;flex-direction:column;gap:.8vh;max-width:46vw}.hrr{display:flex;align-items:center;gap:.8vw;background:var(--panel);border-radius:1vh;padding:.8vh 1vw}.hrr label{flex:1;display:flex;align-items:center;gap:.8vw;font-size:calc(2.2vh*var(--tx))}.hrr .sbtn[disabled]{opacity:.35;pointer-events:none}

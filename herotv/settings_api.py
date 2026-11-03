@@ -62,6 +62,18 @@ FINISHES = ("flat", "soft", "satin", "gloss")
 FOCUSES = ("white", "accent", "gold", "cyan", "red", "green", "purple", "orange")
 GLOWS = ("off", "soft", "strong")
 INKS = ("standard", "soft", "warm", "cool")
+HOME_ROWS = ("onnow", "continue", "new", "favorites")
+
+
+def _home_rows(v):
+    """The Home rows to show, in order. Anything unknown or repeated is dropped; a missing value means all of them."""
+    if not isinstance(v, list):
+        return list(HOME_ROWS)
+    out = []
+    for x in v:
+        if x in HOME_ROWS and x not in out:
+            out.append(x)
+    return out
 MENUS = ("smoked", "light", "solid")
 MARGINS = (0, 2.5, 5)
 _HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
@@ -89,7 +101,8 @@ def comfort(d=None, now=None, tz=None):
             "focus": d.get("focus") if d.get("focus") in FOCUSES else "white",
             "menu": d.get("menu") if d.get("menu") in MENUS else "light",
             "glow": d.get("glow") if d.get("glow") in GLOWS else "soft",
-            "ink": d.get("ink") if d.get("ink") in INKS else "standard"}
+            "ink": d.get("ink") if d.get("ink") in INKS else "standard",
+            "home_rows": _home_rows(d.get("home_rows"))}
 
 
 def logo_mode(d=None):
@@ -243,6 +256,12 @@ def update(changes, geocode=None):
             raise ValueError("Choose a text colour from the list.")
         data["ink"] = changes["ink"]
         saved.append("ink")
+    if "home_rows" in changes:
+        v = changes["home_rows"]
+        if not isinstance(v, list) or any(x not in HOME_ROWS for x in v) or len(set(v)) != len(v):
+            raise ValueError("Choose the Home rows from the list.")
+        data["home_rows"] = list(v)
+        saved.append("home_rows")
     if "menu" in changes:
         if changes["menu"] not in MENUS:
             raise ValueError("Choose a menu style from the list.")
