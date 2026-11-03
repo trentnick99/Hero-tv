@@ -59,7 +59,8 @@ LOGO_MODES = ("always", "sometimes", "off")
 THEMES = ("classic", "black", "retro", "cool", "warm", "hdr", "cinematic")
 FONTS = ("broadcast", "cinema", "classic", "modern")
 FINISHES = ("flat", "soft", "satin", "gloss")
-FOCUSES = ("white", "accent")
+FOCUSES = ("white", "accent", "gold", "cyan", "red", "green", "purple", "orange")
+GLOWS = ("off", "soft", "strong")
 MENUS = ("smoked", "light", "solid")
 MARGINS = (0, 2.5, 5)
 _HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
@@ -85,7 +86,8 @@ def comfort(d=None, now=None, tz=None):
             "font": d.get("font") if d.get("font") in FONTS else "broadcast",
             "finish": d.get("finish") if d.get("finish") in FINISHES else "flat",
             "focus": d.get("focus") if d.get("focus") in FOCUSES else "white",
-            "menu": d.get("menu") if d.get("menu") in MENUS else "light"}
+            "menu": d.get("menu") if d.get("menu") in MENUS else "light",
+            "glow": d.get("glow") if d.get("glow") in GLOWS else "soft"}
 
 
 def logo_mode(d=None):
@@ -229,6 +231,11 @@ def update(changes, geocode=None):
             raise ValueError("Choose a highlight from the list.")
         data["focus"] = changes["focus"]
         saved.append("focus")
+    if "glow" in changes:
+        if changes["glow"] not in GLOWS:
+            raise ValueError("Choose a glow from the list.")
+        data["glow"] = changes["glow"]
+        saved.append("glow")
     if "menu" in changes:
         if changes["menu"] not in MENUS:
             raise ValueError("Choose a menu style from the list.")
