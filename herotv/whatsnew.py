@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.32": [
+        "The left-side menu is a little wider so 'Continue watching' stays on one line.",
+    ],
     "1.38.31": [
         "The left-side menu is now a floating glass panel. Settings > Appearance > Menu style lets you choose Smoked glass, Light glass (more see-through) or Solid (easiest to read). The menu text is brighter and bolder too.",
     ],
