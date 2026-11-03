@@ -234,9 +234,10 @@ const dayWord=t=>(new Date(t*1e3).toDateString()===new Date(nowS()*1e3).toDateSt
 /* Home = a big banner for what to watch next, then rows of pictures (On now, Continue, New, Favorites) and a row of shortcuts. */
 function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="free"),wxc=chans.find(x=>x.kind==="weather"),rows=[];
  const tuneTo=i=>{closeAll();tune(i)},pct=(a,b)=>b>0?Math.max(0,Math.min(1,a/b)):0;
- const liveCard=x=>({k:"card",t:label(x.s),s:`${x.c.number} ${x.c.name}`,img:x.s.media_id,plate:x.c.number,live:c&&x.c.id===c.id,pct:pct(nowS()-x.s.start,x.s.end-x.s.start),
+ const liveCard=x=>({k:"card",t:label(x.s),s:`${x.c.number} ${x.c.name}`,img:x.s.media_id,plate:x.c.number,
+  inf:{id:x.s.media_id,title:label(x.s),sub:`Channel ${x.c.number} · ${x.c.name}`,badge:x.s.start<=nowS()?`On now · ends ${T(x.s.end)}`:`Starts ${T(x.s.start)}`},live:c&&x.c.id===c.id,pct:pct(nowS()-x.s.start,x.s.end-x.s.start),
   go:()=>{const i=chans.findIndex(k=>k.id===x.c.id);if(i>=0)tuneTo(i);else closeAll()}});
- const vodCard=it=>({k:"card",t:it.show?it.title:label(it),s:it.position>10?`${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":""),img:it.id,pct:it.position>10?pct(it.position,it.runtime_s):0,go:()=>startVod(it)}),contCard=it=>Object.assign(vodCard(it),{cid:it.id});
+ const vodCard=it=>({k:"card",inf:{id:it.id,title:it.show?it.title:label(it),sub:it.show?"":(it.series||""),badge:it.position>10?`Resume · ${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":"")},t:it.show?it.title:label(it),s:it.position>10?`${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":""),img:it.id,pct:it.position>10?pct(it.position,it.runtime_s):0,go:()=>startVod(it)}),contCard=it=>Object.assign(vodCard(it),{cid:it.id});
  const more=(t,go)=>({k:"card",more:1,t,s:"",go});
  const hero=d.cont?{k:"hero",kick:"Continue watching",t:label(d.cont),s:`${hms(d.cont.position)} in`,cid:d.cont.id,img:d.cont.id,pct:pct(d.cont.position,d.cont.runtime_s),btn:"Resume",ic:"resume",go:()=>startVod(d.cont)}
   :c?{k:"hero",kick:`On now · channel ${c.number}`,t:slot?label(slot):c.name,s:c.name,img:slot&&slot.media_id,btn:"Watch live",ic:"live",go:()=>closeAll()}
@@ -254,6 +255,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  { const oth=(d.onnow||[]).find(x=>x.s&&x.s.media_id&&!(c&&x.c.id===c.id)),gImg=oth?oth.s.media_id:undefined,
      lSrc=(d.recentList&&d.recentList[0])||(d.favList&&d.favList[0]),lImg=lSrc?lSrc.id:undefined;
    const st=[{k:"big",t:"Live TV",s:c?`Channel ${c.number}${slot?" · "+label(slot):""}${slot&&slot.end?" · ends "+T(slot.end):""}`:"Watch what is on now",img:slot&&slot.media_id,live:1,
+     inf:slot?{id:slot.media_id,title:label(slot),sub:c?`Channel ${c.number} · ${c.name}`:"",badge:`On now · ends ${T(slot.end)}`}:null,
      pv:(comfortOf().preview||"on")==="on"&&c&&c.kind!=="weather"&&!vod&&slot?{start:slot.start,end:slot.end}:null,go:()=>closeAll()},
    {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
    {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",img:lImg,go:()=>{closeAll();openLib()}}];
@@ -302,8 +304,15 @@ function homePreview(n,pv){
   if(n._u)n._u();if(!ready()){if(p)p.classList.remove("on");return}
   if(!p)return attach();if(src!==v.currentSrc)return load();
   if(p.readyState>=2&&Math.abs(p.currentTime-v.currentTime)>3)p.currentTime=v.currentTime},1000)}
+const infoCache=new Map();let infoT=0;
+function homeInfo(t){const box=$("#h-info");clearTimeout(infoT);const f=t&&t.inf;
+ if(!f){box.classList.remove("on");return}
+ $(".hi-t",box).textContent=f.title||"";$(".hi-b",box).textContent=f.badge||"";$(".hi-b",box).style.display=f.badge?"":"none";
+ const paint_=d=>{$(".hi-m",box).textContent=[f.sub,d&&d.year,d&&d.runtime_min?d.runtime_min+" min":"",d&&d.rating?"★ "+d.rating.toFixed(1):"",d&&(d.genres||[]).slice(0,2).join(", ")].filter(Boolean).join("  ·  ");$(".hi-p",box).textContent=(d&&d.plot)||""};
+ const hit=infoCache.get(f.id);paint_(hit||null);box.classList.add("on");
+ if(!hit)infoT=setTimeout(async()=>{try{const d=await api("/api/info/"+f.id);infoCache.set(f.id,d);if(homeList[hi]===t&&layer==="home")paint_(d)}catch(e){}},300)}
 function homeSel(i,instant){const L=homeList,t=L[i];if(!t||!t.n)return;const o=L[hi];if(o&&o.n)o.n.classList.remove("sel");hi=i;t.n.classList.add("sel");
- const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
+ homeInfo(t);const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
 function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
  $("#h-clock").textContent=dayStr();$("#h-hello").textContent=theme.tagline;$("#home h2").textContent=theme.name;
  hints($("#h-hints"),[["← → ↑ ↓","choose"],["←","menu"],["Enter","open"],["Esc","back to TV"],["?","help"]]);

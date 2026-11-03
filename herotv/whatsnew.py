@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.42": [
+        "On Home, the picture you have selected now shows an information panel at the bottom: the title, channel, year, length, rating and a short description (when your library has them), and whether it is on now, starts later, or where you left off.",
+    ],
     "1.38.41": [
         "On Home, the Live TV tile is now bigger and plays the channel that is on - without sound - with the time it ends and a progress bar. Turn it off under Settings > Appearance > Live picture on Home if you prefer a still picture.",
     ],

@@ -77,7 +77,9 @@ def main(engine):
               "Done saves it: South Park is switched off (not deleted) and the card closes")
         tv = [c["id"] for c in json.loads(urllib.request.urlopen(base + "/api/channels").read())["channels"]]
         check("south-park" not in tv and "invincible" in tv, "a switched-off channel is gone from the TV's channel list")
-        if not pg.evaluate("document.querySelector('#home').classList.contains('on')"):
+        try:                                                  # the PC starts on Home: wait for it instead of racing it
+            pg.wait_for_function("document.querySelector('#home').classList.contains('on')", timeout=6000)
+        except Exception:
             pg.keyboard.press("h")
         pg.wait_for_timeout(1500)
         tiles = pg.inner_text("#tiles")
