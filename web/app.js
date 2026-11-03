@@ -100,7 +100,7 @@ function upCard(my){const c=chans[ci],box=$("#upcard");v.pause();v.removeAttribu
   if(s<=0)return tune(ci);cardT=setTimeout(tick,1e3)};tick();osd()}
 /* ---- comfort: even volume, night mode, screensaver, TV edge margin, look (Settings > Appearance) ---- */
 let actx=null,gainN=null,compN=null,gainFor="";
-const HOME_ROWS=["onnow","continue","new","favorites"];
+const HOME_ROWS=["start","onnow","continue","new","favorites"];
 function comfortOf(){return theme.comfort||{level:true,night:{active:false},screensaver:true,safe_margin:0,theme:"classic"}}
 function audioChain(){if(gainN)return true;try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return false}
  if(actx.state!=="running"){actx.resume().catch(()=>{});return false}   /* never route the sound through a stopped player */
@@ -240,7 +240,8 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  const hero=d.cont?{k:"hero",kick:"Continue watching",t:label(d.cont),s:`${hms(d.cont.position)} in`,cid:d.cont.id,img:d.cont.id,pct:pct(d.cont.position,d.cont.runtime_s),btn:"Resume",ic:"resume",go:()=>startVod(d.cont)}
   :c?{k:"hero",kick:`On now · channel ${c.number}`,t:slot?label(slot):c.name,s:c.name,img:slot&&slot.media_id,btn:"Watch live",ic:"live",go:()=>closeAll()}
   :{k:"hero",kick:"Welcome",t:theme.name,s:"Pick something from your library",btn:"Open library",ic:"search",go:()=>{closeAll();openLib()}};
- rows.push({hero:1,items:[hero]});
+ const hr=comfortOf().home_rows||HOME_ROWS,startOn=hr.includes("start");
+ if(!startOn)rows.push({hero:1,items:[hero]});
  const on=(d.onnow||[]).slice().sort((a,b)=>(c&&b.c.id===c.id)-(c&&a.c.id===c.id)).slice(0,14).map(liveCard);
  if(d.special){const x=d.special,w=x.s.start<=nowS();on.unshift({k:"card",t:x.s.block,s:`${w?"On now":"Starts "+dayWord(x.s.start)}, channel ${x.c.number}`,img:x.s.media_id,plate:x.c.number,special:1,
   go:()=>{const i=chans.findIndex(k=>k.id===x.c.id);if(i>=0)tuneTo(i)}})}
@@ -249,7 +250,13 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(d.contList&&d.contList.length)R.continue={title:"Continue watching",items:[...d.contList.map(contCard),more("See all",()=>{closeAll();openLib("continue")})]};
  if(d.recentList&&d.recentList.length)R.new={title:"New in your library",sub:`${d.recentN} new`,items:[...d.recentList.map(vodCard),more("See all",()=>{closeAll();openLib("recent")})]};
  if(d.favList&&d.favList.length)R.favorites={title:"Favorites",items:[...d.favList.map(vodCard),more("See all",()=>{closeAll();openLib("favorites")})]};
- for(const id of (comfortOf().home_rows||HOME_ROWS))if(R[id])rows.push(R[id]);
+ { const st=[{k:"big",t:"Live TV",s:c?`Channel ${c.number}${slot?" · "+label(slot):""}`:"Watch what is on now",img:slot&&slot.media_id,live:1,go:()=>closeAll()},
+   {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",go:()=>{closeAll();openGuide()}},
+   {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",go:()=>{closeAll();openLib()}}];
+  if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
+  else if(!REMOTE)st.push({k:"big",t:"Settings",s:"Look, channels, phone, backup",ic:"gear",go:()=>openSettings()});
+  R.start={title:"Start here",items:st} }
+ for(const id of hr)if(R[id])rows.push(R[id]);
  const sp=d.setup,ch=[];
  if(sp&&!sp.done&&!REMOTE){const nx=sp.steps.find(x=>!x.done),n=sp.steps.filter(x=>x.done).length;
   ch.push({k:"chip",ic:"gear",t:"Finish setting up",s:`${n} of ${sp.steps.length} done. Next: ${nx.text}`,go:()=>{closeAll();openSettings("tools").then(()=>sJump(nx.cat,nx.card))}})}
@@ -273,6 +280,7 @@ function homeNode(t){const n=el("div","tl "+(t.k==="card"?"pcd":t.k)+(t.dim?" di
   if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";x.append(g)}
   const b=el("span","hbtn");b.append(iconEl(t.ic,"bi"),document.createTextNode(t.btn));x.append(b);n.append(x);return n}
  if(t.k==="chip"){n.append(iconEl(t.ic),el("b",0,t.t),el("small",0,t.s));return n}
+ if(t.k==="big"){if(t.img){n.append(thumb(t.img,0));n.lastChild.className="bpic"}n.append(el("div","bshade"));if(t.live)n.append(el("i","blive","● LIVE"));else if(t.ic)n.append(iconEl(t.ic,"bic"));const x=el("div","bt");x.append(el("b",0,t.t),el("small",0,t.s||" "));n.append(x);return n}
  if(t.more){n.append(el("b",0,t.t),iconEl("search","mi"));return n}
  const p=el("div","ppic");p.style.background=tile(t.t);if(t.img)p.append(thumb(t.img,1));
  if(t.plate)p.append(el("i","pl",String(t.plate)));if(t.live)p.append(el("i","lv","On now"));else if(t.special)p.append(el("i","lv","Special"));
@@ -284,7 +292,7 @@ function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.sty
  $("#h-clock").textContent=dayStr();$("#h-hello").textContent=theme.tagline;$("#home h2").textContent=theme.name;
  hints($("#h-hints"),[["← → ↑ ↓","choose"],["←","menu"],["Enter","open"],["Esc","back to TV"],["?","help"]]);
  R.forEach((row,r)=>{let host=box;
-  if(!row.hero){const s=el("section","hrow"),h=el("h3",0,row.title);if(row.sub)h.append(el("small",0,row.sub));const rc=el("div","rc");s.append(h,rc);box.append(s);host=rc}
+  if(!row.hero){const s=el("section","hrow"+(r===0?" first":"")),h=el("h3",0,row.title);if(row.sub)h.append(el("small",0,row.sub));const rc=el("div","rc");s.append(h,rc);box.append(s);host=rc}
   row.items.forEach((t,c)=>{const n=homeNode(t),i=homeList.length;t.n=n;t.r=r;t.c=c;homeList.push(t);host.append(n);n.onclick=()=>{homeSel(i);t.go();if(t.stay)drawHome()}})});
  hi=Math.max(0,Math.min(hi,homeList.length-1));homeSel(hi,true);box.scrollTop=top;if(homeList[hi]&&homeList[hi].r)homeSel(hi,true);requestAnimationFrame(()=>{box.style.scrollBehavior=""})}
 let homeList=[];
@@ -684,7 +692,9 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     gl.onchange=()=>sSave({glow:gl.value},"Glow saved.",async()=>{await loadTheme()});main.append(sField("Highlight glow","A soft light around the highlight outline, in the same colour.",gl))}
   { const ik=el("select");for(const[v,t]of[["standard","Standard (default)"],["soft","Soft grey (easy on the eyes)"],["warm","Warm"],["cool","Cool"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).ink||"standard")===v)o.selected=true;ik.append(o)}
     ik.onchange=()=>sSave({ink:ik.value},"Text colour saved.",async()=>{await loadTheme()});main.append(sField("Text colour","The colour of titles and text on the TV and PC. Soft grey is a little dimmer than white.",ik))}
-  { const names={onnow:"On now",continue:"Continue watching",new:"New in your library",favorites:"Favorites"},box=el("div","hrows");
+  { const sx=el("select");for(const[v,t]of[["home","Home (default)"],["live","Live TV"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).start||"home")===v)o.selected=true;sx.append(o)}
+    sx.onchange=()=>sSave({start:sx.value},"Saved. Takes effect the next time HERO TV starts.",async()=>{await loadTheme()});main.append(sField("Open HERO TV on","Where HERO TV starts: the Home screen, or straight onto the channel you last watched.",sx))}
+  { const names={start:"Start here (Live TV, Guide, Library)",onnow:"On now",continue:"Continue watching",new:"New in your library",favorites:"Favorites"},box=el("div","hrows");
     let order=((d.comfort||{}).home_rows||HOME_ROWS).slice();
     const draw=()=>{box.textContent="";const all=[...order,...HOME_ROWS.filter(x=>!order.includes(x))];
       all.forEach((id,i)=>{const on=order.includes(id),row=el("div","hrr");
@@ -1317,6 +1327,6 @@ let curT;addEventListener("mousemove",e=>{if(!COARSE&&e.clientX<=8&&(layer===""|
  try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color);applyCues(theme.subs);applyComfort()}catch(e){}
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
  if(typeof pf.volume==="number")v.volume=pf.volume;if("muted" in pf)v.muted=!!pf.muted;if(pf.bigtext)setBig(true,false);if(typeof pf.subs==="string")subPref=pf.subs;
- let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);pollAlerts();setTimeout(()=>capTest(false),8000);
+ let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);if(!COARSE&&!REMOTE&&(comfortOf().start||"home")==="home")openHome();pollAlerts();setTimeout(()=>capTest(false),8000);
  try{if(!localStorage.getItem("homeHint"))setTimeout(()=>{try{if(layer===""&&!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");toast("Tip: press H for the home menu, or ? for help")}}catch(e){}},6000)}catch(e){}})();
 })();

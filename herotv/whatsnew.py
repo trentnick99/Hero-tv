@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.38": [
+        "HERO TV now opens on Home, with a row of big 'Start here' tiles: Live TV (with a live picture), TV Guide, Library and Continue watching. Prefer the old way? Settings > Appearance > Open HERO TV on > Live TV.",
+        "The Start here row can be hidden or moved with the Home rows setting.",
+    ],
     "1.38.37": [
         "Fixed the TV guide: a long description no longer spills over the time ruler or cuts off the channel name at the top.",
     ],

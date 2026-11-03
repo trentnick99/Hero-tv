@@ -78,13 +78,18 @@ class Comfort(unittest.TestCase):
         self.assertEqual(SA.comfort(SA._load())["ink"], "soft")
         with self.assertRaises(ValueError):
             SA.update({"ink": "neon"})
-        self.assertEqual(SA.comfort({})["home_rows"], ["onnow", "continue", "new", "favorites"])
+        self.assertEqual(SA.comfort({})["home_rows"], ["start", "onnow", "continue", "new", "favorites"])
         SA.update({"home_rows": ["continue", "onnow"]})
         self.assertEqual(SA.comfort(SA._load())["home_rows"], ["continue", "onnow"])
         with self.assertRaises(ValueError):
             SA.update({"home_rows": ["continue", "movies"]})
         with self.assertRaises(ValueError):
             SA.update({"home_rows": ["new", "new"]})
+        self.assertEqual(SA.comfort({})["start"], "home")
+        SA.update({"start": "live"})
+        self.assertEqual(SA.comfort(SA._load())["start"], "live")
+        with self.assertRaises(ValueError):
+            SA.update({"start": "settings"})
         # the menu style added in 1.38.31
         self.assertEqual(SA.comfort({})["menu"], "light")
         for mn in ("light", "solid"):
