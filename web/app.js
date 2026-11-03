@@ -178,7 +178,8 @@ function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("on");clea
 async function libChanged(note){try{const cur=chans[ci]&&chans[ci].id;setChans((await api("/api/channels")).channels);const i=chans.findIndex(c=>c.id===cur);if(i>=0)ci=i;
   if(layer==="guide"){await loadGuide();drawGuide()}else if(layer==="lib"){const keep=li;await search();li=Math.min(keep,items.length-1);drawList()}
   toast("Library updated"+(note&&note!=="updated"?": "+note:""))}catch(e){}}
-let errSent=0;function sendErr(msg,where){if(REMOTE||Date.now()-errSent<2000)return;errSent=Date.now();try{fetch("/api/client-error",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({msg:String(msg).slice(0,400),where:String(where||"").slice(0,80)})}).catch(()=>{})}catch(e){}}
+async function startupCheck(){try{const r=await api("/api/selfcheck?startup=1");if(r.update&&r.summary.level==="fail"){const f=r.checks.find(x=>x.level==="fail");toast("This update may have a problem: "+(f?f.text:"")+" Settings > Backup and about > Check everything.")}}catch(e){}}
+let errSent=0;function sendErr(msg,where){if(REMOTE||Date.now()-errSent<2000)return;errSent=Date.now();try{fetch("/api/client-error",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({msg:String(msg).slice(0,400),where:(String(where||"")+" on "+(layer||"tv")+"/"+(typeof sCat==="string"&&layer==="settings"?sCat:"")).slice(0,80)})}).catch(()=>{})}catch(e){}}
 addEventListener("error",e=>sendErr(e.message,(e.filename||"").split("/").pop()+":"+e.lineno));
 addEventListener("unhandledrejection",e=>sendErr("promise: "+((e.reason&&(e.reason.message||e.reason))||""),"async"));
 let bootV=null;const beat=()=>fetch("/api/hb").then(r=>r.json()).then(j=>{if(j.v){if(bootV===null)bootV=j.v;else if(j.v!==bootV){bootV=j.v;return location.reload()}}
@@ -753,6 +754,14 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
   main.append(bar,msg,el("small",0,"This product uses the TMDB API but is not endorsed or certified by TMDB."))}
  else{main.append(el("h3",0,"Updates"));const ub=el("div","tcard");ub.id="upd";main.append(ub);drawUpdate(ub,d);
   main.append(el("h3",0,"Something not right?"));
+  {const c=tCard("Check everything","Looks at the library, video tools, media folder, free space, channels, the TV guide and the recent log, and says in plain words what is fine and what is not. It only looks - nothing is changed.");
+   const out=el("div","scx");out.style.cssText="margin:1.4vh 0 0;display:none;font-size:calc(2vh*var(--tx))";const bar=el("div","sbar"),info=el("small");
+   const go=sBtn("Check now",async()=>{go.disabled=true;info.textContent="Checking...";out.textContent="";try{const r=await api("/api/selfcheck");out.style.display="block";
+      out.append(el("p",0,r.summary.text+" (HERO TV "+r.version+")"));out.firstChild.style.fontWeight="700";
+      r.checks.forEach(x=>{const p=el("div",0,(x.level==="ok"?"\u2713 ":x.level==="warn"?"! ":"\u2717 ")+x.name+": "+x.text);p.style.cssText="margin:.4vh 0;"+(x.level==="fail"?"color:#ff8a80":x.level==="warn"?"color:#ffd54f":"");out.append(p)});
+      info.textContent="";if(r.backup)back.style.display=""}catch(e){info.textContent="The check could not run: "+String(e.message||e)}go.disabled=false},"pri");
+   const back=sBtn("Open the earlier version's folder",()=>sAct("open-update-backup",back));back.style.display="none";
+   bar.append(go,back);c.append(bar,info,out);main.append(c)}
   {const c=tCard("Report a problem","Makes one report with what is needed to find the problem: version, settings (keys hidden), library counts, errors on this screen and the last lines of the log. Copy it and paste it into your chat with Claude. HERO TV does not send it anywhere.");
    const note=el("textarea");note.placeholder="What happened? (for example: on Home, pressing Up moves sideways)";note.rows=3;note.style.width="100%";
    const out=el("textarea");out.readOnly=true;out.rows=8;out.style.cssText="width:100%;display:none;font-family:ui-monospace,Consolas,monospace;font-size:1.5vh";
@@ -1332,6 +1341,6 @@ let curT;addEventListener("mousemove",e=>{if(!COARSE&&e.clientX<=8&&(layer===""|
  try{theme=Object.assign(theme,await api("/api/theme"));document.title=theme.name;root.style.setProperty("--brand",theme.color);applyCues(theme.subs);applyComfort()}catch(e){}
  let pf={};try{pf=await api("/api/prefs")}catch(e){}
  if(typeof pf.volume==="number")v.volume=pf.volume;if("muted" in pf)v.muted=!!pf.muted;if(pf.bigtext)setBig(true,false);if(typeof pf.subs==="string")subPref=pf.subs;
- let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);if(!COARSE&&!REMOTE&&(comfortOf().start||"home")==="home")openHome();pollAlerts();setTimeout(()=>capTest(false),8000);
+ let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);if(!COARSE&&!REMOTE&&(comfortOf().start||"home")==="home")openHome();pollAlerts();if(!REMOTE)setTimeout(startupCheck,6000);setTimeout(()=>capTest(false),8000);
  try{if(!localStorage.getItem("homeHint"))setTimeout(()=>{try{if(layer===""&&!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");toast("Tip: press H for the home menu, or ? for help")}}catch(e){}},6000)}catch(e){}})();
 })();

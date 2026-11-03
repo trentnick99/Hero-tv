@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.38.40": [
+        "New: Settings > Backup and about > Check everything. It looks at the library, video tools, media folder, free space, channels, the TV guide and the recent log and says in plain words what is fine and what is not. It only looks; nothing is changed.",
+        "After an update, HERO TV now checks itself once on the first start and tells you if something looks wrong (also listed under Needs a look). The folder with the earlier version can be opened from Check everything.",
+        "Screen errors are now also written to the log, so they are still there after a restart and Report a problem can include them.",
+    ],
     "1.38.39": [
         "The TV Guide and Library tiles on Home now have a picture too, so the Start here row no longer has two blank tiles in the middle.",
     ],

@@ -30,6 +30,7 @@ def play_error(mid, reason=""):
 def page_error(msg, where=""):
     if msg:
         PAGE_ERRORS.append(f"{time.strftime('%Y-%m-%d %H:%M:%S')}  {msg}" + (f"  ({where})" if where else ""))
+        print(f"[page-error] {msg}" + (f" ({where})" if where else ""), flush=True)      # the log keeps it after a restart
 
 
 def _hide(text):

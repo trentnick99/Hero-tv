@@ -540,6 +540,11 @@ def make_handler(app, remote=False):
             folders = {"open-media": app.cfg.media_dir, "open-inbox": inbox.inbox_dir(app.cfg),
                        "open-backups": backup.default_dir(), "open-logs": settings_file().parent,
                        "open-reports": __import__("herotv.launcher", fromlist=["x"]).app_data_dir() / "reports"}
+            from . import selfcheck as _sc
+            if name == "open-update-backup":
+                if not _sc.backup_folder():
+                    raise ValueError("No earlier version is kept yet (it is saved the next time HERO TV updates itself).")
+                folders[name] = _sc.backup_folder()
             if name in folders:
                 d = str(folders[name])
                 os.makedirs(d, exist_ok=True)
@@ -1163,6 +1168,11 @@ def make_handler(app, remote=False):
                         if not os.path.normcase(r["path"]).startswith(inb))
                 if n:
                     items.append({"text": f"{n}{'+' if n >= 500 else ''} video(s) cannot play yet.", "cat": "tools", "card": "Videos that are skipped"})
+                sc = getattr(app, "startup_sc", None)
+                if sc and sc.get("update"):
+                    for x in sc.get("checks", []):
+                        if x["level"] == "fail":
+                            items.append({"text": f"After the update: {x['text']}", "cat": "about", "card": ""})
                 w = inbox.waiting(app.cfg)
                 if w:
                     items.append({"text": f"{w} video(s) waiting in the Inbox.", "cat": "tools", "card": "Inbox"})
@@ -1174,6 +1184,19 @@ def make_handler(app, remote=False):
                     items.append({"text": f"{ps['failed']} ready-to-play copy(ies) could not be made.", "cat": "tools",
                                   "card": "Videos in other formats (ready-to-play copies)"})
                 return self.send_json({"items": items})
+            if p == "selfcheck":                              # "Check everything" (read-only) and the check after an update
+                from . import selfcheck
+                if "startup" in q:
+                    if not hasattr(app, "startup_sc"):
+                        app.startup_sc = {"update": selfcheck.new_version_started()}
+                        if app.startup_sc["update"]:
+                            app.startup_sc["checks"] = selfcheck.run(c, app.cfg)
+                    sc = app.startup_sc
+                    chk = sc.get("checks") or []
+                    return self.send_json({"update": sc["update"], "checks": [x for x in chk if x["level"] != "ok"],
+                                           "summary": selfcheck.summary(chk), "backup": selfcheck.backup_folder()})
+                chk = selfcheck.run(c, app.cfg)
+                return self.send_json({"checks": chk, "summary": selfcheck.summary(chk), "backup": selfcheck.backup_folder(), "version": __version__})
             if p == "work":                                   # what is being filed / converted right now (Settings progress bars)
                 snap = work.snapshot()
                 busy = {t["name"] for t in snap["active"]}
