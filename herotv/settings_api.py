@@ -85,7 +85,7 @@ def comfort(d=None, now=None, tz=None):
             "font": d.get("font") if d.get("font") in FONTS else "broadcast",
             "finish": d.get("finish") if d.get("finish") in FINISHES else "flat",
             "focus": d.get("focus") if d.get("focus") in FOCUSES else "white",
-            "menu": d.get("menu") if d.get("menu") in MENUS else "smoked"}
+            "menu": d.get("menu") if d.get("menu") in MENUS else "light"}
 
 
 def logo_mode(d=None):

@@ -112,7 +112,7 @@ async function evenVolume(url){const m=/\/media\/(\d+)/.exec(url||"");if(!m)retu
  if(!audioChain()&&!(g<0))return;                          /* turning down also works without the sound chain */
  if(gainN){gainN.gain.setTargetAtTime(Math.pow(10,g/20),actx.currentTime,.4);v.volume=Math.min(1,v.volume||1)}
  else v.volume=Math.max(.05,Math.min(1,Math.pow(10,g/20)))}
-function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";document.body.dataset.finish=c.finish||"flat";document.body.dataset.focus=c.focus||"white";document.body.dataset.menu=c.menu||"smoked";
+function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";document.body.dataset.finish=c.finish||"flat";document.body.dataset.focus=c.focus||"white";document.body.dataset.menu=c.menu||"light";
  document.documentElement.style.setProperty("--safe",(c.safe_margin||0)+"");document.body.classList.toggle("safe",(c.safe_margin||0)>0);nightSound()}
 setInterval(()=>{loadTheme()},300000);                         /* night mode starts and ends by itself */
 /* screensaver: when on-demand video is paused, or a menu is left open, for a few minutes (live TV never) */
@@ -677,7 +677,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     fi.onchange=()=>sSave({finish:fi.value},"Lettering saved.",async()=>{await loadTheme()});main.append(sField("Lettering","How the big titles look: the station name and the featured title on Home. Smaller text stays flat so it is easy to read.",fi))}
   { const fc=el("select");for(const[v,t]of[["white","White (default)"],["accent","Main colour"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).focus||"white")===v)o.selected=true;fc.append(o)}
     fc.onchange=()=>sSave({focus:fc.value},"Highlight saved.",async()=>{await loadTheme()});main.append(sField("Highlight","The outline around the picture you have selected on Home, in the library and in the guide.",fc))}
-  { const mn=el("select");for(const[v,t]of[["smoked","Smoked glass (default)"],["light","Light glass (see-through)"],["solid","Solid (easiest to read)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).menu||"smoked")===v)o.selected=true;mn.append(o)}
+  { const mn=el("select");for(const[v,t]of[["smoked","Smoked glass"],["light","Light glass (default)"],["solid","Solid (easiest to read)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).menu||"light")===v)o.selected=true;mn.append(o)}
     mn.onchange=()=>sSave({menu:mn.value},"Menu style saved.",async()=>{await loadTheme()});main.append(sField("Menu style","How the left-side menu looks. Glass shows a blurred copy of the picture behind it; Solid is a plain dark panel.",mn))}
   { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);
     const box=(key,text,on,save)=>{const i=el("input");i.type="checkbox";i.checked=on;const l=el("label","lb");l.append(i," "+text);l.style.display="flex";l.style.gap="1vw";i.onchange=()=>save(i.checked);return l};
