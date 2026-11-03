@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.46": [
+        "Home: the Live TV tile keeps its name and the red LIVE badge in front of the live picture.",
+    ],
     "1.38.45": [
         "Guide: a very long title (some episode names run to three lines) can no longer push the channel name off the top or crowd the time ruler.",
     ],
