@@ -66,6 +66,13 @@ class Comfort(unittest.TestCase):
         self.assertEqual(SA.comfort(SA._load())["focus"], "accent")
         with self.assertRaises(ValueError):
             SA.update({"focus": "pink"})
+        # the menu style added in 1.38.31
+        self.assertEqual(SA.comfort({})["menu"], "smoked")
+        for mn in ("light", "solid"):
+            SA.update({"menu": mn})
+            self.assertEqual(SA.comfort(SA._load())["menu"], mn)
+        with self.assertRaises(ValueError):
+            SA.update({"menu": "frosty"})
         for bad in ({"safe_margin": 7}, {"theme": "pink"}, {"night": {"on": True, "from": "10pm", "to": "07:00"}}):
             with self.assertRaises(ValueError):
                 SA.update(bad)

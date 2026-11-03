@@ -60,6 +60,7 @@ THEMES = ("classic", "black", "retro", "cool", "warm", "hdr", "cinematic")
 FONTS = ("broadcast", "cinema", "classic", "modern")
 FINISHES = ("flat", "soft", "satin", "gloss")
 FOCUSES = ("white", "accent")
+MENUS = ("smoked", "light", "solid")
 MARGINS = (0, 2.5, 5)
 _HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
@@ -83,7 +84,8 @@ def comfort(d=None, now=None, tz=None):
             "theme": d.get("theme") if d.get("theme") in THEMES else "classic",
             "font": d.get("font") if d.get("font") in FONTS else "broadcast",
             "finish": d.get("finish") if d.get("finish") in FINISHES else "flat",
-            "focus": d.get("focus") if d.get("focus") in FOCUSES else "white"}
+            "focus": d.get("focus") if d.get("focus") in FOCUSES else "white",
+            "menu": d.get("menu") if d.get("menu") in MENUS else "smoked"}
 
 
 def logo_mode(d=None):
@@ -227,6 +229,11 @@ def update(changes, geocode=None):
             raise ValueError("Choose a highlight from the list.")
         data["focus"] = changes["focus"]
         saved.append("focus")
+    if "menu" in changes:
+        if changes["menu"] not in MENUS:
+            raise ValueError("Choose a menu style from the list.")
+        data["menu"] = changes["menu"]
+        saved.append("menu")
     if "night" in changes:
         n = changes["night"]
         if not isinstance(n, dict) or not _HHMM.fullmatch(str(n.get("from", ""))) or not _HHMM.fullmatch(str(n.get("to", ""))):
