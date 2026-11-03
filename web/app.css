@@ -436,3 +436,10 @@ body[data-menu="solid"] .lm-it{color:#e9e6df;text-shadow:none}
 body[data-menu="light"] .lm-it.sel{background:rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.10)}
 body[data-menu="solid"] .lm-it.sel{background:rgba(255,255,255,.10);box-shadow:none}
 .lm-gap{flex:1}
+
+/* text colour (1.38.35): Standard keeps each look's own colours */
+body[data-ink="soft"]{--text:#cfcbc4;--mute:#7d7a75}
+body[data-ink="warm"]{--text:#f6efe2;--mute:#a79d8a}
+body[data-ink="cool"]{--text:#eaf1fa;--mute:#8f9db0}
+body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"]) :is(.lm-it,.tl.pcd b,.hrow h3,.tl.hero h1,#in-t){color:var(--text)}
+body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="satin"] :is(.tl.hero h1,#in-t),body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="gloss"] :is(.tl.hero h1,#in-t){color:transparent}

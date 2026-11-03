@@ -112,7 +112,7 @@ async function evenVolume(url){const m=/\/media\/(\d+)/.exec(url||"");if(!m)retu
  if(!audioChain()&&!(g<0))return;                          /* turning down also works without the sound chain */
  if(gainN){gainN.gain.setTargetAtTime(Math.pow(10,g/20),actx.currentTime,.4);v.volume=Math.min(1,v.volume||1)}
  else v.volume=Math.max(.05,Math.min(1,Math.pow(10,g/20)))}
-function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";document.body.dataset.finish=c.finish||"flat";document.body.dataset.focus=c.focus||"white";document.body.dataset.glow=c.glow||"soft";document.body.dataset.menu=c.menu||"light";
+function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";document.body.dataset.finish=c.finish||"flat";document.body.dataset.focus=c.focus||"white";document.body.dataset.glow=c.glow||"soft";document.body.dataset.ink=c.ink||"standard";document.body.dataset.menu=c.menu||"light";
  document.documentElement.style.setProperty("--safe",(c.safe_margin||0)+"");document.body.classList.toggle("safe",(c.safe_margin||0)>0);nightSound()}
 setInterval(()=>{loadTheme()},300000);                         /* night mode starts and ends by itself */
 /* screensaver: when on-demand video is paused, or a menu is left open, for a few minutes (live TV never) */
@@ -679,6 +679,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     fc.onchange=()=>sSave({focus:fc.value},"Highlight saved.",async()=>{await loadTheme()});main.append(sField("Highlight","The outline around the picture you have selected on Home, in the library and in the guide.",fc))}
   { const gl=el("select");for(const[v,t]of[["soft","Soft glow (default)"],["strong","Strong glow"],["off","No glow"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).glow||"soft")===v)o.selected=true;gl.append(o)}
     gl.onchange=()=>sSave({glow:gl.value},"Glow saved.",async()=>{await loadTheme()});main.append(sField("Highlight glow","A soft light around the highlight outline, in the same colour.",gl))}
+  { const ik=el("select");for(const[v,t]of[["standard","Standard (default)"],["soft","Soft grey (easy on the eyes)"],["warm","Warm"],["cool","Cool"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).ink||"standard")===v)o.selected=true;ik.append(o)}
+    ik.onchange=()=>sSave({ink:ik.value},"Text colour saved.",async()=>{await loadTheme()});main.append(sField("Text colour","The colour of titles and text on the TV and PC. Soft grey is a little dimmer than white.",ik))}
   { const mn=el("select");for(const[v,t]of[["smoked","Smoked glass"],["light","Light glass (default)"],["solid","Solid (easiest to read)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).menu||"light")===v)o.selected=true;mn.append(o)}
     mn.onchange=()=>sSave({menu:mn.value},"Menu style saved.",async()=>{await loadTheme()});main.append(sField("Menu style","How the left-side menu looks. Glass shows a blurred copy of the picture behind it; Solid is a plain dark panel.",mn))}
   { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);

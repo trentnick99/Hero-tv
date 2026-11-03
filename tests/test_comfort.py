@@ -73,6 +73,11 @@ class Comfort(unittest.TestCase):
         self.assertEqual(SA.comfort(SA._load())["glow"], "strong")
         with self.assertRaises(ValueError):
             SA.update({"glow": "blinding"})
+        self.assertEqual(SA.comfort({})["ink"], "standard")
+        SA.update({"ink": "soft"})
+        self.assertEqual(SA.comfort(SA._load())["ink"], "soft")
+        with self.assertRaises(ValueError):
+            SA.update({"ink": "neon"})
         # the menu style added in 1.38.31
         self.assertEqual(SA.comfort({})["menu"], "light")
         for mn in ("light", "solid"):

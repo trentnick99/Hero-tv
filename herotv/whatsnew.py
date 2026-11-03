@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.35": [
+        "New setting: Text colour (Settings > Appearance). Soft grey is a little dimmer than white and easier on the eyes; Warm and Cool are also there.",
+    ],
     "1.38.34": [
         "The outline around the picture you have selected can now be gold, cyan, red, green, purple or orange (Settings > Appearance > Highlight), and has a soft glow you can turn up or off (Highlight glow).",
         "The title on the Details screen now follows your Font and Lettering settings.",
