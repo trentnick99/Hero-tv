@@ -467,3 +467,8 @@ body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="sati
 @media(max-width:1000px){.tl.big{flex:0 0 40vw}}
 
 .hrow.first{padding-top:17vh}
+.tl.big.live{flex:2.3 1 0;height:24vh}
+.tl.big .bpv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}.tl.big .bpv.on{opacity:1}
+.tl.big .bbar{position:absolute;left:1.2vw;right:1.2vw;bottom:.8vh;height:.6vh;border-radius:1vh;background:rgba(255,255,255,.25);overflow:hidden}.tl.big .bbar i{display:block;height:100%;background:#e5322d;border-radius:1vh}
+.tl.big.live .bt{bottom:2.4vh}
+@media(max-width:1000px){.tl.big.live{flex:0 0 60vw}}

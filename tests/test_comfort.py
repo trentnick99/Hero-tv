@@ -90,6 +90,12 @@ class Comfort(unittest.TestCase):
         self.assertEqual(SA.comfort(SA._load())["start"], "live")
         with self.assertRaises(ValueError):
             SA.update({"start": "settings"})
+        # the live picture in the Live TV tile (1.38.41)
+        self.assertEqual(SA.comfort({})["preview"], "on")
+        SA.update({"preview": "off"})
+        self.assertEqual(SA.comfort(SA._load())["preview"], "off")
+        with self.assertRaises(ValueError):
+            SA.update({"preview": "sometimes"})
         # the menu style added in 1.38.31
         self.assertEqual(SA.comfort({})["menu"], "light")
         for mn in ("light", "solid"):

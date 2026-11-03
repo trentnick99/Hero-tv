@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.41": [
+        "On Home, the Live TV tile is now bigger and plays the channel that is on - without sound - with the time it ends and a progress bar. Turn it off under Settings > Appearance > Live picture on Home if you prefer a still picture.",
+    ],
     "1.38.40": [
         "New: Settings > Backup and about > Check everything. It looks at the library, video tools, media folder, free space, channels, the TV guide and the recent log and says in plain words what is fine and what is not. It only looks; nothing is changed.",
         "After an update, HERO TV now checks itself once on the first start and tells you if something looks wrong (also listed under Needs a look). The folder with the earlier version can be opened from Check everything.",

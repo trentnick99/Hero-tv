@@ -64,6 +64,7 @@ GLOWS = ("off", "soft", "strong")
 INKS = ("standard", "soft", "warm", "cool")
 HOME_ROWS = ("start", "onnow", "continue", "new", "favorites")
 STARTS = ("home", "live")
+PREVIEWS = ("on", "off")
 
 
 def _home_rows(v):
@@ -104,7 +105,8 @@ def comfort(d=None, now=None, tz=None):
             "glow": d.get("glow") if d.get("glow") in GLOWS else "soft",
             "ink": d.get("ink") if d.get("ink") in INKS else "standard",
             "home_rows": _home_rows(d.get("home_rows")),
-            "start": d.get("start") if d.get("start") in STARTS else "home"}
+            "start": d.get("start") if d.get("start") in STARTS else "home",
+            "preview": d.get("preview") if d.get("preview") in PREVIEWS else "on"}
 
 
 def logo_mode(d=None):
@@ -269,6 +271,11 @@ def update(changes, geocode=None):
             raise ValueError("Choose where HERO TV opens from the list.")
         data["start"] = changes["start"]
         saved.append("start")
+    if "preview" in changes:
+        if changes["preview"] not in PREVIEWS:
+            raise ValueError("Choose the live picture setting from the list.")
+        data["preview"] = changes["preview"]
+        saved.append("preview")
     if "menu" in changes:
         if changes["menu"] not in MENUS:
             raise ValueError("Choose a menu style from the list.")

@@ -253,7 +253,8 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(d.favList&&d.favList.length)R.favorites={title:"Favorites",items:[...d.favList.map(vodCard),more("See all",()=>{closeAll();openLib("favorites")})]};
  { const oth=(d.onnow||[]).find(x=>x.s&&x.s.media_id&&!(c&&x.c.id===c.id)),gImg=oth?oth.s.media_id:undefined,
      lSrc=(d.recentList&&d.recentList[0])||(d.favList&&d.favList[0]),lImg=lSrc?lSrc.id:undefined;
-   const st=[{k:"big",t:"Live TV",s:c?`Channel ${c.number}${slot?" · "+label(slot):""}`:"Watch what is on now",img:slot&&slot.media_id,live:1,go:()=>closeAll()},
+   const st=[{k:"big",t:"Live TV",s:c?`Channel ${c.number}${slot?" · "+label(slot):""}${slot&&slot.end?" · ends "+T(slot.end):""}`:"Watch what is on now",img:slot&&slot.media_id,live:1,
+     pv:(comfortOf().preview||"on")==="on"&&c&&c.kind!=="weather"&&!vod&&slot?{start:slot.start,end:slot.end}:null,go:()=>closeAll()},
    {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
    {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",img:lImg,go:()=>{closeAll();openLib()}}];
   if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
@@ -283,12 +284,24 @@ function homeNode(t){const n=el("div","tl "+(t.k==="card"?"pcd":t.k)+(t.dim?" di
   if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";x.append(g)}
   const b=el("span","hbtn");b.append(iconEl(t.ic,"bi"),document.createTextNode(t.btn));x.append(b);n.append(x);return n}
  if(t.k==="chip"){n.append(iconEl(t.ic),el("b",0,t.t),el("small",0,t.s));return n}
- if(t.k==="big"){if(t.img){n.append(thumb(t.img,0));n.lastChild.className="bpic"}n.append(el("div","bshade"));if(t.live)n.append(el("i","blive","● LIVE"));else if(t.ic)n.append(iconEl(t.ic,"bic"));const x=el("div","bt");x.append(el("b",0,t.t),el("small",0,t.s||" "));n.append(x);return n}
+ if(t.k==="big"){if(t.img){n.append(thumb(t.img,0));n.lastChild.className="bpic"}n.append(el("div","bshade"));if(t.live){n.classList.add("live");n.append(el("i","blive","● LIVE"));if(t.pv)homePreview(n,t.pv)}else if(t.ic)n.append(iconEl(t.ic,"bic"));const x=el("div","bt");x.append(el("b",0,t.t),el("small",0,t.s||" "));n.append(x);return n}
  if(t.more){n.append(el("b",0,t.t),iconEl("search","mi"));return n}
  const p=el("div","ppic");p.style.background=tile(t.t);if(t.img)p.append(thumb(t.img,1));
  if(t.plate)p.append(el("i","pl",String(t.plate)));if(t.live)p.append(el("i","lv","On now"));else if(t.special)p.append(el("i","lv","Special"));
  if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";p.append(g)}
  n.append(p,el("b",0,t.t),el("small",0,t.s||" "));return n}
+/* a muted picture of the channel that is on, inside the Live TV tile: a second player on the same file at the same moment */
+function homePreview(n,pv){
+ let p=null,src="";
+ if(pv.end>pv.start){const bar=el("div","bbar"),f=el("i");bar.append(f);n.append(bar);n._u=()=>{f.style.width=Math.max(0,Math.min(100,(nowS()-pv.start)/(pv.end-pv.start)*100))+"%"};n._u()}
+ const ready=()=>v.currentSrc&&!v.paused&&v.readyState>=2&&!vod&&!document.body.classList.contains("novideo");
+ const attach=()=>{p=document.createElement("video");p.className="bpv";p.muted=true;p.playsInline=true;p.disablePictureInPicture=true;n.insertBefore(p,n.querySelector(".bshade"));load()};
+ const load=()=>{src=v.currentSrc;p.classList.remove("on");p.src=src;p.onloadedmetadata=()=>{p.currentTime=v.currentTime;p.play().then(()=>p.classList.add("on")).catch(()=>{})}};
+ const end=()=>{clearInterval(t);if(p){p.pause();p.removeAttribute("src");p.load();p.remove()}};
+ const t=setInterval(()=>{if(!n.isConnected||!$("#home").classList.contains("on"))return end();
+  if(n._u)n._u();if(!ready()){if(p)p.classList.remove("on");return}
+  if(!p)return attach();if(src!==v.currentSrc)return load();
+  if(p.readyState>=2&&Math.abs(p.currentTime-v.currentTime)>3)p.currentTime=v.currentTime},1000)}
 function homeSel(i,instant){const L=homeList,t=L[i];if(!t||!t.n)return;const o=L[hi];if(o&&o.n)o.n.classList.remove("sel");hi=i;t.n.classList.add("sel");
  const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
 function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
@@ -700,6 +713,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     ik.onchange=()=>sSave({ink:ik.value},"Text colour saved.",async()=>{await loadTheme()});main.append(sField("Text colour","The colour of titles and text on the TV and PC. Soft grey is a little dimmer than white.",ik))}
   { const sx=el("select");for(const[v,t]of[["home","Home (default)"],["live","Live TV"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).start||"home")===v)o.selected=true;sx.append(o)}
     sx.onchange=()=>sSave({start:sx.value},"Saved. Takes effect the next time HERO TV starts.",async()=>{await loadTheme()});main.append(sField("Open HERO TV on","Where HERO TV starts: the Home screen, or straight onto the channel you last watched.",sx))}
+  { const pv=el("select");for(const[x,t]of[["on","On (default)"],["off","Off - a still picture"]]){const o=el("option",0,t);o.value=x;if(((d.comfort||{}).preview||"on")===x)o.selected=true;pv.append(o)}
+    pv.onchange=()=>sSave({preview:pv.value},"Live picture saved.",async()=>{await loadTheme()});main.append(sField("Live picture on Home","The Live TV tile on Home plays the channel that is on, without sound, instead of a still picture. Turn it off if this PC struggles.",pv))}
   { const names={start:"Start here (Live TV, Guide, Library)",onnow:"On now",continue:"Continue watching",new:"New in your library",favorites:"Favorites"},box=el("div","hrows");
     let order=((d.comfort||{}).home_rows||HOME_ROWS).slice();
     const draw=()=>{box.textContent="";const all=[...order,...HOME_ROWS.filter(x=>!order.includes(x))];
