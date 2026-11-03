@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.43": [
+        "The information panel on Home now grows to fit its text, so the title is never cut off at the top.",
+    ],
     "1.38.42": [
         "On Home, the picture you have selected now shows an information panel at the bottom: the title, channel, year, length, rating and a short description (when your library has them), and whether it is on now, starts later, or where you left off.",
     ],

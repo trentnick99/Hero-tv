@@ -214,7 +214,7 @@ body.big #in-plot,body.big #in-m{font-size:2.8vh}body.big #in-cast{font-size:2.4
 #home.sc .top,#home.sc .hello{opacity:0}
 body.alerting #home .top{top:6vh}body.alerting #home .hello{top:14.6vh}
 #home .hints{padding:1.2vh 3vw 2vh;margin-top:0;background:var(--night)}
-#tiles{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding-bottom:19vh;scroll-padding-bottom:19vh}
+#tiles{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;padding-bottom:27vh;scroll-padding-bottom:27vh}
 #tiles::-webkit-scrollbar{display:none}
 .tl{position:relative;color:var(--text);min-width:0}
 .tl b{display:block;font-weight:700}
@@ -472,7 +472,7 @@ body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="sati
 .tl.big .bbar{position:absolute;left:1.2vw;right:1.2vw;bottom:.8vh;height:.6vh;border-radius:1vh;background:rgba(255,255,255,.25);overflow:hidden}.tl.big .bbar i{display:block;height:100%;background:#e5322d;border-radius:1vh}
 .tl.big.live .bt{bottom:2.4vh}
 @media(max-width:1000px){.tl.big.live{flex:0 0 60vw}}
-#h-info{position:absolute;left:3vw;right:3vw;bottom:8.6vh;height:14vh;border-radius:1.6vh;padding:1.6vh 2vw;display:flex;gap:2vw;align-items:center;z-index:5;
+#h-info{position:absolute;left:3vw;right:3vw;bottom:8.6vh;min-height:14vh;border-radius:1.6vh;padding:1.6vh 2vw;display:flex;gap:2vw;align-items:center;z-index:5;
  background:#0c111e;border:1px solid rgba(255,255,255,.14);box-shadow:0 1vh 4vh rgba(0,0,0,.6);opacity:0;transform:translateY(1vh);pointer-events:none;transition:opacity .18s,transform .18s}
 #h-info.on{opacity:1;transform:none}
 #h-info .hi-l{flex:1;min-width:0}
