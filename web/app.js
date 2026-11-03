@@ -301,6 +301,9 @@ function homeKey(e){const k=e.key;
  if(k==="Escape"||k==="Backspace"||k==="h"||k==="H"||k==="Home"){e.preventDefault();return closeAll()}
  if(k==="?"||k==="F1"){e.preventDefault();return openHelp("home")}
  if(k==="s"||k==="S"){return cycleSleep()}
+ if(k==="o"||k==="O"){e.preventDefault();return openSettings()}
+ if(k==="g"||k==="G"){e.preventDefault();return openGuide()}
+ if(k==="l"||k==="L"){e.preventDefault();return openLib()}
  if(k==="t"||k==="T"){return setBig(!document.body.classList.contains("big"),true)}
  const cur=homeList[hi];if(!cur)return;
  if((k==="x"||k==="X"||k==="F6")&&cur.cid){e.preventDefault();return clearCont(cur.cid)}

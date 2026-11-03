@@ -77,7 +77,9 @@ def main(engine):
               "Done saves it: South Park is switched off (not deleted) and the card closes")
         tv = [c["id"] for c in json.loads(urllib.request.urlopen(base + "/api/channels").read())["channels"]]
         check("south-park" not in tv and "invincible" in tv, "a switched-off channel is gone from the TV's channel list")
-        pg.keyboard.press("h"); pg.wait_for_timeout(1500)
+        if not pg.evaluate("document.querySelector('#home').classList.contains('on')"):
+            pg.keyboard.press("h")
+        pg.wait_for_timeout(1500)
         tiles = pg.inner_text("#tiles")
         sel_txt = lambda: pg.inner_text("#tiles .tl.sel")
         start = sel_txt()
@@ -116,6 +118,7 @@ def main(engine):
         pg.goto(base + "/"); pg.wait_for_timeout(3000)
         check(not pg.evaluate("document.querySelector('#news').classList.contains('on')"), "the Welcome card does not come back")
         check(pg.evaluate("document.body.classList.contains('cue-xl')"), "the subtitle style is remembered after a restart")
+        pg.keyboard.press("Escape"); pg.wait_for_timeout(500)
         pg.keyboard.press("d"); pg.wait_for_timeout(1500)
         check("On: Invincible" in pg.inner_text("#in-on"), f"Details say which channel a video is on ({pg.inner_text('#in-on')!r})")
         pg.keyboard.press("m"); pg.wait_for_timeout(500)
