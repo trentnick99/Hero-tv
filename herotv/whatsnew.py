@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.38.44": [
+        "Many more descriptions: episodes that sit in a folder named for their show (South Park, Dragon Ball) now get the show's description, and each episode gets its own plot when TMDB lists it. Dragon Ball is looked up as Dragon Ball Super - your folder and channel are not changed.",
+        "Names with leftovers like \"[60FPS]\" or \"Hindi English\", and \"Invincible season 1\", are cleaned before the lookup. The Spider-Man 1994 series is matched to the right show. The new lookups run by themselves in the background after the update.",
+        "Check everything now also tells you how many titles have a description.",
+    ],
     "1.38.43": [
         "The information panel on Home now grows to fit its text, so the title is never cut off at the top.",
     ],

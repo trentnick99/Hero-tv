@@ -56,11 +56,79 @@ def norm(text):
     return re.sub(r"^(the|a|an) ", "", t)
 
 
+_JUNK = (r"complete|seasons?\s*\d+(?:\s*(?:to|-)\s*\d+)?|s\d{1,2}(?:e\d{1,3})?|ep\.?\s*\d+(?:\s*-\s*\d+)?|\d{3,4}p|blu-?ray|web-?dl|webrip|tvrip|hdtv|x26[45]|"
+         r"h\.?26[45]|hevc|10\s*bit|dual audio|hindi|english|vegamovies\S*|60\s*fps|uncut|esub|dvdrip|brrip")
+_JUNK_RE = re.compile(r"\b(?:" + _JUNK + r")\b.*$", re.I)
+# a folder that is named for a show but is really another one (the lookup only; the folder and the library stay as they are)
+ALIASES = {"dragon ball": "Dragon Ball Super"}
+NOT_SHOW_FOLDERS = {"inbox", "movies", "films", "tv", "shows", "videos", "downloads", ""}
+
+
+def _g(row, name):
+    try:
+        return row[name]
+    except (KeyError, IndexError):
+        return ""
+
+
+def clean_show(name):
+    """'Invincible season 1' -> ('Invincible', None); 'Spider-Man The Animated Series 1994 Complete Seasons 1 to 5 TVRip x264 [i_c]' ->
+    ('Spider-Man The Animated Series', 1994): release leftovers cut off, a year kept as a hint."""
+    t = re.sub(r"\[[^\]]*\]", " ", str(name or ""))
+    t = _JUNK_RE.sub(" ", t)
+    year = None
+    m = re.search(r"[\s.(]((?:19|20)\d{2})\)?\s*$", t)
+    if m and len(t[:m.start()].split()) >= 2:
+        year, t = int(m.group(1)), t[:m.start()]
+    t = re.sub(r"\s+", " ", t).strip(" -._(")
+    return (t or str(name or "").strip()), year
+
+
+def clean_movie(title, year):
+    """'[60FPS] Spider-Man Into the Spider-Verse' -> that without the tag; 'Avengers Endgame 2019 Hindi English' -> ('Avengers Endgame', 2019)."""
+    t = re.sub(r"\[[^\]]*\]", " ", str(title or ""))
+    m = re.match(r"^(.*?)\s+((?:19|20)\d{2})\s+(?:" + _JUNK + r")\b.*$", t, re.I)
+    if m:
+        t, year = m.group(1), year or int(m.group(2))
+    else:
+        t = _JUNK_RE.sub(" ", t) if re.search(r"\b(?:hindi|english|dual audio|vegamovies)\b", t, re.I) else t
+    t = re.sub(r"\s+", " ", t).strip(" -._")
+    return (t or str(title or "").strip()), year
+
+
+def _alias(name):
+    extra = {}
+    try:
+        extra = json.loads(config.settings_file().read_text(encoding="utf-8-sig")).get("art_aliases") or {}
+    except (OSError, ValueError, AttributeError):
+        pass
+    k = norm(name)
+    for src in (extra, ALIASES):
+        for a, b in (src or {}).items():
+            if norm(a) == k:
+                return str(b)
+    return name
+
+
+def show_of(row):
+    """The show a video belongs to for the lookup: its series, or - for loose numbered episodes in a folder named for the show -
+    that folder. None for a movie."""
+    if _g(row, "series"):
+        return clean_show(row["series"])
+    ep, fr = _g(row, "episode"), str(_g(row, "franchise") or "").strip()
+    if ep and int(ep) > 0 and not _g(row, "season") and norm(fr) not in NOT_SHOW_FOLDERS:
+        name, year = clean_show(fr)
+        return _alias(name), year
+    return None
+
+
 def key_for(row):
-    """(art key, kind, search title, year) for a media row: a show is looked up by its series name, a movie by title + year."""
-    if row["series"]:
-        return "s:" + norm(row["series"]), "tv", row["series"], None
-    return f"m:{norm(row['title'])}:{row['year'] or ''}", "movie", row["title"], row["year"]
+    """(art key, kind, search title, year) for a media row: a show is looked up by its show name, a movie by title + year."""
+    sh = show_of(row)
+    if sh:
+        return "s:" + norm(sh[0]), "tv", sh[0], sh[1]
+    t, y = clean_movie(row["title"], row["year"])
+    return f"m:{norm(t)}:{y or ''}", "movie", t, y
 
 
 def poster_dir(cfg):
@@ -72,7 +140,7 @@ def poster_file(cfg, key):
 
 
 # ---------- lookup ----------
-MATCH_VERSION = 2                    # older misses are tried again once after the matching got better
+MATCH_VERSION = 3                    # older misses are tried again once after the matching got better
 
 
 def _close(a, b):
@@ -100,10 +168,15 @@ def _pick(results, title, year, kind):
         y = int((r.get(date_key) or "0000")[:4] or 0)
         if year and y and abs(y - year) > 1:
             continue
+        subs = {norm(x) for nm in (name, r.get("original_title" if kind == "movie" else "original_name")) for x in re.split(r"\s*[:\u2013-]\s+", str(nm or ""))[1:]}
         if want in names:
             exact = exact or r
         elif close is None and any(_close(want, n) for n in names if n):
             close = r
+        elif close is None and want in subs and len(want.split()) >= 3:       # 'Bigger Longer and Uncut' = 'South Park: Bigger, Longer & Uncut'
+            close = r
+        elif close is None and kind == "tv" and year and y == year and any(n and len(n.split()) >= 2 and want.startswith(n + " ") for n in names):
+            close = r                                                          # '1994' 'Spider-Man The Animated Series' = TMDB's 'Spider-Man' (1994)
     return exact or close
 
 
@@ -131,6 +204,7 @@ def lookup(kind, title, year, key, fj=None):
             "overview": d.get("overview") or "", "tagline": d.get("tagline") or "",
             "genres": [g["name"] for g in d.get("genres", [])], "cast": cast, "rating": round(float(d.get("vote_average") or 0), 1),
             "runtime": int(runtime), "poster": d.get("poster_path") or hit.get("poster_path") or "",
+            "seasons": [x["season_number"] for x in d.get("seasons") or [] if x.get("season_number")],
             "facts": {"type": "tv" if kind == "tv" else "movie",
                       "companies": [c["name"] for c in d.get("production_companies") or [] if c.get("name")]
                       + [n["name"] for n in d.get("networks") or [] if n.get("name")],
@@ -162,7 +236,7 @@ def save(conn, key, data, cfg, fb=None):
     else:
         conn.execute("INSERT OR REPLACE INTO art(key,kind,fetched,miss) VALUES(?,?,?,1)", (key, "", int(time.time())))
     if data and data.get("kind") == "movie":          # films now know their release date: play them in that order
-        for r in conn.execute("SELECT id,title,year,series,ord FROM media WHERE series=''").fetchall():
+        for r in conn.execute("SELECT id,title,year,series,season,episode,franchise,ord FROM media WHERE series=''").fetchall():
             if key_for(r)[0] == key and int(r["ord"] or 0) % 10_000_000 == 0:
                 o = release_ord(conn, r["title"], r["year"])
                 if o:
@@ -198,7 +272,7 @@ def pending(conn):
         conn.commit()
     have = {r["key"]: r for r in conn.execute("SELECT key,miss,fetched FROM art")}
     out, seen = [], set()
-    for r in conn.execute("SELECT title,year,series FROM media WHERE available=1 AND verified=1 ORDER BY series,title"):
+    for r in conn.execute("SELECT title,year,series,season,episode,franchise FROM media WHERE available=1 AND verified=1 ORDER BY series,title"):
         k, kind, title, year = key_for(r)
         if k in seen:
             continue
@@ -207,6 +281,67 @@ def pending(conn):
         if h is None or (h["miss"] and time.time() - (h["fetched"] or 0) > RETRY_MISS_S):
             out.append((k, kind, title, year))
     return out
+
+
+def fetch_episodes(conn, k, tmdb_id, seasons, key, fj=None, delay=0.25):
+    """Every episode's name and description for one show (one call per season), remembered. False when the network failed (try again later)."""
+    fj = fj or fetch_json
+    for n in seasons:
+        try:
+            d = fj(f"/tv/{tmdb_id}/season/{n}", {"language": "en-US"}, key)
+        except Exception:
+            return False
+        for e in d.get("episodes") or []:
+            conn.execute("INSERT OR REPLACE INTO art_ep(key,season,episode,name,overview,air) VALUES(?,?,?,?,?,?)",
+                         (k, int(n), int(e.get("episode_number") or 0), e.get("name") or "", e.get("overview") or "", e.get("air_date") or ""))
+        if delay:
+            time.sleep(delay)
+    conn.execute("INSERT OR REPLACE INTO prefs(key,value) VALUES(?,?)", ("art_eps:" + k, str(int(time.time()))))
+    conn.commit()
+    return True
+
+
+def episodes_pass(conn, key, fj=None, delay=0.25, stop=None):
+    """Fetch the episode lists of shows that have none yet."""
+    done = 0
+    have = {r["key"][8:] for r in conn.execute("SELECT key FROM prefs WHERE key LIKE 'art_eps:%'")}
+    for r in conn.execute("SELECT key,tmdb_id FROM art WHERE kind='tv' AND miss=0 AND tmdb_id IS NOT NULL").fetchall():
+        if r["key"] in have:
+            continue
+        if stop and stop():
+            break
+        try:
+            d = (fj or fetch_json)(f"/tv/{r['tmdb_id']}", {"language": "en-US"}, key)
+        except Exception:
+            break
+        seasons = [x["season_number"] for x in d.get("seasons") or [] if x.get("season_number")]
+        if not fetch_episodes(conn, r["key"], r["tmdb_id"], seasons, key, fj, delay):
+            break
+        done += 1
+    return done
+
+
+def episode_for(conn, k, row):
+    """The TMDB episode a video is: by season and episode number when the file has both, else by its title. None when unknown."""
+    try:
+        season, ep = int(_g(row, "season") or 0), int(_g(row, "episode") or 0)
+    except (TypeError, ValueError):
+        season = ep = 0
+    if season and ep:
+        r = conn.execute("SELECT name,overview FROM art_ep WHERE key=? AND season=? AND episode=?", (k, season, ep)).fetchone()
+        if r:
+            return r
+    want = norm(_g(row, "title"))
+    if not want:
+        return None
+    best = None
+    for r in conn.execute("SELECT name,overview FROM art_ep WHERE key=?", (k,)):
+        n = norm(r["name"])
+        if n == want:
+            return r
+        if best is None and n and _close(want, n):
+            best = r
+    return best
 
 
 def run_pass(conn, cfg, key, fj=None, fb=None, delay=0.25, stop=None):
@@ -224,6 +359,10 @@ def run_pass(conn, cfg, key, fj=None, fb=None, delay=0.25, stop=None):
         hit += bool(data)
         if delay:
             time.sleep(delay)
+    try:
+        episodes_pass(conn, key, fj, delay, stop)
+    except Exception:
+        pass
     return done, hit
 
 
@@ -281,6 +420,13 @@ def info(conn, cfg, row):
     if got:
         out.update(tagline=a["tagline"] or "", genres=json.loads(a["genres"] or "[]"), cast=json.loads(a["cast"] or "[]"),
                    rating=a["rating"] or 0, source="TMDB")
+        if a["kind"] == "tv":
+            try:
+                e = episode_for(conn, k, row)
+            except Exception:
+                e = None
+            if e and e["overview"] and not out["plot"]:
+                out["plot"], out["episode_title"] = e["overview"], e["name"]
         if not out["plot"]:
             out["plot"] = a["overview"] or ""
         if a["kind"] == "tv" and a["year"]:

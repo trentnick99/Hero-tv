@@ -21,7 +21,7 @@ def _chk(name, level, text):
 def run(conn, cfg, now=None):
     """All checks as a list; never raises (a check that crashes is itself reported as a failure)."""
     out = []
-    for fn in (_database, _tools, _media, _program, _data_folder, _channels, _guide, _log):
+    for fn in (_database, _tools, _media, _program, _data_folder, _channels, _guide, _descriptions, _log):
         try:
             out.extend(fn(conn, cfg, now or time.time()))
         except Exception as e:                      # a broken check must not hide the others
@@ -120,6 +120,17 @@ def _guide(c, cfg, now):
     if empty:
         return [_chk("TV guide", WARN, f"{len(empty)} of {len(ids)} channels have nothing on right now (channels with no videos assigned).")]
     return [_chk("TV guide", OK, f"All {len(ids)} channels have something on now.")]
+
+
+def _descriptions(c, cfg, now):
+    from . import art
+    if not art.api_key():
+        return [_chk("Descriptions", WARN, "No TMDB key is saved, so Home and Details cannot show descriptions, posters or ratings (Settings > Cover art).")]
+    st = art.stats(c)
+    total = st["found"] + st["not_found"]
+    if total and st["not_found"] > total * 0.25:
+        return [_chk("Descriptions", WARN, f"{st['found']} of {total} titles have a description from TMDB; {st['not_found']} were not found online.")]
+    return [_chk("Descriptions", OK, f"{st['found']} titles have a description from TMDB.")]
 
 
 def _log(c, cfg, now):
