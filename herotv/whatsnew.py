@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.39": [
+        "The TV Guide and Library tiles on Home now have a picture too, so the Start here row no longer has two blank tiles in the middle.",
+    ],
     "1.38.38": [
         "HERO TV now opens on Home, with a row of big 'Start here' tiles: Live TV (with a live picture), TV Guide, Library and Continue watching. Prefer the old way? Settings > Appearance > Open HERO TV on > Live TV.",
         "The Start here row can be hidden or moved with the Home rows setting.",

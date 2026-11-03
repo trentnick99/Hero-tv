@@ -250,9 +250,11 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(d.contList&&d.contList.length)R.continue={title:"Continue watching",items:[...d.contList.map(contCard),more("See all",()=>{closeAll();openLib("continue")})]};
  if(d.recentList&&d.recentList.length)R.new={title:"New in your library",sub:`${d.recentN} new`,items:[...d.recentList.map(vodCard),more("See all",()=>{closeAll();openLib("recent")})]};
  if(d.favList&&d.favList.length)R.favorites={title:"Favorites",items:[...d.favList.map(vodCard),more("See all",()=>{closeAll();openLib("favorites")})]};
- { const st=[{k:"big",t:"Live TV",s:c?`Channel ${c.number}${slot?" · "+label(slot):""}`:"Watch what is on now",img:slot&&slot.media_id,live:1,go:()=>closeAll()},
-   {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",go:()=>{closeAll();openGuide()}},
-   {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",go:()=>{closeAll();openLib()}}];
+ { const oth=(d.onnow||[]).find(x=>x.s&&x.s.media_id&&!(c&&x.c.id===c.id)),gImg=oth?oth.s.media_id:undefined,
+     lSrc=(d.recentList&&d.recentList[0])||(d.favList&&d.favList[0]),lImg=lSrc?lSrc.id:undefined;
+   const st=[{k:"big",t:"Live TV",s:c?`Channel ${c.number}${slot?" · "+label(slot):""}`:"Watch what is on now",img:slot&&slot.media_id,live:1,go:()=>closeAll()},
+   {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
+   {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",img:lImg,go:()=>{closeAll();openLib()}}];
   if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
   else if(!REMOTE)st.push({k:"big",t:"Settings",s:"Look, channels, phone, backup",ic:"gear",go:()=>openSettings()});
   R.start={title:"Start here",items:st} }
