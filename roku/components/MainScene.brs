@@ -1,6 +1,6 @@
 ' HERO TV for Roku: live channels and the whole library on demand, from HERO TV on the PC.
 ' Up/Down change channel, OK opens the TV guide, Right the channel list, Left the on-demand library, Replay the last
-' channel, Rew starts the show over, Fwd goes back to live, * turns subtitles on/off, Back leaves the guide (or the app).
+' channel, Rew starts the show over, Fwd goes back to live, * turns subtitles on/off, Back leaves the guide (press Back twice to leave the app).
 ' On demand: Left/Right skip 10 seconds, Rew/Fwd 30 seconds, Replay starts again, Back returns to the library.
 
 sub init()
@@ -939,7 +939,20 @@ function onKeyEvent(key as string, press as boolean) as boolean
         if m.video.state = "playing" then m.video.control = "pause" else m.video.control = "resume"
         return true
     end if
-    return false                                       ' Back leaves the app
+    if key = "back"
+        ' one slip of Back used to drop you straight to the Roku home screen: ask for a second press within 3 seconds
+        if m.backClock = invalid
+            m.backClock = CreateObject("roTimespan")
+            m.backClock.Mark()
+        else if m.backArmed = true and m.backClock.TotalMilliseconds() < 3000
+            return false                               ' second press: leave the app
+        end if
+        m.backClock.Mark()
+        m.backArmed = true
+        flash("Press Back again to leave HERO TV")
+        return true
+    end if
+    return false
 end function
 
 ' ---------- on demand: the library (Left) ----------
