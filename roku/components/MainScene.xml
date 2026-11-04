@@ -61,6 +61,8 @@
 
     <Group id="guide" visible="false">
       <Rectangle id="guideBg" width="1920" height="1080" color="0x0b0e17EE" />
+      <Rectangle id="gTop" width="1920" height="12" color="0xffcf1fFF" />
+      <Rectangle id="gBar" translation="[1080,630]" width="10" height="150" color="0xffcf1fFF" />
       <Label id="gStation" translation="[100,60]" width="900" font="font:LargeBoldSystemFont" color="0xFFFFFFFF" />
       <Label id="gHint" translation="[100,125]" width="900" font="font:SmallestSystemFont" color="0x9AA3B5FF"
              text="Up/Down: choose    OK: watch    Back: return to TV" />
@@ -75,6 +77,8 @@
     <Group id="grid" visible="false">
       <Rectangle id="gridBg" width="1920" height="1080" color="0x0b0e17F5" />
       <Poster id="tgBack" width="1920" height="1080" opacity="0.14" loadDisplayMode="scaleToFill" />
+      <Rectangle id="tgTop" width="1920" height="12" color="0xffcf1fFF" />
+      <Rectangle id="tgBar" translation="[66,110]" width="10" height="120" color="0xffcf1fFF" />
       <Poster id="tgPic" translation="[1450,30]" width="380" height="214" loadDisplayMode="scaleToFill" />
       <Label id="tgStation" translation="[90,40]" width="700" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
       <Label id="tgClock" translation="[700,40]" width="700" horizAlign="right" font="font:SmallSystemFont" color="0x9AA3B5FF" />

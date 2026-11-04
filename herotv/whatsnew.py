@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.51": [
+        "Roku: the TV guide and the channel list now carry each channel's colour (a coloured stripe and a softly tinted background) instead of being all black and grey. Update the Roku app from Settings > Other devices to get it.",
+    ],
     "1.38.50": [
         "Guide: the L key now really opens the Library (the hint at the bottom promised it), and H opens Home.",
     ],

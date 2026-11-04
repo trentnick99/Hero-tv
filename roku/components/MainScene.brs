@@ -659,6 +659,9 @@ sub showGridInfo(ch as object, prog as dynamic)
     end if
     m.top.findNode("tgTitle").text = title
     m.top.findNode("tgTime").text = times
+    m.top.findNode("gridBg").color = tintColor(ch.color, 0.28, "F5")
+    m.top.findNode("tgTop").color = chanColor(ch.color)
+    m.top.findNode("tgBar").color = chanColor(ch.color)
 end sub
 
 sub onGridSelect()
@@ -841,6 +844,9 @@ sub onListFocus()
     m.top.findNode("gNext").text = nxt
     m.top.findNode("gDesc").text = txt(c.description)
     m.top.findNode("gPic").uri = pic
+    m.top.findNode("guideBg").color = tintColor(c.color, 0.28, "EE")
+    m.top.findNode("gTop").color = chanColor(c.color)
+    m.top.findNode("gBar").color = chanColor(c.color)
 end sub
 
 sub onListSelect()

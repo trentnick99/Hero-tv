@@ -60,3 +60,25 @@ function hexColor(h as dynamic, fallback as string) as string
     if not isStr(h) or Len(h) <> 7 or Left(h, 1) <> "#" then h = fallback
     return "0x" + Mid(h, 2) + "FF"
 end function
+
+' the dark background blended with a channel's colour (amt 0..1), so every screen carries the colour of what you are looking at
+function tintColor(h as dynamic, amt as float, alpha as string) as string
+    if not isStr(h) or Len(h) <> 7 or Left(h, 1) <> "#" then h = "#ffcf1f"
+    r = Val(Mid(h, 2, 2), 16)
+    g = Val(Mid(h, 4, 2), 16)
+    b = Val(Mid(h, 6, 2), 16)
+    r2 = Int(11 * (1 - amt) + r * amt)
+    g2 = Int(14 * (1 - amt) + g * amt)
+    b2 = Int(23 * (1 - amt) + b * amt)
+    return "0x" + hex2(r2) + hex2(g2) + hex2(b2) + alpha
+end function
+
+function hex2(n as integer) as string
+    if n < 0 then n = 0
+    if n > 255 then n = 255
+    return Right("0" + StrI(n, 16), 2)
+end function
+
+function chanColor(h as dynamic) as string
+    return hexColor(h, "#ffcf1f")
+end function
