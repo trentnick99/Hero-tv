@@ -214,7 +214,7 @@ function markSkip(kind,clear){if(!vod||!vod.series||!isFinite(v.duration))return
 
 /* ---- home menu and help ---- */
 let hi=0,homeData={};
-async function openHome(){layer="home";hi=0;show("#settings",false);show("#info",false);sDirty=false;show("#check",false);show("#guide",false);show("#lib",false);show("#help",false);show("#osd",false);show("#home",true);drawHome();await loadHome();if(layer==="home")drawHome()}
+async function openHome(){layer="home";hi=0;placePreview(false);show("#settings",false);show("#info",false);sDirty=false;show("#check",false);show("#guide",false);show("#lib",false);show("#help",false);show("#osd",false);show("#home",true);drawHome();await loadHome();if(layer==="home")drawHome()}
 async function loadHome(){const d={};
  const lib=async(v,n)=>{try{return await api(`/api/library?view=${v}&limit=${n}`)}catch(e){return null}};
  const[c,r,f]=await Promise.all([lib("continue",12),lib("recent",12),lib("favorites",12)]);
@@ -338,7 +338,7 @@ function homeKey(e){const k=e.key;
  else if(k==="ArrowDown"||k==="ArrowUp"){e.preventDefault();const r=cur.r+(k==="ArrowDown"?1:-1),i=at(r,cur.c);if(i>=0)homeSel(i)}
  else if(k==="Enter"){e.preventDefault();cur.go();if(cur.stay)drawHome()}}
 let ck={data:null,i:0};
-async function openCheck(){layer="check";show("#settings",false);show("#home",false);show("#help",false);show("#check",true);paint($("#check"),theme.color);
+async function openCheck(){layer="check";placePreview(false);show("#settings",false);show("#home",false);show("#help",false);show("#check",true);paint($("#check"),theme.color);
  hints($("#ck-hints"),[["← →","change list"],["↑ ↓","scroll"],["Esc","back"]]);ck.i=0;ck.data=null;drawCheck();
  try{const j=await api("/api/checklist");ck.data=j.lists;ck.err=j.error||""}catch(e){}drawCheck()}
 function drawCheck(){const tabs=$("#ck-tabs"),body=$("#ck-body"),sum=$("#ck-sum");tabs.textContent=body.textContent=sum.textContent="";
@@ -364,7 +364,7 @@ function checkKey(e){const k=e.key;
  else if(k==="ArrowDown"){e.preventDefault();$("#ck-body").scrollBy(0,innerHeight*.25)}
  else if(k==="ArrowUp"){e.preventDefault();$("#ck-body").scrollBy(0,-innerHeight*.25)}}
 let helpBack="";
-async function openHelp(back){helpBack=back||"";layer="help";show("#settings",false);show("#home",false);show("#guide",false);show("#lib",false);show("#osd",false);show("#help",true);hints($("#hp-hints"),[["Esc","back"]]);paint($("#help"),theme.color);
+async function openHelp(back){helpBack=back||"";layer="help";placePreview(false);show("#settings",false);show("#home",false);show("#guide",false);show("#lib",false);show("#osd",false);show("#help",true);hints($("#hp-hints"),[["Esc","back"]]);paint($("#help"),theme.color);
  let h=null;try{h=await api("/api/help")}catch(e){}drawHelp(h)}
 function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent="";
  const row=(good,text,sub)=>{const r=el("div","st "+(good?"good":"bad"));r.append(el("i",0,good?"✓":"!"));const d=el("div");d.append(el("span",0,text));if(sub)d.append(el("small",0,sub));r.append(d);L.append(r)};
@@ -424,7 +424,7 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
  if(c.kind==="weather"){d.append(el("h3",0,"Local weather"),el("p","meta","Live, around the clock"),el("p",0,"Current conditions, the hourly and 7-day forecast, and live weather alerts. Press Enter to watch."))}
  else if(s){d.append(el("h3",0,s.card?"Up next: "+(s.next_title||""):label(s)),el("p","meta",`${T(s.start)} to ${T(s.end)}, ${mins(s.end-s.start)} min`+(s.start<=nowS()&&nowS()<s.end?", on now":"")+([s.franchise,s.year].filter(Boolean).length?"   ·   "+[s.franchise,s.year].filter(Boolean).join(", "):"")+(s.block?"   ·   "+s.block:"")));if(s.plot)d.append(el("p",0,s.plot))}
  else d.append(el("p",0,"Nothing is scheduled here."));
- placePreview(true)}      /* the small live picture follows the header box every time it is redrawn */
+ if(layer==="guide")placePreview(true)}      /* the small live picture follows the header box every time it is redrawn */
 async function openGuide(){show("#settings",false);show("#info",false);const n=nowS();g.t0=Math.floor(n/1800)*1800;g.t=n;g.row=ci;layer="guide";await loadGuide();hints($("#g-hints"),[["↑ ↓","channel"],["← →","time"],["Enter","watch"],["R","remind me"],["G","close"],["L","library"],["F3","rename"]]);
  const nt=el("span",0,"Showtimes are generated on this PC from your own videos. They are not real TV listings.");$("#g-hints").append(nt);nt.style.marginLeft="auto";
  show("#guide",true);show("#osd",false);drawGuide();placePreview(true)}
@@ -468,7 +468,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
 function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
 function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
-async function openLib(v0){showCtx=null;layer="lib";show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
+async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
 function closeAll(){layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});

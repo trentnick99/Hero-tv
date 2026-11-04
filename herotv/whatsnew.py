@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.48": [
+        "Fixed a small video box that stayed at the top right of Home, Library or Help after you came from the Guide.",
+    ],
     "1.38.47": [
         "Guide: the top part now keeps exactly the same layout for every program - channel name always at the same spot, long titles and descriptions are cut short instead of pushing things around, and the small live picture is lined up again each time you move.",
     ],
