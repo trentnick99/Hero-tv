@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.50": [
+        "Guide: the L key now really opens the Library (the hint at the bottom promised it), and H opens Home.",
+    ],
     "1.38.49": [
         "Roku: Back on the live picture no longer drops you straight out to the Roku home screen. It asks you to press Back a second time within 3 seconds. Update the Roku app from Settings > Other devices to get it.",
     ],

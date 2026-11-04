@@ -468,7 +468,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
 function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
 function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
-async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
+async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#guide",false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
 function closeAll(){layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
@@ -628,7 +628,7 @@ addEventListener("keydown",e=>{const k=e.key;
   if(k==="F8"&&items[li]){e.preventDefault();return openInfo()}
   if(k==="Escape"||k==="Backspace"&&!$("#q").value){if(showCtx){e.preventDefault();leaveShow()}else closeAll()}else if(k==="ArrowDown")mv(cols);else if(k==="ArrowUp")mv(-cols);
   else if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);else if(k==="Enter"&&items[li])playOrOpen(items[li]);return}
- if(layer==="guide"){if(k==="Escape"||k==="g"||k==="G")closeAll();else if(k.startsWith("Arrow")||k==="Enter"||k==="r"||k==="R"){e.preventDefault();guideKey(k)}return}
+ if(layer==="guide"){if(k==="Escape"||k==="g"||k==="G")closeAll();else if(k==="l"||k==="L"){e.preventDefault();openLib()}else if(k==="h"||k==="H"){e.preventDefault();openHome()}else if(k.startsWith("Arrow")||k==="Enter"||k==="r"||k==="R"){e.preventDefault();guideKey(k)}return}
  if(layer===""){
   if(k==="h"||k==="H"||k==="Home"||k==="BrowserHome"){e.preventDefault();return openHome()}
   if(k==="?"||k==="F1"){e.preventDefault();return openHelp("")}
