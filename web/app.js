@@ -423,7 +423,8 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
  const chn=el("div","chn");chn.append(el("span","plate",c.number),el("span",0,c.name));d.append(chn);
  if(c.kind==="weather"){d.append(el("h3",0,"Local weather"),el("p","meta","Live, around the clock"),el("p",0,"Current conditions, the hourly and 7-day forecast, and live weather alerts. Press Enter to watch."))}
  else if(s){d.append(el("h3",0,s.card?"Up next: "+(s.next_title||""):label(s)),el("p","meta",`${T(s.start)} to ${T(s.end)}, ${mins(s.end-s.start)} min`+(s.start<=nowS()&&nowS()<s.end?", on now":"")+([s.franchise,s.year].filter(Boolean).length?"   ·   "+[s.franchise,s.year].filter(Boolean).join(", "):"")+(s.block?"   ·   "+s.block:"")));if(s.plot)d.append(el("p",0,s.plot))}
- else d.append(el("p",0,"Nothing is scheduled here."))}
+ else d.append(el("p",0,"Nothing is scheduled here."));
+ placePreview(true)}      /* the small live picture follows the header box every time it is redrawn */
 async function openGuide(){show("#settings",false);show("#info",false);const n=nowS();g.t0=Math.floor(n/1800)*1800;g.t=n;g.row=ci;layer="guide";await loadGuide();hints($("#g-hints"),[["↑ ↓","channel"],["← →","time"],["Enter","watch"],["R","remind me"],["G","close"],["L","library"],["F3","rename"]]);
  const nt=el("span",0,"Showtimes are generated on this PC from your own videos. They are not real TV listings.");$("#g-hints").append(nt);nt.style.marginLeft="auto";
  show("#guide",true);show("#osd",false);drawGuide();placePreview(true)}
