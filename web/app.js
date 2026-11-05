@@ -247,7 +247,7 @@ function markSkip(kind,clear){if(!vod||!vod.series||!isFinite(v.duration))return
 
 /* ---- home menu and help ---- */
 let hi=0,homeData={};
-async function openHome(){layer="home";hi=0;placePreview(false);show("#settings",false);show("#info",false);sDirty=false;show("#check",false);show("#guide",false);show("#lib",false);show("#help",false);show("#osd",false);show("#home",true);drawHome();await loadHome();if(layer==="home")drawHome()}
+async function openHome(){layer="home";placePreview(false);show("#settings",false);show("#info",false);sDirty=false;show("#check",false);show("#guide",false);show("#lib",false);show("#help",false);show("#osd",false);show("#home",true);drawHome();await loadHome();if(layer==="home")drawHome()}
 async function loadHome(){const d={};
  const lib=async(v,n)=>{try{return await api(`/api/library?view=${v}&limit=${n}`)}catch(e){return null}};
  const[c,r,f]=await Promise.all([lib("continue",12),lib("recent",12),lib("favorites",12)]);
@@ -367,13 +367,16 @@ function snip(t){snipStop();if(COARSE||!t||t.k!=="card"||t.plate||!t.inf||!t.inf
   p.onerror=snipStop;p.src=withK("/media/"+t.inf.id);pic.insertBefore(p,pic.firstChild.nextSibling||null)},1500)}
 function homeSel(i,instant){const L=homeList,t=L[i];if(!t||!t.n)return;const o=L[hi];if(o&&o.n)o.n.classList.remove("sel");hi=i;t.n.classList.add("sel");
  homeInfo(t);snip(t);const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
-function drawHome(){snipStop();const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
+function drawHome(){snipStop();const box=$("#tiles"),was=homeList[hi],memo=was&&{row:was.rowT,t:was.t,img:was.img},R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
  $("#h-clock").textContent=dayStr();$("#h-hello").textContent=theme.tagline;$("#home h2").textContent=theme.name;
  hints($("#h-hints"),[["← → ↑ ↓","choose"],["←","menu"],["Enter","open"],["Esc","back to TV"],["?","help"]]);
  R.forEach((row,r)=>{let host=box;
   if(!row.hero){const s=el("section","hrow"+(r===0?" first":"")),h=el("h3",0,row.title);if(row.sub)h.append(el("small",0,row.sub));const rc=el("div","rc");s.append(h,rc);box.append(s);host=rc}
-  row.items.forEach((t,c)=>{const n=homeNode(t),i=homeList.length;t.n=n;t.r=r;t.c=c;homeList.push(t);host.append(n);n.onclick=()=>{homeSel(i);t.go();if(t.stay)drawHome()}})});
- hi=Math.max(0,Math.min(hi,homeList.length-1));homeSel(hi,true);box.scrollTop=top;if(homeList[hi]&&homeList[hi].r)homeSel(hi,true);requestAnimationFrame(()=>{box.style.scrollBehavior=""})}
+  row.items.forEach((t,c)=>{const n=homeNode(t),i=homeList.length;t.n=n;t.r=r;t.c=c;t.rowT=row.title||"";homeList.push(t);host.append(n);n.onclick=()=>{homeSel(i);t.go();if(t.stay)drawHome()}})});
+ if(memo){   /* come back to the tile you left from: the same tile, else the same place in the same row */
+  let k=homeList.findIndex(x=>x.rowT===memo.row&&x.t===memo.t&&x.img===memo.img);if(k<0)k=homeList.findIndex(x=>x.rowT===memo.row&&x.t===memo.t);
+  if(k<0){const inRow=homeList.filter(x=>x.rowT===memo.row);if(inRow.length)k=homeList.indexOf(inRow[Math.min(was.c,inRow.length-1)])}if(k>=0)hi=k}
+ hi=Math.max(0,Math.min(hi,homeList.length-1));box.scrollTop=top;homeSel(hi,true);requestAnimationFrame(()=>{box.style.scrollBehavior=""})}
 let homeList=[];
 async function clearCont(id){try{await post("/api/progress",{media_id:id,position:0,completed:true});toast("Taken off Continue watching.");await loadHome();drawHome()}catch(e){toast("Could not clear that one.")}}
 function homeKey(e){const k=e.key;

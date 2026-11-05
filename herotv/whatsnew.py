@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.68": [
+        "Home: when you come back to Home it returns to the tile you opened, already in view. Before, the highlight jumped back to the top while the screen stayed where you were.",
+    ],
     "1.38.67": [
         "Your watching: hours this week are now counted day by day from today (they wrongly added up everything ever watched on anything you touched this week), and live TV is no longer counted twice in hours watched.",
     ],
