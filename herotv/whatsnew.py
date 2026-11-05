@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.56": [
+        "Library: copies of the same film (a 1080p and a 4K file, an unrated cut) now show as one tile marked \"2 versions\". Press Enter and pick which one to play. Films with different lengths, episodes and files with no year are never merged.",
+    ],
     "1.38.55": [
         "Fix for the 1.38.54 release build: the Watched tick no longer breaks the Windows build tests. (1.38.54 itself was not published; its changes are in this version.)",
     ],

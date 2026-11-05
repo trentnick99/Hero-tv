@@ -458,7 +458,9 @@ async function search(){let u="/api/library?view="+view+"&q="+encodeURIComponent
  const j=await api(u);items=j.items;counts=j.counts||counts;li=0;drawList()}
 function openShow(it){showBack=li;showCtx={series:it.series,franchise:it.franchise,title:it.title};$("#q").value="";search()}
 function leaveShow(){const b=showBack;showCtx=null;$("#q").value="";search().then(()=>{li=Math.max(0,Math.min(b,items.length-1));drawList()})}
-const playOrOpen=it=>it.show?openShow(it):startVod(it);
+const verName=v=>[v.height?(v.height>=2000?"4K":v.height+"p"):"Standard",v.size?(v.size/1073741824).toFixed(1)+" GB":"",v.position>10&&!v.completed?"resume at "+mins(v.position)+" min":"",v.file].filter(Boolean).join("  ·  ");
+const pickVersion=it=>{const r=($("#list .card.sel")||document.body).getBoundingClientRect();ctxOpen(r.left+r.width/2-120,r.top+r.height/2,it.versions.map(v=>({t:verName(v),fn:()=>startVod(Object.assign({},it,{id:v.id,height:v.height,position:v.position,completed:v.completed,runtime_s:v.runtime_s||it.runtime_s}))})))};
+const playOrOpen=it=>it.show?openShow(it):it.versions&&it.versions.length>1?pickVersion(it):startVod(it);
 function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.height="";cols=colCount();L.style.setProperty("--cols",cols);paint(L.parentNode,chans[ci]&&chans[ci].color);
  const tb=$("#l-tabs");tb.textContent="";for(const[k,n]of VIEWS){const sp=el("span",k===view?"on":"",n+(k==="all"?"":" "+counts[k]));sp.onclick=()=>{showCtx=null;view=k;saveView();search()};tb.append(sp)}
  const q=$("#q").value.trim();const nShows=items.filter(x=>x.show).length,nRest=items.length-nShows;
@@ -471,7 +473,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  items.forEach((it,k)=>{const c=el("div","card"+(k===li?" sel":"")),pic=el("div","pic");pic.style.background=tile(it.title);pic.append(thumb(it.id,true));
   const resume=it.position>10&&!it.completed;if(resume&&it.runtime_s){const p=el("i");p.style.width=Math.min(100,it.position/it.runtime_s*100)+"%";pic.append(p)}
   if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));{const q=qual(it.height);if(q&&!it.show)pic.append(el("span","qb",q));if(it.completed&&!it.show)pic.append(el("span","dn","Watched"))}
-  const meta=it.show?[it.franchise!==it.title?it.franchise:"",it.seasons>1?it.seasons+" seasons":""].filter(Boolean).join(", ")||"Show":[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"");
+  const meta=it.show?[it.franchise!==it.title?it.franchise:"",it.seasons>1?it.seasons+" seasons":""].filter(Boolean).join(", ")||"Show":[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"")+(it.versions?(it.franchise||it.year||resume?", ":"")+it.versions.length+" versions":"");
   c.append(pic,el("b",0,it.show?it.title:label(it)),el("small",0,meta||" "));c.onclick=()=>{if(COARSE&&li===k)return playOrOpen(it);li=k;drawList()};c.ondblclick=()=>playOrOpen(it);L.append(c)});
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;
   if(step>0){L.style.flex="none";L.style.height=Math.max(1,Math.floor((L.parentNode.clientHeight-L.offsetTop-$("#l-hints").offsetHeight-16)/step))*step+"px"}}   /* whole rows only */
