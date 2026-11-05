@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.60": [
+        "Home: rest on a film or episode for a moment and a short muted clip plays inside its tile. It stops when you move on. The big description panel at the bottom of Home now fades away after 3 seconds too (any key brings it back), so it stops covering the rows. The clips follow Settings > Appearance > Live picture on Home (turn that off to stop the clips too).",
+    ],
     "1.38.59": [
         "The key-hint bar now fades after 3 seconds instead of 6.",
     ],

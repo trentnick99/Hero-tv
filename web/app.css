@@ -504,3 +504,6 @@ body[data-finish="gloss"] #detail h3{margin-bottom:2vh}
 .ppic .dn::before,.pic .dn::before{content:"\2713\00a0"}
 
 .hints{transition:opacity .9s ease}body.hintsoff .hints{opacity:0}
+
+.ppic video.sn{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .6s;z-index:1}.ppic video.sn.on{opacity:1}.ppic .pg{z-index:2}.ppic .lv{z-index:2}
+body.hintsoff #h-info.on{opacity:0;pointer-events:none}

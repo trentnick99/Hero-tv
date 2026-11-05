@@ -321,9 +321,18 @@ function homeInfo(t){const box=$("#h-info");clearTimeout(infoT);const f=t&&t.inf
  const paint_=d=>{$(".hi-m",box).textContent=[f.sub,d&&d.year,d&&d.runtime_min?d.runtime_min+" min":"",d&&d.rating?"★ "+d.rating.toFixed(1):"",d&&(d.genres||[]).slice(0,2).join(", ")].filter(Boolean).join("  ·  ");$(".hi-p",box).textContent=(d&&d.plot)||""};
  const hit=infoCache.get(f.id);paint_(hit||null);box.classList.add("on");
  if(!hit)infoT=setTimeout(async()=>{try{const d=await api("/api/info/"+f.id);infoCache.set(f.id,d);if(homeList[hi]===t&&layer==="home")paint_(d)}catch(e){}},300)}
+/* hover snippet: rest on a film or episode for a moment and a muted 8-second clip plays inside its tile */
+let snT=0,snV=null;
+function snipStop(){clearTimeout(snT);if(snV){const p=snV;snV=null;p.pause();p.removeAttribute("src");p.load();p.remove()}}
+function snip(t){snipStop();if(COARSE||!t||t.k!=="card"||t.plate||!t.inf||!t.inf.id||(comfortOf().preview||"on")!=="on"||vod&&false)return;
+ const pic=t.n&&t.n.querySelector(".ppic");if(!pic)return;
+ snT=setTimeout(()=>{if(homeList[hi]!==t||layer!=="home"||document.hidden)return;
+  const p=document.createElement("video");p.className="sn";p.muted=true;p.playsInline=true;p.disablePictureInPicture=true;p.preload="metadata";snV=p;
+  p.onloadedmetadata=()=>{const d=p.duration||0;p.currentTime=d>120?Math.min(d*.3,d-30):0;p.play().then(()=>{if(snV===p){p.classList.add("on");snT=setTimeout(snipStop,8e3)}}).catch(snipStop)};
+  p.onerror=snipStop;p.src=withK("/media/"+t.inf.id);pic.insertBefore(p,pic.firstChild.nextSibling||null)},1500)}
 function homeSel(i,instant){const L=homeList,t=L[i];if(!t||!t.n)return;const o=L[hi];if(o&&o.n)o.n.classList.remove("sel");hi=i;t.n.classList.add("sel");
- homeInfo(t);const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
-function drawHome(){const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
+ homeInfo(t);snip(t);const b=instant?"instant":"auto";if(t.r===0)$("#tiles").scrollTo({top:0,behavior:b});else{t.n.parentNode.parentNode.scrollIntoView({block:"nearest",behavior:b});t.n.scrollIntoView({block:"nearest",inline:"nearest",behavior:b})}}
+function drawHome(){snipStop();const box=$("#tiles"),R=homeRows(),top=box.scrollTop;box.style.scrollBehavior="auto";box.textContent="";box.onscroll=()=>$("#home").classList.toggle("sc",box.scrollTop>30);paint($("#home"),theme.color);homeList=[];
  $("#h-clock").textContent=dayStr();$("#h-hello").textContent=theme.tagline;$("#home h2").textContent=theme.name;
  hints($("#h-hints"),[["← → ↑ ↓","choose"],["←","menu"],["Enter","open"],["Esc","back to TV"],["?","help"]]);
  R.forEach((row,r)=>{let host=box;
@@ -481,7 +490,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
 function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
 function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
 async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#guide",false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
-function closeAll(){layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
+function closeAll(){snipStop();layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
 
