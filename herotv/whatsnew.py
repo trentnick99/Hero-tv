@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.58": [
+        "The key-hint bar at the bottom of Home, the Guide and the Library now fades away after a few seconds and comes back when you press a key or move the mouse.",
+    ],
     "1.38.57": [
         "While an episode plays, press P to see every episode of the show: pick one to jump straight to it (the one playing is marked). The player's key hints are shorter so they fit on one line.",
     ],

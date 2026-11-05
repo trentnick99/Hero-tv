@@ -502,3 +502,5 @@ body[data-finish="gloss"] #detail h3{margin-bottom:2vh}
 .tl.hero.feat{height:40vh}
 .tl.hero.feat .ht p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;max-width:46vw}
 .ppic .dn::before,.pic .dn::before{content:"\2713\00a0"}
+
+.hints{transition:opacity .9s ease}body.hintsoff .hints{opacity:0}

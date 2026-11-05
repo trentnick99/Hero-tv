@@ -1388,3 +1388,7 @@ let curT;addEventListener("mousemove",e=>{if(!COARSE&&e.clientX<=8&&(layer===""|
  let i=pf.channel!=null?chans.findIndex(c=>c.number===pf.channel):-1;if(i<0)i=chans.findIndex(c=>c.id===localStorage.getItem("ch"));tune(i<0?0:i);if(!COARSE&&!REMOTE&&(comfortOf().start||"home")==="home")openHome();pollAlerts();if(!REMOTE)setTimeout(startupCheck,6000);setTimeout(()=>capTest(false),8000);
  try{if(!localStorage.getItem("homeHint"))setTimeout(()=>{try{if(layer===""&&!localStorage.getItem("homeHint")){localStorage.setItem("homeHint","1");toast("Tip: press H for the home menu, or ? for help")}}catch(e){}},6000)}catch(e){}})();
 })();
+
+/* the key-hint bars at the bottom of menus fade away after a few seconds and come back with any key or mouse move */
+{let hT;const wakeHints=()=>{document.body.classList.remove("hintsoff");clearTimeout(hT);hT=setTimeout(()=>document.body.classList.add("hintsoff"),6e3)};
+ addEventListener("keydown",wakeHints,true);addEventListener("mousemove",wakeHints,{passive:true});addEventListener("pointerdown",wakeHints,{passive:true});wakeHints()}
