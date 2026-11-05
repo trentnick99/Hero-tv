@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.53": [
+        "New smart rows for Home: Not watched yet, Quick watches (under 30 minutes), Movies, Top rated, and one row per genre (Comedy, Animation and so on, from the TMDB information). Turn them on in Settings > Appearance > Home rows. Each show appears once, as its first unwatched episode.",
+    ],
     "1.38.52": [
         "Shuffled channels no longer play the same video twice in a row when a new round of the shuffle begins.",
         "Folders linked into your media folder (symbolic links) are now scanned too, so their videos show up on your channels.",

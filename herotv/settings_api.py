@@ -9,7 +9,7 @@ import os
 import re
 from pathlib import Path
 
-from . import __version__, config, inbox
+from . import __version__, config, inbox, smart
 
 COLOR = re.compile(r"#[0-9a-fA-F]{6}")
 
@@ -73,7 +73,7 @@ def _home_rows(v):
         return list(HOME_ROWS)
     out = []
     for x in v:
-        if x in HOME_ROWS and x not in out:
+        if (x in HOME_ROWS or smart.valid_id(x)) and x not in out:
             out.append(x)
     return out
 MENUS = ("smoked", "light", "solid")
@@ -262,7 +262,7 @@ def update(changes, geocode=None):
         saved.append("ink")
     if "home_rows" in changes:
         v = changes["home_rows"]
-        if not isinstance(v, list) or any(x not in HOME_ROWS for x in v) or len(set(v)) != len(v):
+        if not isinstance(v, list) or any(not (x in HOME_ROWS or smart.valid_id(x)) for x in v) or len(set(v)) != len(v):
             raise ValueError("Choose the Home rows from the list.")
         data["home_rows"] = list(v)
         saved.append("home_rows")

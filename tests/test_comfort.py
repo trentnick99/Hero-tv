@@ -82,7 +82,7 @@ class Comfort(unittest.TestCase):
         SA.update({"home_rows": ["continue", "onnow"]})
         self.assertEqual(SA.comfort(SA._load())["home_rows"], ["continue", "onnow"])
         with self.assertRaises(ValueError):
-            SA.update({"home_rows": ["continue", "movies"]})
+            SA.update({"home_rows": ["continue", "bogus"]})
         with self.assertRaises(ValueError):
             SA.update({"home_rows": ["new", "new"]})
         self.assertEqual(SA.comfort({})["start"], "home")
