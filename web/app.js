@@ -233,12 +233,13 @@ async function loadHome(){const d={};
 const timeSpan=(a,b)=>{const x=T(a),y=T(b),m=/\s?[AP]M$/i,mx=x.match(m),my=y.match(m);return mx&&my&&mx[0]===my[0]?x.replace(m,"")+"\u2013"+y:x+"\u2013"+y};   /* 4:59\u20135:22 PM: short enough for a narrow guide cell */
 const dayWord=t=>(new Date(t*1e3).toDateString()===new Date(nowS()*1e3).toDateString()?"today ":"tomorrow ")+T(t);
 /* Home = a big banner for what to watch next, then rows of pictures (On now, Continue, New, Favorites) and a row of shortcuts. */
+const qual=h=>h>=2000?"4K":h>=700?"HD":"";
 function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="free"),wxc=chans.find(x=>x.kind==="weather"),rows=[];
  const tuneTo=i=>{closeAll();tune(i)},pct=(a,b)=>b>0?Math.max(0,Math.min(1,a/b)):0;
  const liveCard=x=>({k:"card",t:label(x.s),s:`${x.c.number} ${x.c.name}`,img:x.s.media_id,plate:x.c.number,
   inf:{id:x.s.media_id,title:label(x.s),sub:`Channel ${x.c.number} · ${x.c.name}`,badge:x.s.start<=nowS()?`On now · ends ${T(x.s.end)}`:`Starts ${T(x.s.start)}`},live:c&&x.c.id===c.id,pct:pct(nowS()-x.s.start,x.s.end-x.s.start),
   go:()=>{const i=chans.findIndex(k=>k.id===x.c.id);if(i>=0)tuneTo(i);else closeAll()}});
- const vodCard=it=>({k:"card",inf:{id:it.id,title:it.show?it.title:label(it),sub:it.show?"":(it.series||""),badge:it.position>10?`Resume · ${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":"")},t:it.show?it.title:label(it),s:it.position>10?`${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":""),img:it.id,pct:it.position>10?pct(it.position,it.runtime_s):0,go:()=>startVod(it)}),contCard=it=>Object.assign(vodCard(it),{cid:it.id});
+ const vodCard=it=>({q:qual(it.height),done:!!it.completed&&!it.show,k:"card",inf:{id:it.id,title:it.show?it.title:label(it),sub:it.show?"":(it.series||""),badge:it.position>10?`Resume · ${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":"")},t:it.show?it.title:label(it),s:it.position>10?`${hms(it.position)} in`:(it.runtime_s?Math.round(it.runtime_s/60)+" min":""),img:it.id,pct:it.position>10?pct(it.position,it.runtime_s):0,go:()=>startVod(it)}),contCard=it=>Object.assign(vodCard(it),{cid:it.id});
  const more=(t,go)=>({k:"card",more:1,t,s:"",go});
  const hero=d.cont?{k:"hero",kick:"Continue watching",t:label(d.cont),s:`${hms(d.cont.position)} in`,cid:d.cont.id,img:d.cont.id,pct:pct(d.cont.position,d.cont.runtime_s),btn:"Resume",ic:"resume",go:()=>startVod(d.cont)}
   :c?{k:"hero",kick:`On now · channel ${c.number}`,t:slot?label(slot):c.name,s:c.name,img:slot&&slot.media_id,btn:"Watch live",ic:"live",go:()=>closeAll()}
@@ -263,7 +264,8 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
   if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
   else if(!REMOTE)st.push({k:"big",t:"Settings",s:"Look, channels, phone, backup",ic:"gear",go:()=>openSettings()});
   R.start={title:"Start here",items:st} }
- for(const id of hr){if(R[id])rows.push(R[id]);else if(d.smart&&d.smart[id]){const x=d.smart[id];rows.push({title:x.title,sub:x.sub,items:x.items.map(vodCard)})}}
+ for(const id of hr){if(R[id])rows.push(R[id]);else if(id==="featured"&&d.smart&&d.smart.featured&&d.smart.featured.items.length){const L=d.smart.featured.items,f={k:"hero",feat:L,fi:0,kick:"Featured",t:"",s:"",btn:"Play",ic:"resume",img:L[0].id,go:()=>startVod(L[f.fi])};featNow(f);rows.push({hero:1,items:[f]})}
+  else if(d.smart&&d.smart[id]){const x=d.smart[id];rows.push({title:x.title,sub:x.sub,items:x.items.map(vodCard)})}}
  const sp=d.setup,ch=[];
  if(sp&&!sp.done&&!REMOTE){const nx=sp.steps.find(x=>!x.done),n=sp.steps.filter(x=>x.done).length;
   ch.push({k:"chip",ic:"gear",t:"Finish setting up",s:`${n} of ${sp.steps.length} done. Next: ${nx.text}`,go:()=>{closeAll();openSettings("tools").then(()=>sJump(nx.cat,nx.card))}})}
@@ -274,6 +276,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(!(d.favList&&d.favList.length)){const fv=d.counts&&d.counts.favorites||0;ch.push({k:"chip",ic:"star",t:"Favorites",s:fv?`${fv} saved`:"Press F2 on any video to save it here",dim:!fv,go:()=>{closeAll();openLib("favorites")}})}
  if(free){const n=d.help?d.help.free:null;ch.push({k:"chip",ic:"gift",t:"Free movies",s:n===0?"None yet: Settings > Tools":n?`${n} free ${n===1?"title":"titles"} to watch`:"Free public-domain movies",go:()=>{const i=chans.indexOf(free);if(i<0){toast("No free movies yet. Settings > Tools > Free movies.");return}tuneTo(i)}})}
  if(wxc)ch.push({k:"chip",ic:"weather",t:"Weather",s:"Forecast and alerts",go:()=>tuneTo(chans.indexOf(wxc))});
+ ch.push({k:"chip",ic:"star",t:"Surprise me",s:"Play something you have not watched",go:async()=>{try{const j=await api("/api/smart?surprise=1");if(j.item){closeAll();startVod(j.item)}else toast("Nothing to pick yet.")}catch(e){toast("Could not pick one right now.")}}});
  ch.push({k:"chip",ic:"moon",t:"Sleep timer",s:sleepLeft()?"Pauses in "+sleepLeft()+". Select to change":"Off. Pick 30 to 120 minutes",stay:1,go:cycleSleep});
  const big=document.body.classList.contains("big");ch.push({k:"chip",ic:"text",t:"Bigger text",s:big?"On. Select to turn off":"Off. Select to make text bigger",stay:1,go:()=>setBig(!big,true)});
  if(d.check){const miss=d.check.filter(l=>!l.ideas).reduce((a,l)=>a+l.missing,0);ch.push({k:"chip",ic:"list",t:"Checklist",s:miss?`${miss} titles still to find`:"Everything on your lists is here",go:()=>openCheck()})}
@@ -281,16 +284,22 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  ch.push({k:"chip",ic:"help",t:"Help",s:d.help&&d.help.problem_count?`${d.help.problem_count} video(s) need attention`:"Keys, and fixes for common problems",go:()=>openHelp("home")});
  rows.push({title:"More",items:ch});
  return rows}
+function featNow(t){const it=t.feat[t.fi];t.t=label(it);t.img=it.id;
+ t.s=[it.year,it.runtime_s?Math.round(it.runtime_s/60)+" min":"",it.rating?"★ "+it.rating.toFixed(1):"",(it.genres||[]).join(", ")].filter(Boolean).join(" · ")+(it.about?"  —  "+it.about:"");
+ t.inf={id:it.id,title:label(it),sub:it.series||"",badge:"Play"}}
+function featRotate(n,t){if(t.feat.length<2)return;const iv=setInterval(()=>{if(!n.isConnected||!$("#home").classList.contains("on")){clearInterval(iv);return}
+  if(document.hidden)return;t.fi=(t.fi+1)%t.feat.length;featNow(t);const p=n.querySelector(".hpic");if(p){p.textContent="";p.append(heroPic(t.img))}
+  n.querySelector("h1").textContent=t.t;const q=n.querySelector(".ht p");if(q)q.textContent=t.s;if(t.n===n&&homeList[hi]===t)homeInfo(t)},9000)}
 function homeNode(t){const n=el("div","tl "+(t.k==="card"?"pcd":t.k)+(t.dim?" dim":"")+(t.live?" live":"")+(t.more?" more":""));
  if(t.k==="hero"){const p=el("div","hpic");p.style.background=tile(t.t);if(t.img)p.append(heroPic(t.img));n.append(p,el("div","hshade"));
   const x=el("div","ht");x.append(el("span","kick",t.kick),el("h1",0,t.t));if(t.s)x.append(el("p",0,t.s));
   if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";x.append(g)}
-  const b=el("span","hbtn");b.append(iconEl(t.ic,"bi"),document.createTextNode(t.btn));x.append(b);n.append(x);return n}
+  const b=el("span","hbtn");b.append(iconEl(t.ic,"bi"),document.createTextNode(t.btn));x.append(b);n.append(x);if(t.feat){n.classList.add("feat");featRotate(n,t)}return n}
  if(t.k==="chip"){n.append(iconEl(t.ic),el("b",0,t.t),el("small",0,t.s));return n}
  if(t.k==="big"){if(t.img){n.append(thumb(t.img,0));n.lastChild.className="bpic"}n.append(el("div","bshade"));if(t.live){n.classList.add("live");n.append(el("i","blive","● LIVE"));if(t.pv)homePreview(n,t.pv)}else if(t.ic)n.append(iconEl(t.ic,"bic"));const x=el("div","bt");x.append(el("b",0,t.t),el("small",0,t.s||" "));n.append(x);return n}
  if(t.more){n.append(el("b",0,t.t),iconEl("search","mi"));return n}
  const p=el("div","ppic");p.style.background=tile(t.t);if(t.img)p.append(thumb(t.img,1));
- if(t.plate)p.append(el("i","pl",String(t.plate)));if(t.live)p.append(el("i","lv","On now"));else if(t.special)p.append(el("i","lv","Special"));
+ if(t.q)p.append(el("span","qb",t.q));if(t.done)p.append(el("span","dn","✓ Watched")); if(t.plate)p.append(el("i","pl",String(t.plate)));if(t.live)p.append(el("i","lv","On now"));else if(t.special)p.append(el("i","lv","Special"));
  if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";p.append(g)}
  n.append(p,el("b",0,t.t),el("small",0,t.s||" "));return n}
 /* a muted picture of the channel that is on, inside the Live TV tile: a second player on the same file at the same moment */
@@ -461,7 +470,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
   else{e.append(el("b",0,"No videos yet."),el("br"),document.createTextNode("Drag movies or shows onto this window to add them."))}L.append(e);return}
  items.forEach((it,k)=>{const c=el("div","card"+(k===li?" sel":"")),pic=el("div","pic");pic.style.background=tile(it.title);pic.append(thumb(it.id,true));
   const resume=it.position>10&&!it.completed;if(resume&&it.runtime_s){const p=el("i");p.style.width=Math.min(100,it.position/it.runtime_s*100)+"%";pic.append(p)}
-  if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));
+  if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));{const q=qual(it.height);if(q&&!it.show)pic.append(el("span","qb",q));if(it.completed&&!it.show)pic.append(el("span","dn","✓ Watched"))}
   const meta=it.show?[it.franchise!==it.title?it.franchise:"",it.seasons>1?it.seasons+" seasons":""].filter(Boolean).join(", ")||"Show":[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"");
   c.append(pic,el("b",0,it.show?it.title:label(it)),el("small",0,meta||" "));c.onclick=()=>{if(COARSE&&li===k)return playOrOpen(it);li=k;drawList()};c.ondblclick=()=>playOrOpen(it);L.append(c)});
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;

@@ -61,6 +61,10 @@ def connect(path: str) -> sqlite3.Connection:
         conn.execute("ALTER TABLE prepared ADD COLUMN mix INTEGER DEFAULT 0")   # 1 = surround sound was mixed down to stereo in this copy
     if "alang" not in [r[1] for r in conn.execute("PRAGMA table_info(prepared)")]:
         conn.execute("ALTER TABLE prepared ADD COLUMN alang TEXT DEFAULT ''")  # the preferred language this copy was made for ('' = default track)
+    if "height" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:
+        conn.execute("ALTER TABLE media ADD COLUMN height INTEGER DEFAULT 0")  # picture height in pixels (HD / 4K badges); 0 = not read yet
+        conn.execute("UPDATE media SET mtime=0")                                # every file is read once more on the next scan to fill it in
+        conn.commit()
     if "roku" not in [r[1] for r in conn.execute("PRAGMA table_info(media)")]:
         conn.execute("ALTER TABLE media ADD COLUMN roku INTEGER DEFAULT 0")    # a Roku TV plays the file as it is (library.roku_ok)
         from . import library

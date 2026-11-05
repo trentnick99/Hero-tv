@@ -495,3 +495,9 @@ body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="sati
 body[data-finish="gloss"] #detail h3{margin-bottom:2vh}
 #detail p.meta{-webkit-line-clamp:1}
 #detail.withpic .txt{align-self:flex-start}
+
+/* quality and watched badges on picture tiles; the featured strip is a shorter banner */
+.ppic .qb,.pic .qb{position:absolute;right:.6vw;bottom:.9vh;font-style:normal;font-weight:800;font-size:calc(1.5vh*var(--tt));padding:.2vh .5vw;background:rgba(0,0,0,.72);color:#fff;border-radius:.4vh;letter-spacing:.03em;z-index:2}
+.ppic .dn,.pic .dn{position:absolute;left:.6vw;bottom:.9vh;font-style:normal;font-weight:700;font-size:calc(1.5vh*var(--tt));padding:.2vh .5vw;background:rgba(20,120,60,.85);color:#fff;border-radius:.4vh;z-index:2}
+.tl.hero.feat{height:40vh}
+.tl.hero.feat .ht p{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;max-width:46vw}

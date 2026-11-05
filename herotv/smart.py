@@ -11,10 +11,30 @@ STATIC = {
     "short": ("Quick watches", "Under 30 minutes"),
     "movies": ("Movies", "Newest first"),
     "toprated": ("Top rated", "Best rated first"),
+    "featured": ("Featured", "A rotating pick of what is worth watching"),
 }
 GENRE = "genre:"
 MIN_ITEMS = 3
 ROW_LEN = 14
+FEATURED_LEN = 6
+
+
+def _about(conn, cfg, d):
+    """The description, rating and genres for a featured tile (from TMDB when known)."""
+    try:
+        i = art.info(conn, cfg, d)
+    except Exception:
+        return {}
+    return {"about": (i.get("plot") or "")[:260], "rating": i.get("rating") or 0, "genres": (i.get("genres") or [])[:3]}
+
+
+def surprise(conn):
+    """One random video you have not watched (a show stands for its first unwatched episode); any video when everything is seen."""
+    import random
+    rows = _rows(conn)
+    pick = _one_per_show(sorted([d for d in rows if not _seen(d)], key=lambda d: (d["season"] or 0, d["episode"] or 0, d["ord"] or 0)))
+    pick = pick or rows
+    return _clean(random.choice(pick)) if pick else None
 
 
 def valid_id(x):
@@ -85,7 +105,7 @@ def catalog(conn):
     return cat
 
 
-def build(conn, ids):
+def build(conn, ids, cfg=None):
     """{id: {title, sub, items}} for the wanted row ids; rows with fewer than MIN_ITEMS tiles are left out."""
     rows = _rows(conn)
     newest = sorted(rows, key=lambda d: (-(d["added"] or 0), -d["id"]))
@@ -97,6 +117,15 @@ def build(conn, ids):
             pick.sort(key=lambda d: (-(d["added"] or 0), -d["id"]))
         elif rid == "short":
             pick = _one_per_show([d for d in newest if 60 <= (d["runtime_s"] or 0) <= 1800 and not _seen(d)])
+        elif rid == "featured":
+            pick = _one_per_show(sorted([d for d in rows if not _seen(d) and d["_rating"] >= 6.5],
+                                        key=lambda d: (-(d["_rating"]), -(d["added"] or 0))))[:FEATURED_LEN]
+            if len(pick) < 2:                                   # too few good ones: fall back to the newest unwatched
+                pick = _one_per_show([d for d in newest if not _seen(d)])[:FEATURED_LEN]
+            out[rid] = {"title": "Featured", "sub": "", "items": [dict(_clean(d), **_about(conn, cfg, d)) for d in pick]} if pick else None
+            if not pick:
+                del out[rid]
+            continue
         elif rid == "movies":
             pick = [d for d in newest if not d["_show"]]
         elif rid == "toprated":

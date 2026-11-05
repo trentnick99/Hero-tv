@@ -1431,7 +1431,9 @@ def make_handler(app, remote=False):
                 return self.send_json({"source": "generated", "notice": NOTICE, "tz": js_zone(tz), "from": t0, "to": t1, "channels": chans})
             if p == "smart":                  # Home rows built from rules: /api/smart?ids=unwatched,genre:Comedy (and the list that can be added)
                 ids = [x for x in q.get("ids", "").split(",") if smart.valid_id(x)][:12]
-                return self.send_json({"catalog": smart.catalog(c) if q.get("catalog") else [], "rows": smart.build(c, ids)})
+                if q.get("surprise"):
+                    return self.send_json({"item": smart.surprise(c)})
+                return self.send_json({"catalog": smart.catalog(c) if q.get("catalog") else [], "rows": smart.build(c, ids, app.cfg)})
             if p == "library":
                 like = f"%{q.get('q', '').strip()}%"
                 view = q.get("view", "all")
@@ -1451,7 +1453,7 @@ def make_handler(app, remote=False):
                     extra += " AND m.franchise=?"
                     args += [q.get("franchise", "")]
                 rows = c.execute(
-                    "SELECT m.id,m.title,m.year,m.franchise,m.series,m.season,m.episode,m.plot,m.runtime_s,m.tags,m.added,"
+                    "SELECT m.id,m.title,m.year,m.franchise,m.series,m.season,m.episode,m.plot,m.runtime_s,m.tags,m.added,m.height,"
                     "COALESCE(p.position,0) AS position,COALESCE(p.completed,0) AS completed,"
                     "(f.media_id IS NOT NULL) AS favorite FROM media m "
                     "LEFT JOIN progress p ON p.media_id=m.id LEFT JOIN favorites f ON f.media_id=m.id "

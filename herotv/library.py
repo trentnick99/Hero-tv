@@ -623,14 +623,14 @@ def scan(conn, root, probe_fn=probe):
             vals = (path, meta["title"], meta["year"], meta["franchise"], meta["series"], meta["season"], meta["episode"],
                     json.dumps(sc.get("tags", [])), sc.get("plot", ""), p["runtime_s"] if p else 0, verified, playable,
                     p["vcodec"] if p else "", p["acodec"] if p else "", ordv, mt, st.st_size, p.get("vfmt", "") if p else "",
-                    roku, int(time.time()))
+                    roku, int(time.time()), int(p.get("height") or 0) if p else 0)
             conn.execute(
                 "INSERT INTO media(path,title,year,franchise,series,season,episode,tags,plot,runtime_s,verified,playable,"
-                "vcodec,acodec,ord,mtime,size,vfmt,roku,available,added) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?) "
+                "vcodec,acodec,ord,mtime,size,vfmt,roku,available,added,height) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?) "
                 "ON CONFLICT(path) DO UPDATE SET title=excluded.title,year=excluded.year,franchise=excluded.franchise,"
                 "series=excluded.series,season=excluded.season,episode=excluded.episode,tags=excluded.tags,"
                 "plot=excluded.plot,runtime_s=excluded.runtime_s,verified=excluded.verified,playable=excluded.playable,"
-                "vcodec=excluded.vcodec,acodec=excluded.acodec,vfmt=excluded.vfmt,roku=excluded.roku,ord=excluded.ord,"
+                "vcodec=excluded.vcodec,acodec=excluded.acodec,vfmt=excluded.vfmt,roku=excluded.roku,ord=excluded.ord,height=excluded.height,"
                 "mtime=excluded.mtime,size=excluded.size,available=1,atracks=''", vals)
             stats["updated" if row else "added"] += 1
             if not row:

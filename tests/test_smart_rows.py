@@ -58,6 +58,35 @@ class Smart(unittest.TestCase):
         top = smart.build(self.c, ["toprated"])["toprated"]["items"]
         self.assertEqual(top[0]["series"], "Cool Show")
 
+    def test_featured_picks_good_unwatched_with_details(self):
+        from unittest import mock
+        with mock.patch("herotv.art.info", return_value={"plot": "A plot.", "rating": 8.1, "genres": ["Comedy"]}):
+            r = smart.build(self.c, ["featured"], None)["featured"]["items"]
+        self.assertTrue(2 <= len(r) <= smart.FEATURED_LEN)
+        self.assertEqual(r[0]["about"], "A plot.")
+        self.assertEqual(r[0]["genres"], ["Comedy"])
+        self.assertNotIn("_genres", r[0])
+
+    def test_surprise_is_unwatched_and_none_when_empty(self):
+        self.c.execute("INSERT INTO progress(media_id,position,completed,updated) VALUES(?,?,1,1)", (1, 0))
+        self.c.commit()
+        for _ in range(20):
+            self.assertNotEqual(smart.surprise(self.c)["id"], 1)
+        self.c.execute("UPDATE media SET available=0")
+        self.c.commit()
+        self.assertIsNone(smart.surprise(self.c))
+
+    def test_height_column_exists_and_scan_fills_it(self):
+        from pathlib import Path
+        from herotv import library
+        cols = [r[1] for r in self.c.execute("PRAGMA table_info(media)")]
+        self.assertIn("height", cols)
+        d = Path(tempfile.mkdtemp())
+        (d / "Film (2010).mp4").write_bytes(b"x" * 10)
+        library.scan(self.c, d, probe_fn=lambda p: {"runtime_s": 6000, "vcodec": "h264", "acodec": "aac", "vfmt": "yuv420p|high", "title": "", "height": 2160})
+        h = self.c.execute("SELECT height FROM media WHERE path LIKE '%Film%'").fetchone()[0]
+        self.assertEqual(h, 2160)
+
     def test_catalog_lists_genres(self):
         ids = [x["id"] for x in smart.catalog(self.c)]
         self.assertIn("genre:Comedy", ids)

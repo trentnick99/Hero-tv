@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.54": [
+        "Home: a rotating Featured banner (turn it on in Settings > Appearance > Home rows), HD and 4K badges and green Watched ticks on picture tiles and in the library, and a Surprise me tile under More that plays something you have not watched. HERO TV reads each video once more after this update to learn its picture size.",
+    ],
     "1.38.53": [
         "New smart rows for Home: Not watched yet, Quick watches (under 30 minutes), Movies, Top rated, and one row per genre (Comedy, Animation and so on, from the TMDB information). Turn them on in Settings > Appearance > Home rows. Each show appears once, as its first unwatched episode.",
     ],
