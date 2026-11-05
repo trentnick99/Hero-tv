@@ -73,14 +73,14 @@ v.addEventListener("pause",()=>{if(vod)osd(true)});v.addEventListener("play",()=
 function startOver(){if(!slot||vod||slot.card)return;startVod({id:slot.media_id,title:slot.title,series:slot.series,season:slot.season,episode:slot.episode,
  franchise:slot.franchise,year:slot.year,runtime_s:slot.runtime_s,position:0,completed:0,startOver:true})}
 async function sync(){const a=Date.now(),j=await api("/api/now");off=j.now-(a+Date.now())/2e3;cfg=j}
-async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;if(started&&ni!==ci)prevCi=ci;started=true;tunedAt=nowS();ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
+async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;const first=!started,changed=started&&ni!==ci;if(started&&ni!==ci)prevCi=ci;started=true;tunedAt=nowS();ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
  const wx=chans[ci].kind==="weather";show("#wx",wx);show("#upcard",false);clearTimeout(cardT);clearTimeout(cutT);document.body.classList.toggle("novideo",wx);
- if(wx){slot=nextSlot=null;v.pause();v.removeAttribute("src");v.load();loadWx();return osd()}
+ if(wx){slot=nextSlot=null;v.pause();v.removeAttribute("src");v.load();loadWx();if(changed)ident("b",{num:chans[ci].number,name:chans[ci].name,sub:"Local weather",color:chans[ci].color});return osd()}
  let j;try{j=await api(`/api/channel/${chans[ci].id}/now`)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open. Trying again."),setTimeout(()=>tune(ci),3e3)}
  if(my!==seq)return; /* a newer tune() superseded this one */
  slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Press O for Settings, then Tools > Free movies > Download."):msg("Nothing is scheduled on "+chans[ci].name,"Drag videos onto this window, or put them in this channel's folder. They appear by themselves.")}
  if(slot.card)return upCard(my);
- play(withK(`/media/${slot.media_id}`),()=>slot?Math.min(nowS()-slot.start+(slot.seek||0),(v.duration||1e9)-.5):0);loadSubs(slot.media_id);osd();   /* slot can be cleared (weather, on demand) before the metadata arrives */
+ play(withK(`/media/${slot.media_id}`),()=>slot?Math.min(nowS()-slot.start+(slot.seek||0),(v.duration||1e9)-.5):0);loadSubs(slot.media_id);osd();if(first)ident("a");else if(changed)ident("b",{num:chans[ci].number,name:chans[ci].name,sub:label(slot)+" · ends "+T(slot.end),color:chans[ci].color});   /* slot can be cleared (weather, on demand) before the metadata arrives */
  if(slot.cut)cutT=setTimeout(()=>{if(my===seq&&!vod)tune(ci)},Math.max(0,(slot.end-nowS())*1e3)+80)}   /* a break (or a time slot) starts before the video ends */
 /* the channel logo in the corner: always, now and then (when a show starts, after changing channel, and briefly
    every five minutes), or off - Settings > Appearance */
@@ -98,10 +98,21 @@ function upCard(my){const c=chans[ci],box=$("#upcard");v.pause();v.removeAttribu
  if(slot.plot)t.append(el("p",0,slot.plot));const left=el("div","uc-left");t.append(left);box.append(img,t);show("#upcard",true);
  const tick=()=>{if(my!==seq||!slot||!slot.card)return;const s=Math.max(0,slot.end-nowS());left.textContent=`Starts in ${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
   if(s<=0)return tune(ci);cardT=setTimeout(tick,1e3)};tick();osd()}
+/* ---- intros: short branded moments drawn by HERO TV itself (Settings > Appearance > Intros, off by default) ---- */
+let identT=0;
+function identStop(){clearTimeout(identT);const e=$("#ident");if(e)e.remove()}
+function ident(kind,o){if(!comfortOf().intros||COARSE&&kind==="a")return;identStop();o=o||{};
+ const e=el("div","ident "+kind);e.id="ident";if(o.color)e.style.setProperty("--ch",o.color);
+ if(kind==="a"){const bars=el("div","bars");for(let k=0;k<6;k++){const i=el("i");i.style.setProperty("--i",k);bars.append(i)}
+  const n=el("div","name");n.append(el("b",0,theme.name||"HERO TV"),el("span",0,theme.tagline||""));e.append(bars,n)}
+ else if(kind==="b"){const f=el("div","flash");f.append(el("div","num",String(o.num||"")));const t=el("div","txt");t.append(el("b",0,o.name||""),el("span",0,o.sub||""));f.append(t);e.append(f)}
+ else{const c=el("div","card");c.append(el("div","pre",(theme.name||"HERO TV")+" presents"),el("div","rule"),el("div","title",o.title||""),el("div","meta",o.meta||""));e.append(el("div","bg"),c)}
+ document.body.append(e);identT=setTimeout(identStop,kind==="a"?3800:kind==="b"?3700:4300)}
+addEventListener("keydown",()=>{if($("#ident"))identStop()},true);
 /* ---- comfort: even volume, night mode, screensaver, TV edge margin, look (Settings > Appearance) ---- */
 let actx=null,gainN=null,compN=null,gainFor="";
 const HOME_ROWS=["start","onnow","continue","new","favorites"];
-function comfortOf(){return theme.comfort||{level:true,night:{active:false},screensaver:true,safe_margin:0,theme:"classic"}}
+function comfortOf(){return theme.comfort||{level:true,night:{active:false},screensaver:true,intros:false,safe_margin:0,theme:"classic"}}
 function audioChain(){if(gainN)return true;try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return false}
  if(actx.state!=="running"){actx.resume().catch(()=>{});return false}   /* never route the sound through a stopped player */
  try{const src=actx.createMediaElementSource(v);gainN=actx.createGain();compN=actx.createDynamicsCompressor();src.connect(gainN);gainN.connect(compN);compN.connect(actx.destination);nightSound();return true}catch(e){return false}}
@@ -146,7 +157,7 @@ function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;evenVolum
 async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);show("#upcard",false);clearTimeout(cardT);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
  it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series)+"&media_id="+it.id)}catch(e){}if(vod!==it)return}
  play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
-  const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0});loadSubs(it.id);osd()}
+  const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0});loadSubs(it.id);osd();if(!(p>10)&&!it.startOver)ident("c",{title:it.series?label(it):it.title,meta:[it.year,it.runtime_s?Math.round(it.runtime_s/60)+" min":"",qual(it.height)].filter(Boolean).join(" · ")})}
 v.addEventListener("ended",()=>{if(vod){post("/api/progress",{media_id:vod.id,position:0,completed:true});if(sleepAfter)return goToSleep();if(vod.series)return nextEpisode(vod);return tune(ci)}
  setTimeout(()=>tune(ci),Math.max(0,(slot?slot.end-nowS():0)*1e3)+80)});
 v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(!id)return;
@@ -764,7 +775,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     draw();api("/api/smart?catalog=1").then(j=>{cat=j.catalog||[];draw()}).catch(()=>{});main.append(sField("Home rows","Which rows show on Home, and in what order. Tick to show a row; Up and Down move it. The smart rows (Not watched yet, Quick watches, Movies, Top rated and one per genre) are built from your library and TMDB.",box))}
   { const mn=el("select");for(const[v,t]of[["smoked","Smoked glass"],["light","Light glass (default)"],["solid","Solid (easiest to read)"]]){const o=el("option",0,t);o.value=v;if(((d.comfort||{}).menu||"light")===v)o.selected=true;mn.append(o)}
     mn.onchange=()=>sSave({menu:mn.value},"Menu style saved.",async()=>{await loadTheme()});main.append(sField("Menu style","How the left-side menu looks. Glass shows a blurred copy of the picture behind it; Solid is a plain dark panel.",mn))}
-  { const cf=Object.assign({level:true,screensaver:true,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);
+  { const cf=Object.assign({level:true,screensaver:true,intros:false,safe_margin:0,night:{on:false,from:"22:00",to:"07:00"}},d.comfort);
     const box=(key,text,on,save)=>{const i=el("input");i.type="checkbox";i.checked=on;const l=el("label","lb");l.append(i," "+text);l.style.display="flex";l.style.gap="1vw";i.onchange=()=>save(i.checked);return l};
     main.append(sField("Even volume","Quiet videos are turned up and loud ones down, so films, shorts and episodes all play at about the same volume (each video is measured once, in the background). On the TV screen and phones; Roku TVs have their own 'volume leveling' in the TV's sound settings.",
      box("level","Even out the volume between videos",cf.level,on=>sSave({level_volume:on},"Saved.",async()=>{await loadTheme()}))));
@@ -776,6 +787,8 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     main.append(sField("Night mode","Between these times menus are dimmer and warmer, everything plays a little quieter and loud bangs are evened out.",nrow));
     main.append(sField("Screensaver","When an on-demand video is paused for 3 minutes, or a menu is left open for 5, pictures from your library drift across the screen (kind to OLED TVs). Any key brings you back. Never during live TV.",
      box("saver","Screensaver",cf.screensaver,on=>sSave({screensaver:on},"Saved.",async()=>{await loadTheme()}))));
+    main.append(sField("Intros","A short branded moment: a start-up ident when HERO TV opens, a tag when you change channel, and a title card before a film or episode you start from the beginning. Any key skips it.",
+     box("intros","Intros",cf.intros,on=>sSave({intros:on},"Saved.",async()=>{await loadTheme()}))));
     const sm=el("select");for(const[v,t]of[[0,"None"],[2.5,"Small"],[5,"Large"]]){const o=el("option",0,t);o.value=v;if(Number(cf.safe_margin)===v)o.selected=true;sm.append(o)}
     sm.onchange=()=>sSave({safe_margin:Number(sm.value)},"Saved.",async()=>{await loadTheme()});
     main.append(sField("TV edge margin","If your TV cuts off the edges of menus, move everything in a little. The picture itself is not changed.",sm))}

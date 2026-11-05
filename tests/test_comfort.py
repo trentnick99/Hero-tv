@@ -27,6 +27,11 @@ class Comfort(unittest.TestCase):
         self.assertEqual(L.gain_db(-14, night=True), -10.0)   # quieter at night
         self.assertEqual(L.gain_db(None), 0.0)
 
+    def test_intros_setting(self):
+        self.assertFalse(SA.comfort({})["intros"])        # off until switched on
+        SA.update({"intros": True})
+        self.assertTrue(SA.comfort(SA._load())["intros"])
+
     def test_settings_and_night_window(self):
         c = SA.comfort({})
         self.assertEqual((c["level"], c["screensaver"], c["safe_margin"], c["theme"], c["night"]["active"]),

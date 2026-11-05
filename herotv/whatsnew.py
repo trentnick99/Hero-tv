@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.62": [
+        "New, off by default: Intros (Settings > Appearance > Intros). A short branded moment drawn by HERO TV: a start-up ident with your station name when it opens, a channel tag in the channel's colour when you change channel, and a title card before a film or episode you start from the beginning. Any key skips it.",
+    ],
     "1.38.61": [
         "Even volume is better: quiet films can now be turned up by as much as 15 dB (was 9) with a limiter so they do not crackle, the volume is measured after surround sound is mixed down to stereo (what you actually hear), and a quiet film no longer stays quiet if the sound system had not started yet. Every video is measured once more in the background, so levels settle over the next while.",
     ],

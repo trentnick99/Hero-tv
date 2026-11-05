@@ -96,7 +96,7 @@ def comfort(d=None, now=None, tz=None):
         active = (ma <= m < mz) if ma < mz else (m >= ma or m < mz)
     margin = d.get("safe_margin", 0)
     return {"level": d.get("level_volume", True) is not False, "night": {"on": on, "from": a, "to": z, "active": active},
-            "screensaver": d.get("screensaver", True) is not False, "safe_margin": margin if margin in MARGINS else 0,
+            "screensaver": d.get("screensaver", True) is not False, "intros": d.get("intros", False) is True, "safe_margin": margin if margin in MARGINS else 0,
             "theme": d.get("theme") if d.get("theme") in THEMES else "classic",
             "font": d.get("font") if d.get("font") in FONTS else "broadcast",
             "finish": d.get("finish") if d.get("finish") in FINISHES else "flat",
@@ -222,6 +222,9 @@ def update(changes, geocode=None):
     if "level_volume" in changes:
         data["level_volume"] = bool(changes["level_volume"])
         saved.append("level_volume")
+    if "intros" in changes:
+        data["intros"] = bool(changes["intros"])
+        saved.append("intros")
     if "screensaver" in changes:
         data["screensaver"] = bool(changes["screensaver"])
         saved.append("screensaver")
