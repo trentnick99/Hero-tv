@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.52": [
+        "Shuffled channels no longer play the same video twice in a row when a new round of the shuffle begins.",
+        "Folders linked into your media folder (symbolic links) are now scanned too, so their videos show up on your channels.",
+    ],
     "1.38.51": [
         "Roku: the TV guide and the channel list now carry each channel's colour (a coloured stripe and a softly tinted background) instead of being all black and grey. Update the Roku app from Settings > Other devices to get it.",
     ],

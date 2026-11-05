@@ -415,7 +415,19 @@ def _playlist(conn, ch, plan, key, cycle, cache):
     rows = list(rows)
     rng = random.Random(f"{ch['id']}:{key}:{cycle}")              # deterministic per (channel, block, cycle)
     if mode == "shuffle":
-        rng.shuffle(rows)
+        base = list(rows)
+        if len(rows) == 2:                    # two videos: always the same order, so they simply take turns
+            random.Random(f"{ch['id']}:{key}:0").shuffle(rows)
+        else:
+            rng.shuffle(rows)
+        if cycle > 0 and len(rows) > 2:
+            # a new round must not open with the video the last round ended on (it would play twice in a row);
+            # swapping the first two keeps the last one in place, so the previous round's end is known without
+            # working out every round before it
+            prev = list(base)
+            random.Random(f"{ch['id']}:{key}:{cycle - 1}").shuffle(prev)
+            if rows[0]["id"] == prev[-1]["id"]:
+                rows[0], rows[1] = rows[1], rows[0]
     elif mode in ("mixed", "balanced"):
         rows = mix_shows(rows, rng, cycle, balanced=mode == "balanced")
     cache[(key, cycle)] = (rows, [r["id"] for r in rows])

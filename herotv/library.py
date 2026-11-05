@@ -573,7 +573,13 @@ def scan(conn, root, probe_fn=probe):
     root = os.path.abspath(str(root))
     seen, stats = set(), dict(added=0, updated=0, missing=0, unverified=0)
     added_paths = []
-    for dp, dn, fn in os.walk(root):
+    visited = set()
+    for dp, dn, fn in os.walk(root, followlinks=True):     # folders linked into the media folder count too
+        real = os.path.realpath(dp)
+        if real in visited:                                # a link back up the tree (or a second link to the same folder)
+            dn[:] = []
+            continue
+        visited.add(real)
         dn[:] = sorted(d for d in dn if not d.startswith("."))
         for f in sorted(fn):
             stem, ext = os.path.splitext(f)

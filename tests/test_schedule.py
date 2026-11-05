@@ -62,6 +62,20 @@ class Basics(unittest.TestCase):
         self.assertNotEqual(first_cycle, sorted(first_cycle))  # actually shuffled
 
 
+    def test_shuffle_never_plays_the_same_video_twice_in_a_row_across_rounds(self):
+        for n in (2, 3, 4):
+            for k in range(40):
+                c = make_db()
+                for i in range(n):
+                    add(c, f"T{i}", 1800)
+                ch = channel(c, f"s{k}", mode="shuffle")
+                for step in range(30):                        # small top-ups, like the 5-minute maintainer
+                    S.extend(c, ch, T0 + step * 1800, 3600)
+                ms = [x[2] for x in slots(c, f"s{k}")]
+                self.assertFalse([i for i in range(len(ms) - 1) if ms[i] == ms[i + 1]], (n, k, ms))
+                for cyc in {x[3] for x in slots(c, f"s{k}")} - {max(x[3] for x in slots(c, f"s{k}"))}:
+                    self.assertEqual(sorted(x[2] for x in slots(c, f"s{k}") if x[3] == cyc), list(range(1, n + 1)))
+
 class Restarts(unittest.TestCase):
     def test_restart_does_not_change_existing_slots_and_extends_seamlessly(self):
         p = tmpdb()

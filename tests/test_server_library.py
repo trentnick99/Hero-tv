@@ -235,6 +235,20 @@ class ScanSafety(unittest.TestCase):
         st = library.scan(self.c, self.root, self.fake_probe)
         self.assertEqual(st["missing"], 1)
 
+    @unittest.skipUnless(hasattr(os, "symlink"), "no symlinks")
+    def test_linked_folder_is_scanned_and_a_loop_does_not_hang(self):
+        other = tempfile.mkdtemp(); os.makedirs(f"{other}/Show")
+        Path(f"{other}/Show/S01E01.mp4").write_bytes(b"z")
+        try:
+            os.symlink(f"{other}/Show", f"{self.root}/Linked", target_is_directory=True)
+            os.symlink(self.root, f"{self.root}/MCU/Back up", target_is_directory=True)   # points back up the tree
+        except (OSError, NotImplementedError):
+            self.skipTest("cannot make symlinks here (Windows without Developer Mode)")
+        library.scan(self.c, self.root, self.fake_probe)
+        paths = [r[0] for r in self.c.execute("SELECT path FROM media WHERE available=1")]
+        self.assertEqual(len(paths), 2)                                     # A (2020) once, plus the linked episode
+        self.assertTrue(any(os.path.join("Linked", "S01E01.mp4") in x for x in paths))
+
 
 if __name__ == "__main__":
     unittest.main()
