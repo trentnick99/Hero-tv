@@ -533,3 +533,29 @@ body.hintsoff #h-info.on{opacity:0;pointer-events:none}
 .ident.c .meta{font:600 1.8cqw var(--fb,sans-serif);color:#d7dcf5;opacity:0;animation:idIn .6s 1.4s forwards}
 @keyframes idRise{to{transform:scaleY(1)}}@keyframes idUp{to{opacity:1;transform:none}}@keyframes idIn{to{opacity:1}}@keyframes idFade{to{opacity:0}}@keyframes idGrow{to{width:100%}}
 @keyframes idSlide{0%{transform:translateX(-110%)}18%,78%{transform:none}100%{transform:translateX(-110%)}}
+
+/* Your watching */
+#help .sbig{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2vw;margin:0 0 3vh}
+#help .sbig div{background:var(--panel,#1b1b22);border-radius:1.2vh;padding:1.6vh 1vw}
+#help .sbig b{display:block;font-family:var(--fd);font-size:calc(5vh*var(--tt));line-height:1;color:var(--accent,#ffcf1f)}
+#help .sbig small{color:var(--mute);font-size:calc(1.8vh*var(--tx))}
+#help .srow{position:relative;display:flex;justify-content:space-between;gap:1vw;padding:1vh 1vw;margin:0 0 .8vh;border-radius:.8vh;overflow:hidden;font-size:calc(2.2vh*var(--tx))}
+#help .srow i{position:absolute;left:0;top:0;bottom:0;background:var(--accent,#ffcf1f);opacity:.18;border-radius:.8vh}
+#help .srow span,#help .srow em{position:relative;font-style:normal}#help .srow em{color:var(--mute)}
+#help .smute{color:var(--mute)}
+/* Pick for me */
+#pick{position:fixed;inset:0;z-index:30;display:none;background:var(--night,#05060a)}#pick.on{display:block}
+#pick .pbg{position:absolute;inset:0;background-size:cover;background-position:center;filter:blur(3vh) brightness(.35);transform:scale(1.1)}
+#pick .pcard{position:absolute;left:6vw;right:6vw;top:9vh;bottom:14vh;display:flex;gap:3vw;align-items:center;animation:pkIn .35s ease}
+#pick .ppos{flex:0 0 auto;height:100%;aspect-ratio:2/3;border-radius:1.6vh;box-shadow:0 3vh 8vh #000c}
+#pick .ptx{min-width:0;display:grid;gap:1.6vh}
+#pick .ptx small{color:var(--mute);font-size:calc(2vh*var(--tx));letter-spacing:.05em}
+#pick h2{margin:0;font-family:var(--fd);font-size:calc(6vh*var(--tt));line-height:1}
+#pick .pm{color:var(--mute);font-size:calc(2.2vh*var(--tx))}
+#pick p{margin:0;font-size:calc(2.4vh*var(--tx));line-height:1.4;max-width:60ch;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+#pick .pbtn{display:flex;gap:1vw;margin-top:1vh}
+#pick button{font:inherit;font-weight:700;font-size:calc(2.2vh*var(--tx));padding:1.4vh 2vw;border-radius:1vh;border:0;background:var(--panel,#1b1b22);color:var(--text);cursor:pointer}
+#pick button.pri{background:var(--accent,#ffcf1f);color:var(--on,#000)}
+#pick .hints{position:absolute;left:6vw;bottom:4vh}
+@keyframes pkIn{from{opacity:0;transform:translateX(3vw)}to{opacity:1;transform:none}}
+#help .stxt{font-size:calc(2.2vh*var(--tx));line-height:1.45;max-width:60ch}

@@ -310,6 +310,8 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(free){const n=d.help?d.help.free:null;ch.push({k:"chip",ic:"gift",t:"Free movies",s:n===0?"None yet: Settings > Tools":n?`${n} free ${n===1?"title":"titles"} to watch`:"Free public-domain movies",go:()=>{const i=chans.indexOf(free);if(i<0){toast("No free movies yet. Settings > Tools > Free movies.");return}tuneTo(i)}})}
  if(wxc)ch.push({k:"chip",ic:"weather",t:"Weather",s:"Forecast and alerts",go:()=>tuneTo(chans.indexOf(wxc))});
  ch.push({k:"chip",ic:"star",t:"Surprise me",s:"Play something you have not watched",go:async()=>{try{const j=await api("/api/smart?surprise=1");if(j.item){closeAll();startVod(j.item)}else toast("Nothing to pick yet.")}catch(e){toast("Could not pick one right now.")}}});
+ ch.push({k:"chip",ic:"list",t:"Pick for me",s:"Swipe through films and shows you have not seen",go:()=>openPick()});
+ ch.push({k:"chip",ic:"star",t:"Your watching",s:"Hours watched, top shows, favourite genres",go:()=>openStats()});
  ch.push({k:"chip",ic:"moon",t:"Sleep timer",s:sleepLeft()?"Pauses in "+sleepLeft()+". Select to change":"Off. Pick 30 to 120 minutes",stay:1,go:cycleSleep});
  const big=document.body.classList.contains("big");ch.push({k:"chip",ic:"text",t:"Bigger text",s:big?"On. Select to turn off":"Off. Select to make text bigger",stay:1,go:()=>setBig(!big,true)});
  if(d.check){const miss=d.check.filter(l=>!l.ideas).reduce((a,l)=>a+l.missing,0);ch.push({k:"chip",ic:"list",t:"Checklist",s:miss?`${miss} titles still to find`:"Everything on your lists is here",go:()=>openCheck()})}
@@ -416,8 +418,38 @@ function checkKey(e){const k=e.key;
  else if(k==="ArrowDown"){e.preventDefault();$("#ck-body").scrollBy(0,innerHeight*.25)}
  else if(k==="ArrowUp"){e.preventDefault();$("#ck-body").scrollBy(0,-innerHeight*.25)}}
 let helpBack="";
-async function openHelp(back){helpBack=back||"";layer="help";placePreview(false);show("#settings",false);show("#home",false);show("#guide",false);show("#lib",false);show("#osd",false);show("#help",true);hints($("#hp-hints"),[["Esc","back"]]);paint($("#help"),theme.color);
+async function openHelp(back){$("#help .top h2").textContent="Help";$("#help .top span").textContent="Plain-English answers";helpBack=back||"";layer="help";placePreview(false);show("#settings",false);show("#home",false);show("#guide",false);show("#lib",false);show("#osd",false);show("#help",true);hints($("#hp-hints"),[["Esc","back"]]);paint($("#help"),theme.color);
  let h=null;try{h=await api("/api/help")}catch(e){}drawHelp(h)}
+/* Your watching (Home > More): shown in the Help panel's frame */
+async function openStats(){helpBack="home";layer="help";placePreview(false);for(const id of["#settings","#home","#guide","#lib","#osd"])show(id,false);show("#help",true);hints($("#hp-hints"),[["Esc","back"]]);paint($("#help"),theme.color);
+ $("#help .top h2").textContent="Your watching";$("#help .top span").textContent="From what you have watched on this TV";const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent="";
+ let s=null;try{s=await api("/api/stats")}catch(e){}if(layer!=="help")return;
+ if(!s){L.append(el("p",0,"HERO TV is not reachable right now."));return}
+ const big=el("div","sbig");for(const[n,t]of[[s.hours,"hours watched"],[s.week_hours,"hours this week"],[s.finished,"finished"],[s.added_week,"added this week"]]){const b=el("div");b.append(el("b",0,String(n)),el("small",0,t));big.append(b)}
+ L.append(big,el("h3",0,"What you watch most"));
+ if(!s.top.length)L.append(el("p","smute","Nothing yet. Watch something and it shows up here."));
+ const mx=Math.max(...s.top.map(t=>t.hours),0.1);for(const t of s.top){const r=el("div","srow"),bar=el("i");bar.style.width=Math.max(3,t.hours/mx*100)+"%";r.append(el("span",0,t.name),el("em",0,t.hours+" h"),bar);L.append(r)}
+ R.append(el("h3",0,"Favourite genres"));if(!s.genres.length)R.append(el("p","smute","Genres appear once cover art is found (Settings > Cover art)."));
+ for(const g of s.genres){const r=el("div","srow"),bar=el("i");bar.style.width=Math.max(3,g.share)+"%";r.append(el("span",0,g.name),el("em",0,g.share+"%"),bar);R.append(r)}
+ R.append(el("h3",0,"This week"),el("p","stxt",`${s.added_week} new ${s.added_week===1?"video":"videos"} added, ${s.week_hours} hours watched. ${s.started} videos started in all, ${s.favorites} favorites.`))}
+/* Pick for me: one unwatched title at a time. Right = maybe, Left = skip, Enter = play now, Esc = done (then choose from your maybes) */
+let pk={list:[],i:0,keep:[]};
+async function openPick(){let j;try{j=await api("/api/smart?pick=1")}catch(e){return toast("Could not load titles right now.")}
+ if(!j.items||!j.items.length)return toast("You have watched everything. Nothing left to pick from.");
+ pk={list:j.items,i:0,keep:[]};closeAll();layer="pick";let e=$("#pick");if(!e){e=el("div","layer");e.id="pick";document.body.append(e)}show("#pick",true);drawPick()}
+function drawPick(){const e=$("#pick"),it=pk.list[pk.i];e.textContent="";paint(e,theme.color);
+ if(!it)return pickDone();
+ const bg=el("div","pbg");bg.style.backgroundImage=`url(${withK("/hero/"+it.id)}), ${tile(it.title)}`;
+ const card=el("div","pcard"),pic=el("div","ppos");pic.style.background=`center/cover no-repeat url(${withK("/poster/"+it.id)}), center/cover no-repeat url(${withK("/thumb/"+it.id)}), ${tile(it.title)}`;
+ const tx=el("div","ptx");tx.append(el("small",0,`${pk.i+1} of ${pk.list.length}${pk.keep.length?"  ·  "+pk.keep.length+" maybe":""}`),el("h2",0,it.series?label(it):it.title),
+  el("div","pm",[it.year,it.runtime_s?Math.round(it.runtime_s/60)+" min":"",it.rating?"★ "+Number(it.rating).toFixed(1):"",(it.genres||[]).join(", ")].filter(Boolean).join("  ·  ")),el("p",0,it.about||it.plot||""));
+ const btns=el("div","pbtn");for(const[t,fn,c]of[["← Skip",()=>pickGo(false),""],["Play now",()=>pickPlay(it),"pri"],["Maybe →",()=>pickGo(true),""]]){const b=el("button",c,t);b.type="button";b.onclick=fn;btns.append(b)}
+ tx.append(btns);card.append(pic,tx);e.append(bg,card);hints(e.appendChild(el("div","hints")),[["←","skip"],["→","maybe"],["Enter","play now"],["Esc","done"]])}
+function pickGo(keep){const it=pk.list[pk.i];if(keep&&it)pk.keep.push(it);pk.i++;drawPick()}
+function pickPlay(it){show("#pick",false);layer="";startVod(it)}
+function pickDone(){show("#pick",false);if(!pk.keep.length){openHome();return toast("No maybes this time.")}
+ openHome();ctxOpen(innerWidth*.35,innerHeight*.2,pk.keep.map(it=>({t:(it.series?label(it):it.title)+(it.year?" ("+it.year+")":""),fn:()=>{closeAll();startVod(it)}})));toast("Your maybes: pick one to play")}
+function pickKey(e){const k=e.key;e.preventDefault();if(k==="ArrowLeft"||k==="Backspace")pickGo(false);else if(k==="ArrowRight")pickGo(true);else if(k==="Enter"){const it=pk.list[pk.i];if(it)pickPlay(it)}else if(k==="Escape"||k==="h"||k==="H")pickDone()}
 function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent="";
  const row=(good,text,sub)=>{const r=el("div","st "+(good?"good":"bad"));r.append(el("i",0,good?"✓":"!"));const d=el("div");d.append(el("span",0,text));if(sub)d.append(el("small",0,sub));r.append(d);L.append(r)};
  L.append(el("h3",0,"Is anything wrong?"));
@@ -523,7 +555,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
 function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
 function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
 async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#guide",false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
-function closeAll(){snipStop();layer="";show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
+function closeAll(){snipStop();layer="";{const pe=$("#pick");if(pe)pe.classList.remove("on")}show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
 
@@ -670,6 +702,7 @@ addEventListener("keydown",e=>{const k=e.key;
  if((k==="d"||k==="D")&&(layer==="guide"||layer===""||vod)&&!(layer==="lib")){e.preventDefault();return openInfo()}
  if(layer==="home")return homeKey(e);
  if(layer==="check")return checkKey(e);
+ if(layer==="pick")return pickKey(e);
  if(layer==="help"){if(k==="Escape"||k==="Backspace"||k==="?"||k==="F1"||k==="h"||k==="H"){e.preventDefault();return helpBack==="home"?openHome():closeAll()}return}
  if((k==="F3"||k==="F4")&&layer==="lib"&&items[li]&&items[li].show&&!items[li].series){e.preventDefault();return toast("This group is a folder. Open it, then press F3 on an episode to rename that one.")}
  if((k==="F3"||k==="F4")&&(layer==="lib"||layer==="guide"||layer===""||vod)){e.preventDefault();return openRename(k==="F4"||(layer==="lib"&&items[li]&&items[li].show)?"series":"title")}

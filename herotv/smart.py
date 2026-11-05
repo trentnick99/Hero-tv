@@ -12,7 +12,10 @@ STATIC = {
     "movies": ("Movies", "Newest first"),
     "toprated": ("Top rated", "Best rated first"),
     "featured": ("Featured", "A rotating pick of what is worth watching"),
+    "week": ("New this week", "Added in the last 7 days"),
 }
+WEEK_S = 7 * 86400
+PICK_LEN = 30
 GENRE = "genre:"
 MIN_ITEMS = 3
 ROW_LEN = 14
@@ -35,6 +38,16 @@ def surprise(conn):
     pick = _one_per_show(sorted([d for d in rows if not _seen(d)], key=lambda d: (d["season"] or 0, d["episode"] or 0, d["ord"] or 0)))
     pick = pick or rows
     return _clean(random.choice(pick)) if pick else None
+
+
+def pick_pool(conn, cfg=None):
+    """For the swipe picker: up to PICK_LEN things you have not watched (a show = its first unwatched episode), shuffled,
+    each with its description, rating and genres."""
+    import random
+    rows = _rows(conn)
+    pool = _one_per_show(sorted([d for d in rows if not _seen(d)], key=lambda d: (d["season"] or 0, d["episode"] or 0, d["ord"] or 0)))
+    random.shuffle(pool)
+    return [dict(_clean(d), **_about(conn, cfg, d)) for d in pool[:PICK_LEN]]
 
 
 def valid_id(x):
@@ -125,6 +138,18 @@ def build(conn, ids, cfg=None):
             out[rid] = {"title": "Featured", "sub": "", "items": [dict(_clean(d), **_about(conn, cfg, d)) for d in pick]} if pick else None
             if not pick:
                 del out[rid]
+            continue
+        elif rid == "week":
+            import time
+            fresh = [d for d in newest if (d["added"] or 0) > time.time() - WEEK_S]
+            pick = _one_per_show(sorted(fresh, key=lambda d: (d["season"] or 0, d["episode"] or 0, d["ord"] or 0)))
+            pick.sort(key=lambda d: (-(d["added"] or 0), -d["id"]))
+            if pick:
+                films = sum(1 for d in fresh if not d["_show"])
+                eps = len(fresh) - films
+                bits = [f"{films} {'film' if films == 1 else 'films'}" if films else "", f"{eps} {'episode' if eps == 1 else 'episodes'}" if eps else ""]
+                out[rid] = {"title": "New this week", "sub": " and ".join(b for b in bits if b) + " added",
+                            "items": [_clean(d) for d in pick[:ROW_LEN]]}
             continue
         elif rid == "movies":
             pick = [d for d in newest if not d["_show"]]

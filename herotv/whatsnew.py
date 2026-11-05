@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.38.66": [
+        "Home > More > Your watching: hours watched (all time and this week), what you watch most, your favourite genres and what was added this week.",
+        "Home > More > Pick for me: swipe through films and shows you have not seen, one at a time with the poster and story. Right = maybe, Left = skip, Enter = play now. Press Esc to choose from your maybes.",
+        "New Home row: New this week (Settings > Appearance > Home rows), with how many films and episodes were added.",
+    ],
     "1.38.65": [
         "Subtitles: C now simply turns them on or off (your last language, else English). Shift+C opens a list of every language to pick from. Before, C stepped through every language one by one, so a film with many took many presses to turn them off.",
         "Sound tracks: press A while watching a film with several languages (for example Hindi and English) to switch straight away, no copy needed. HERO TV remembers your pick for the next film. Close and start HERO TV once after this update for A to work. The Roku app and phones still use the ready-to-play copy.",

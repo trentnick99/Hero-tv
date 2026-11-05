@@ -1429,10 +1429,15 @@ def make_handler(app, remote=False):
                 chans = [{"id": ch["id"], "number": ch["number"], "name": ch["name"], "color": ch["color"], "kind": ch["kind"] or "tv", "slots": by.get(ch["id"], [])}
                          for ch in S.channels(c)]
                 return self.send_json({"source": "generated", "notice": NOTICE, "tz": js_zone(tz), "from": t0, "to": t1, "channels": chans})
+            if p == "stats":                  # Your watching (Home > More)
+                from . import stats
+                return self.send_json(stats.build(c))
             if p == "smart":                  # Home rows built from rules: /api/smart?ids=unwatched,genre:Comedy (and the list that can be added)
                 ids = [x for x in q.get("ids", "").split(",") if smart.valid_id(x)][:12]
                 if q.get("surprise"):
                     return self.send_json({"item": smart.surprise(c)})
+                if q.get("pick"):
+                    return self.send_json({"items": smart.pick_pool(c, app.cfg)})
                 return self.send_json({"catalog": smart.catalog(c) if q.get("catalog") else [], "rows": smart.build(c, ids, app.cfg)})
             if p == "library":
                 like = f"%{q.get('q', '').strip()}%"
