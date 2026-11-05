@@ -98,7 +98,7 @@ def read_codes(exe, path, start, length, run=None, low_priority=True):
     if low_priority and os.name == "nt":
         flags["creationflags"] = flags.get("creationflags", 0) | 0x00004000   # BELOW_NORMAL_PRIORITY_CLASS
     try:
-        r = (run or subprocess.run)(_cmd(exe, path, start, length), capture_output=True, text=True, timeout=600, **flags)
+        r = (run or subprocess.run)(_cmd(exe, path, start, length), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600, **flags)
     except (OSError, subprocess.SubprocessError):
         return None
     if getattr(r, "returncode", 0) != 0 and not r.stdout:

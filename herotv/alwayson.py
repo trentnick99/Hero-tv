@@ -86,7 +86,7 @@ def set_startup(on, run=None):
         return run(ps, env)
     from . import tools
     r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps],
-                       capture_output=True, text=True, env=env, **tools.HIDE)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, **tools.HIDE)
     if r.returncode != 0 or not link.is_file():
         raise ValueError("Windows did not let HERO TV add itself to the Startup folder: " + (r.stderr or r.stdout).strip()[-200:])
     return str(link)

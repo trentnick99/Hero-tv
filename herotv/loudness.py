@@ -11,6 +11,7 @@ import time
 TARGET_LUFS = -20.0
 NIGHT_LUFS = -24.0
 MAX_UP_DB, MAX_DOWN_DB = 15.0, 12.0     # up to 15 dB louder is safe now that the TV's sound chain has a limiter (web/app.js)
+RETRY = 3                            # videos that could not be measured before 1.38.64 (file names with emoji) are tried once more
 VER = 2                              # 2: measured after the stereo mix-down the player actually plays (5.1 films read too loud before)
 SAMPLE_S = 240                       # longer videos: four minutes from four places are enough
 SCHEMA = "CREATE TABLE IF NOT EXISTS loudness(media_id INTEGER PRIMARY KEY, lufs REAL, checked INTEGER DEFAULT 0, ver INTEGER DEFAULT 0)"
@@ -42,7 +43,7 @@ def measure(exe, path, runtime=0, run=None):
         cmd = [exe, "-hide_banner", "-nostdin", "-i", path, "-vn", "-map", "0:a:0", "-af", "aformat=channel_layouts=stereo,ebur128=framelog=quiet",
                "-f", "null", "-"]
     try:
-        r = (run or subprocess.run)(cmd, capture_output=True, text=True, timeout=900, **flags)
+        r = (run or subprocess.run)(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=900, **flags)
     except (OSError, subprocess.SubprocessError):
         return None
     found = _I.findall(r.stderr or "")
@@ -69,15 +70,15 @@ def for_media(conn, mid):
 def todo(conn, limit=4):
     ensure(conn)
     return conn.execute("SELECT m.* FROM media m LEFT JOIN loudness l ON l.media_id=m.id WHERE m.available=1 "
-                        "AND m.verified=1 AND m.playable=1 AND (l.media_id IS NULL OR COALESCE(l.ver,0)<?) ORDER BY m.added DESC, m.id LIMIT ?",
-                        (VER, limit)).fetchall()
+                        "AND m.verified=1 AND m.playable=1 AND (l.media_id IS NULL OR COALESCE(l.ver,0)<? OR (l.lufs IS NULL AND COALESCE(l.ver,0)<?)) ORDER BY m.added DESC, m.id LIMIT ?",
+                        (VER, RETRY, limit)).fetchall()
 
 
 def run_once(conn, exe, limit=4, run=None, now=None):
     n = 0
     for m in todo(conn, limit):
         v = measure(exe, m["path"], m["runtime_s"] or 0, run) if os.path.isfile(m["path"] or "") else None
-        conn.execute("INSERT OR REPLACE INTO loudness(media_id,lufs,checked,ver) VALUES(?,?,?,?)", (m["id"], v, int(now or time.time()), VER))
+        conn.execute("INSERT OR REPLACE INTO loudness(media_id,lufs,checked,ver) VALUES(?,?,?,?)", (m["id"], v, int(now or time.time()), VER if v is not None else RETRY))
         conn.commit()
         n += 1
     return n

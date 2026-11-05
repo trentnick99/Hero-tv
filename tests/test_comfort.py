@@ -161,3 +161,16 @@ class Measure(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Utf8Output(unittest.TestCase):
+    def test_ffmpeg_output_is_read_as_utf8(self):
+        # a file name with an emoji (many download sites add one) used to crash the reader thread on Windows' code page
+        seen = {}
+
+        def fake(cmd, **kw):
+            seen.update(kw)
+            return subprocess.CompletedProcess(cmd, 0, "", "    I:         -20.0 LUFS\n")
+
+        self.assertEqual(L.measure("ffmpeg", "C:/m/Movie \U0001F480.mkv", 60, run=fake), -20.0)
+        self.assertEqual((seen.get("encoding"), seen.get("errors")), ("utf-8", "replace"))

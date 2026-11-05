@@ -552,7 +552,7 @@ def _black(ffmpeg, path, at, secs=12):
     try:
         r = subprocess.run([ffmpeg, "-hide_banner", "-nostdin", "-ss", f"{at:.1f}", "-t", str(secs), "-i", path, "-an", "-sn",
                             "-vf", "scale=160:-2,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-",
-                            "-f", "null", "-"], capture_output=True, text=True, timeout=180, **tools.HIDE)
+                            "-f", "null", "-"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=180, **tools.HIDE)
     except (OSError, subprocess.SubprocessError):
         return None
     ydif = [float(x) for x in re.findall(r"YDIF=([\d.]+)", r.stdout or "")]
@@ -1327,7 +1327,7 @@ def repair_shortcuts():
         return 0
     try:
         r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", REPAIR_PS],
-                           capture_output=True, text=True, timeout=60, env=dict(os.environ, HT_ROOT=str(ROOT)), **tools.HIDE)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, env=dict(os.environ, HT_ROOT=str(ROOT)), **tools.HIDE)
         return int((r.stdout or "0").strip() or 0)
     except (OSError, ValueError, subprocess.SubprocessError):
         return 0
@@ -1353,7 +1353,7 @@ def make_shortcut():
           '$s.IconLocation=$env:HT_ICON;$s.Description="HERO TV";$s.Save();Write-Output (Join-Path $d "HERO TV.lnk")')
     env = dict(os.environ, HT_TARGET=target, HT_ARGS=arguments, HT_DIR=str(ROOT), HT_ICON=str(ico))
     r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps],
-                       capture_output=True, text=True, env=env, **tools.HIDE)
+                       capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, **tools.HIDE)
     if r.returncode != 0:
         say("[FAIL] Could not create the shortcut: " + (r.stderr or r.stdout).strip()[-300:])
         return 1

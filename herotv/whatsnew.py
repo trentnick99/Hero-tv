@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.64": [
+        "Fix: videos with an emoji in the file name (many download sites add one) no longer break the background volume check, intro finder and start-up checks. Videos that could not be measured before are measured again.",
+    ],
     "1.38.63": [
         "Intros: the channel tag now stands in for the bottom info bar when you change channel (press I to see the bar).",
     ],
