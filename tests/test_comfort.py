@@ -21,7 +21,8 @@ class Comfort(unittest.TestCase):
         p.start(); self.addCleanup(p.stop)
 
     def test_gain(self):
-        self.assertEqual(L.gain_db(-30), 9.0)                 # quiet: up, at most 9 dB
+        self.assertEqual(L.gain_db(-40), 15.0)                # very quiet: up, at most 15 dB
+        self.assertEqual(L.gain_db(-30), 10.0)
         self.assertEqual(L.gain_db(-14), -6.0)                # loud: down
         self.assertEqual(L.gain_db(-14, night=True), -10.0)   # quieter at night
         self.assertEqual(L.gain_db(None), 0.0)
@@ -117,6 +118,28 @@ class Measure(unittest.TestCase):
         L.run_once(c, "ffmpeg")
         self.assertEqual(L.todo(c), [])
         self.assertIsNone(L.for_media(c, 1))                  # missing file: nothing measured, not tried again
+
+    @unittest.skipUnless(tools.find_tool("ffmpeg"), "needs ffmpeg")
+    def test_surround_is_measured_after_the_stereo_mix_down(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, True)
+        ff = tools.find_tool("ffmpeg")
+        src = os.path.join(d, "m.mka")
+        subprocess.run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=440:d=20", "-af",
+                        "pan=5.1|FL=0.5*c0|FR=0.5*c0|FC=c0|BL=0.3*c0|BR=0.3*c0", src], check=True)
+        raw = subprocess.run([ff, "-hide_banner", "-nostdin", "-i", src, "-af", "ebur128=framelog=quiet", "-f", "null", "-"],
+                             capture_output=True, text=True).stderr
+        raw = float(L._I.findall(raw)[-1])
+        self.assertGreater(L.measure(ff, src, 20), raw + 2)      # the stereo mix-down plays louder than the 5.1 reading
+
+    def test_older_measurements_are_made_again(self):
+        c = make_db()
+        c.execute("INSERT INTO media(path,title,verified,playable,available,runtime_s) VALUES('/nope.mp4','X',1,1,1,60)")
+        L.ensure(c)
+        c.execute("INSERT INTO loudness(media_id,lufs,checked) VALUES(1,-20,1)")      # ver 0 = measured the old way
+        c.commit()
+        self.assertEqual(len(L.todo(c)), 1)
+        self.assertEqual(L.status(c)["measured"], 0)
 
     @unittest.skipUnless(tools.find_tool("ffmpeg"), "needs ffmpeg")
     def test_measure_real_sound(self):

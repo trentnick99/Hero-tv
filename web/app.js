@@ -106,11 +106,12 @@ function audioChain(){if(gainN)return true;try{if(!actx)actx=new (window.AudioCo
  if(actx.state!=="running"){actx.resume().catch(()=>{});return false}   /* never route the sound through a stopped player */
  try{const src=actx.createMediaElementSource(v);gainN=actx.createGain();compN=actx.createDynamicsCompressor();src.connect(gainN);gainN.connect(compN);compN.connect(actx.destination);nightSound();return true}catch(e){return false}}
 function nightSound(){if(!compN)return;const on=comfortOf().night.active;   /* at night loud bangs are evened out too */
- compN.threshold.value=on?-30:0;compN.ratio.value=on?4:1;compN.knee.value=on?12:0;compN.attack.value=.01;compN.release.value=.3}
+ compN.threshold.value=on?-30:-2;compN.ratio.value=on?4:20;compN.knee.value=on?12:0;compN.attack.value=on?.01:.002;compN.release.value=on?.3:.12}   /* by day it is only a limiter, so a boosted quiet film cannot crackle */
 async function evenVolume(url){const m=/\/media\/(\d+)/.exec(url||"");if(!m)return;const id=m[1];gainFor=id;
  if(!comfortOf().level){if(gainN)gainN.gain.value=1;return}
  let g=0;try{const j=await api("/api/gain/"+id);if(gainFor!==id)return;g=j.gain_db||0}catch(e){return}
- if(!audioChain()&&!(g<0))return;                          /* turning down also works without the sound chain */
+ if(!audioChain()&&!(g<0)){const again=()=>{removeEventListener("keydown",again,true);removeEventListener("pointerdown",again,true);if(gainFor===id)evenVolume(url)};
+  addEventListener("keydown",again,true);addEventListener("pointerdown",again,true);return}   /* turning down also works without the sound chain; turning up waits for the first key or click (the browser keeps sound processing asleep until then) */
  if(gainN){gainN.gain.setTargetAtTime(Math.pow(10,g/20),actx.currentTime,.4);v.volume=Math.min(1,v.volume||1)}
  else v.volume=Math.max(.05,Math.min(1,Math.pow(10,g/20)))}
 function applyComfort(){const c=comfortOf();document.body.classList.toggle("night",!!c.night.active);document.body.dataset.theme=c.theme||"classic";document.body.dataset.font=c.font||"broadcast";document.body.dataset.finish=c.finish||"flat";document.body.dataset.focus=c.focus||"white";document.body.dataset.glow=c.glow||"soft";document.body.dataset.ink=c.ink||"standard";document.body.dataset.menu=c.menu||"light";

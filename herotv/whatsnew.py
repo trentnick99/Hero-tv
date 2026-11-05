@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.61": [
+        "Even volume is better: quiet films can now be turned up by as much as 15 dB (was 9) with a limiter so they do not crackle, the volume is measured after surround sound is mixed down to stereo (what you actually hear), and a quiet film no longer stays quiet if the sound system had not started yet. Every video is measured once more in the background, so levels settle over the next while.",
+    ],
     "1.38.60": [
         "Home: rest on a film or episode for a moment and a short muted clip plays inside its tile. It stops when you move on. The big description panel at the bottom of Home now fades away after 3 seconds too (any key brings it back), so it stops covering the rows. The clips follow Settings > Appearance > Live picture on Home (turn that off to stop the clips too).",
     ],

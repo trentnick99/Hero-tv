@@ -10,15 +10,18 @@ import time
 
 TARGET_LUFS = -20.0
 NIGHT_LUFS = -24.0
-MAX_UP_DB, MAX_DOWN_DB = 9.0, 12.0
+MAX_UP_DB, MAX_DOWN_DB = 15.0, 12.0     # up to 15 dB louder is safe now that the TV's sound chain has a limiter (web/app.js)
+VER = 2                              # 2: measured after the stereo mix-down the player actually plays (5.1 films read too loud before)
 SAMPLE_S = 240                       # longer videos: four minutes from four places are enough
-SCHEMA = "CREATE TABLE IF NOT EXISTS loudness(media_id INTEGER PRIMARY KEY, lufs REAL, checked INTEGER DEFAULT 0)"
+SCHEMA = "CREATE TABLE IF NOT EXISTS loudness(media_id INTEGER PRIMARY KEY, lufs REAL, checked INTEGER DEFAULT 0, ver INTEGER DEFAULT 0)"
 _state = {"running": False}
 _I = re.compile(r"^\s*I:\s*(-?[\d.]+)\s*LUFS", re.M)
 
 
 def ensure(conn):
     conn.execute(SCHEMA)
+    if "ver" not in [r[1] for r in conn.execute("PRAGMA table_info(loudness)")]:
+        conn.execute("ALTER TABLE loudness ADD COLUMN ver INTEGER DEFAULT 0")      # older measurements are made again once
 
 
 def measure(exe, path, runtime=0, run=None):
@@ -33,10 +36,10 @@ def measure(exe, path, runtime=0, run=None):
         for k, f in enumerate((0.15, 0.4, 0.6, 0.85)):
             ins += ["-ss", f"{runtime * f:.1f}", "-t", f"{part:.1f}", "-i", path]
             labels.append(f"[{k}:a:0]")
-        graph = "".join(labels) + f"concat=n=4:v=0:a=1,ebur128=framelog=quiet"
+        graph = "".join(labels) + f"concat=n=4:v=0:a=1,aformat=channel_layouts=stereo,ebur128=framelog=quiet"
         cmd = [exe, "-hide_banner", "-nostdin", "-vn"] + ins + ["-filter_complex", graph, "-f", "null", "-"]
     else:
-        cmd = [exe, "-hide_banner", "-nostdin", "-i", path, "-vn", "-map", "0:a:0", "-af", "ebur128=framelog=quiet",
+        cmd = [exe, "-hide_banner", "-nostdin", "-i", path, "-vn", "-map", "0:a:0", "-af", "aformat=channel_layouts=stereo,ebur128=framelog=quiet",
                "-f", "null", "-"]
     try:
         r = (run or subprocess.run)(cmd, capture_output=True, text=True, timeout=900, **flags)
@@ -66,15 +69,15 @@ def for_media(conn, mid):
 def todo(conn, limit=4):
     ensure(conn)
     return conn.execute("SELECT m.* FROM media m LEFT JOIN loudness l ON l.media_id=m.id WHERE m.available=1 "
-                        "AND m.verified=1 AND m.playable=1 AND l.media_id IS NULL ORDER BY m.added DESC, m.id LIMIT ?",
-                        (limit,)).fetchall()
+                        "AND m.verified=1 AND m.playable=1 AND (l.media_id IS NULL OR COALESCE(l.ver,0)<?) ORDER BY m.added DESC, m.id LIMIT ?",
+                        (VER, limit)).fetchall()
 
 
 def run_once(conn, exe, limit=4, run=None, now=None):
     n = 0
     for m in todo(conn, limit):
         v = measure(exe, m["path"], m["runtime_s"] or 0, run) if os.path.isfile(m["path"] or "") else None
-        conn.execute("INSERT OR REPLACE INTO loudness(media_id,lufs,checked) VALUES(?,?,?)", (m["id"], v, int(now or time.time())))
+        conn.execute("INSERT OR REPLACE INTO loudness(media_id,lufs,checked,ver) VALUES(?,?,?,?)", (m["id"], v, int(now or time.time()), VER))
         conn.commit()
         n += 1
     return n
@@ -84,7 +87,7 @@ def status(conn):
     ensure(conn)
     total = conn.execute("SELECT COUNT(*) FROM media WHERE available=1 AND verified=1 AND playable=1").fetchone()[0]
     done = conn.execute("SELECT COUNT(*) FROM loudness l JOIN media m ON m.id=l.media_id WHERE m.available=1 "
-                        "AND m.verified=1 AND m.playable=1").fetchone()[0]
+                        "AND m.verified=1 AND m.playable=1 AND COALESCE(l.ver,0)>=?", (VER,)).fetchone()[0]
     return {"videos": total, "measured": min(done, total), "running": _state["running"]}
 
 
