@@ -1390,5 +1390,5 @@ let curT;addEventListener("mousemove",e=>{if(!COARSE&&e.clientX<=8&&(layer===""|
 })();
 
 /* the key-hint bars at the bottom of menus fade away after a few seconds and come back with any key or mouse move */
-{let hT;const wakeHints=()=>{document.body.classList.remove("hintsoff");clearTimeout(hT);hT=setTimeout(()=>document.body.classList.add("hintsoff"),6e3)};
+{let hT;const wakeHints=()=>{document.body.classList.remove("hintsoff");clearTimeout(hT);hT=setTimeout(()=>document.body.classList.add("hintsoff"),3e3)};
  addEventListener("keydown",wakeHints,true);addEventListener("mousemove",wakeHints,{passive:true});addEventListener("pointerdown",wakeHints,{passive:true});wakeHints()}
