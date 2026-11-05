@@ -299,7 +299,7 @@ function homeNode(t){const n=el("div","tl "+(t.k==="card"?"pcd":t.k)+(t.dim?" di
  if(t.k==="big"){if(t.img){n.append(thumb(t.img,0));n.lastChild.className="bpic"}n.append(el("div","bshade"));if(t.live){n.classList.add("live");n.append(el("i","blive","● LIVE"));if(t.pv)homePreview(n,t.pv)}else if(t.ic)n.append(iconEl(t.ic,"bic"));const x=el("div","bt");x.append(el("b",0,t.t),el("small",0,t.s||" "));n.append(x);return n}
  if(t.more){n.append(el("b",0,t.t),iconEl("search","mi"));return n}
  const p=el("div","ppic");p.style.background=tile(t.t);if(t.img)p.append(thumb(t.img,1));
- if(t.q)p.append(el("span","qb",t.q));if(t.done)p.append(el("span","dn","✓ Watched")); if(t.plate)p.append(el("i","pl",String(t.plate)));if(t.live)p.append(el("i","lv","On now"));else if(t.special)p.append(el("i","lv","Special"));
+ if(t.q)p.append(el("span","qb",t.q));if(t.done)p.append(el("span","dn","Watched")); if(t.plate)p.append(el("i","pl",String(t.plate)));if(t.live)p.append(el("i","lv","On now"));else if(t.special)p.append(el("i","lv","Special"));
  if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";p.append(g)}
  n.append(p,el("b",0,t.t),el("small",0,t.s||" "));return n}
 /* a muted picture of the channel that is on, inside the Live TV tile: a second player on the same file at the same moment */
@@ -470,7 +470,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
   else{e.append(el("b",0,"No videos yet."),el("br"),document.createTextNode("Drag movies or shows onto this window to add them."))}L.append(e);return}
  items.forEach((it,k)=>{const c=el("div","card"+(k===li?" sel":"")),pic=el("div","pic");pic.style.background=tile(it.title);pic.append(thumb(it.id,true));
   const resume=it.position>10&&!it.completed;if(resume&&it.runtime_s){const p=el("i");p.style.width=Math.min(100,it.position/it.runtime_s*100)+"%";pic.append(p)}
-  if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));{const q=qual(it.height);if(q&&!it.show)pic.append(el("span","qb",q));if(it.completed&&!it.show)pic.append(el("span","dn","✓ Watched"))}
+  if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));{const q=qual(it.height);if(q&&!it.show)pic.append(el("span","qb",q));if(it.completed&&!it.show)pic.append(el("span","dn","Watched"))}
   const meta=it.show?[it.franchise!==it.title?it.franchise:"",it.seasons>1?it.seasons+" seasons":""].filter(Boolean).join(", ")||"Show":[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"");
   c.append(pic,el("b",0,it.show?it.title:label(it)),el("small",0,meta||" "));c.onclick=()=>{if(COARSE&&li===k)return playOrOpen(it);li=k;drawList()};c.ondblclick=()=>playOrOpen(it);L.append(c)});
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;

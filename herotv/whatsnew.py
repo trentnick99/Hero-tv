@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.55": [
+        "Fix for the 1.38.54 release build: the Watched tick no longer breaks the Windows build tests. (1.38.54 itself was not published; its changes are in this version.)",
+    ],
     "1.38.54": [
         "Home: a rotating Featured banner (turn it on in Settings > Appearance > Home rows), HD and 4K badges and green Watched ticks on picture tiles and in the library, and a Surprise me tile under More that plays something you have not watched. HERO TV reads each video once more after this update to learn its picture size.",
     ],
