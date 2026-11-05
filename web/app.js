@@ -55,7 +55,7 @@ function osd(keep){const c=chans[ci];if(!c)return;const wx=c.kind==="weather"&&!
  $("#o-title").textContent=wx?"Local weather":label(s);
  $("#o-sub").textContent=wx?c.name+", live forecast and alerts":vod?(vod.startOver?"Start over":"On demand")+([vod.franchise,vod.year].filter(Boolean).length?", "+[vod.franchise,vod.year].filter(Boolean).join(", "):""):`${c.name}${s.block?" · "+s.block:""}, ${T(s.start)} to ${T(s.end)}, ${mins(s.end-nowS())} min left`;
  osdHints(wx?"":vod?"":nextSlot?(nextSlot.card?`Next at ${T(nextSlot.end)}: ${nextSlot.next_title}`:`Next at ${T(nextSlot.start)}: ${label(nextSlot)}`):"",
-  wx?[]:vod?[["← →","skip 10 s / 30 s"],["0-9","jump"],["Space","pause"],["C","subtitles"],...(vod.series?[["J","intro ends here"],["E","credits start here"]]:[]),["Esc","back to TV"]]:slot?[["R","start over"],["C","subtitles"],["H","home menu"],["S","sleep timer"],["F3","rename"]]:[]);
+  wx?[]:vod?[["← →","skip"],["0-9","jump"],["Space","pause"],["C","subtitles"],...(vod.series?[["P","episodes"],["J","intro ends"],["E","credits start"]]:[]),["Esc","back to TV"]]:slot?[["R","start over"],["C","subtitles"],["H","home menu"],["S","sleep timer"],["F3","rename"]]:[]);
  $("#o-clock").textContent=T(nowS())+(sleepLeft()?"   ·   Sleep in "+sleepLeft():"");show("#osd",true);clearTimeout(osdT);if(!(vod&&(v.paused||keep)))osdT=setTimeout(()=>show("#osd",false),5e3);bar()}
 function osdHints(text,pairs){const nx=$("#o-next");nx.textContent="";if(text)nx.append(el("span",0,text));
  if(pairs.length){const k=el("span","kbd");for(const[a,b]of pairs)k.append(el("b",0,a),el("span",0,b));nx.append(k)}}
@@ -459,7 +459,7 @@ async function search(){let u="/api/library?view="+view+"&q="+encodeURIComponent
 function openShow(it){showBack=li;showCtx={series:it.series,franchise:it.franchise,title:it.title};$("#q").value="";search()}
 function leaveShow(){const b=showBack;showCtx=null;$("#q").value="";search().then(()=>{li=Math.max(0,Math.min(b,items.length-1));drawList()})}
 const verName=v=>[v.height?(v.height>=2000?"4K":v.height+"p"):"Standard",v.size?(v.size/1073741824).toFixed(1)+" GB":"",v.position>10&&!v.completed?"resume at "+mins(v.position)+" min":"",v.file].filter(Boolean).join("  ·  ");
-const pickVersion=it=>{const r=($("#list .card.sel")||document.body).getBoundingClientRect();ctxOpen(r.left+r.width/2-120,r.top+r.height/2,it.versions.map(v=>({t:verName(v),fn:()=>startVod(Object.assign({},it,{id:v.id,height:v.height,position:v.position,completed:v.completed,runtime_s:v.runtime_s||it.runtime_s}))})))};
+const pickVersion=it=>{const r=($("#list .card.sel")||document.body).getBoundingClientRect();ctxOpen(r.left+8,r.bottom+4,it.versions.map(v=>({t:verName(v),fn:()=>startVod(Object.assign({},it,{id:v.id,height:v.height,position:v.position,completed:v.completed,runtime_s:v.runtime_s||it.runtime_s}))})))};
 const playOrOpen=it=>it.show?openShow(it):it.versions&&it.versions.length>1?pickVersion(it):startVod(it);
 function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.height="";cols=colCount();L.style.setProperty("--cols",cols);paint(L.parentNode,chans[ci]&&chans[ci].color);
  const tb=$("#l-tabs");tb.textContent="";for(const[k,n]of VIEWS){const sp=el("span",k===view?"on":"",n+(k==="all"?"":" "+counts[k]));sp.onclick=()=>{showCtx=null;view=k;saveView();search()};tb.append(sp)}
@@ -651,6 +651,7 @@ addEventListener("keydown",e=>{const k=e.key;
   if(vod){const lk=k.toLowerCase();
    if(lk==="j"){e.preventDefault();return markSkip("intro",e.shiftKey)}
    if(lk==="e"){e.preventDefault();return markSkip("outro",e.shiftKey)}
+   if(lk==="p"&&vod.series){e.preventDefault();return episodeList()}
    if(lk==="n"&&vod.skip&&vod.skip.intro>v.currentTime)return seekTo(vod.skip.intro)}
   else if(k==="Escape"){e.preventDefault();return openHome()}}
  if(vod){const jump={ArrowLeft:-10,ArrowRight:30,PageDown:-300,PageUp:300,MediaRewind:-30,MediaFastForward:30};   /* on-demand controls */
@@ -1281,7 +1282,12 @@ function lmKey(e){const k=e.key;e.preventDefault();e.stopPropagation();
 let ctxI=0,ctxL=[];
 function ctxOpen(x,y,list){ctxL=list;ctxI=0;const m=$("#ctx");m.textContent="";paint(m,theme.color);list.forEach((it,i)=>{const d=el("div",i===0?"sel":"",it.t);d.setAttribute("role","menuitem");d.onmouseenter=()=>{ctxI=i;ctxDraw()};d.onclick=()=>{ctxClose();it.fn()};m.append(d)});
  show("#ctx",true);m.style.left=Math.min(x,innerWidth-m.offsetWidth-8)+"px";m.style.top=Math.min(y,innerHeight-m.offsetHeight-8)+"px"}
-function ctxDraw(){[...$("#ctx").children].forEach((d,i)=>d.classList.toggle("sel",i===ctxI))}
+function ctxDraw(){[...$("#ctx").children].forEach((d,i)=>{d.classList.toggle("sel",i===ctxI);if(i===ctxI&&d.scrollIntoView)d.scrollIntoView({block:"nearest"})})}
+async function episodeList(){if(!vod||!vod.series)return;const cur=vod;let j;
+ try{j=await api(`/api/library?show=1&franchise=${encodeURIComponent(cur.franchise||"")}&series=${encodeURIComponent(cur.series)}&limit=500`)}catch(e){return toast("Could not load the episodes")}
+ const list=(j.items||[]).filter(x=>x.series);if(!list.length||vod!==cur)return;
+ ctxOpen(innerWidth*.62,innerHeight*.12,list.map(x=>({t:label(x)+(x.id===cur.id?"   (now playing)":x.completed?"   (watched)":x.position>10?"   (resume at "+mins(x.position)+" min)":""),fn:()=>{if(x.id!==cur.id)startVod(x)}})));
+ ctxI=Math.max(0,list.findIndex(x=>x.id===cur.id));ctxDraw()}
 function ctxClose(){show("#ctx",false);ctxL=[]}
 const ctxIsOpen=()=>$("#ctx").classList.contains("on");
 function ctxKey(e){const k=e.key;e.preventDefault();e.stopPropagation();

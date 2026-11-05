@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.57": [
+        "While an episode plays, press P to see every episode of the show: pick one to jump straight to it (the one playing is marked). The player's key hints are shorter so they fit on one line.",
+    ],
     "1.38.56": [
         "Library: copies of the same film (a 1080p and a 4K file, an unrated cut) now show as one tile marked \"2 versions\". Press Enter and pick which one to play. Films with different lengths, episodes and files with no year are never merged.",
     ],
