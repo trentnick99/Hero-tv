@@ -1620,6 +1620,10 @@ def make_handler(app, remote=False):
                 exists = c.execute("SELECT 1 FROM media WHERE id=?", (media_id,)).fetchone()
                 if not exists:
                     return self.send_json({"error": "unknown media"}, 404)
+                if not b.get("live"):                                           # live TV is counted by /api/seen
+                    old = c.execute("SELECT position FROM progress WHERE media_id=?", (media_id,)).fetchone()
+                    from . import stats
+                    stats.log(c, position - (old[0] if old else 0), now)          # your watching: time moved on since the last save
                 c.execute("INSERT INTO progress(media_id,position,completed,updated) VALUES(?,?,?,?) "
                           "ON CONFLICT(media_id) DO UPDATE SET position=excluded.position,completed=excluded.completed,"
                           "updated=excluded.updated",
@@ -1638,6 +1642,8 @@ def make_handler(app, remote=False):
                     return self.send_json({"error": "unknown media"}, 404)
                 c.execute("INSERT INTO seen(media_id,secs,last) VALUES(?,?,?) ON CONFLICT(media_id) DO UPDATE SET "
                           "secs=secs+excluded.secs,last=excluded.last", (media_id, secs, int(now)))
+                from . import stats
+                stats.log(c, secs, now)
                 c.commit()
                 return self.send_json({"ok": True})
             if p == "skip":

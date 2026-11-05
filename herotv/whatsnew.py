@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.67": [
+        "Your watching: hours this week are now counted day by day from today (they wrongly added up everything ever watched on anything you touched this week), and live TV is no longer counted twice in hours watched.",
+    ],
     "1.38.66": [
         "Home > More > Your watching: hours watched (all time and this week), what you watch most, your favourite genres and what was added this week.",
         "Home > More > Pick for me: swipe through films and shows you have not seen, one at a time with the poster and story. Right = maybe, Left = skip, Enter = play now. Press Esc to choose from your maybes.",

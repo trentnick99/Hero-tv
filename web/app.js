@@ -203,7 +203,7 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(v.src&&!v.paused&&v.readyState>=2&&v.currentTime>3&&v.videoWidth===0){if(++nopic>=3){nopic=0;const id=vod?vod.id:slot&&slot.media_id;
    if(id){post("/api/report-error",{media_id:id,reason:"no-picture"});msg("This video has sound but no picture","Its video format cannot be shown here, so it is skipped. Settings > Tools > Videos that are skipped can fix it.");setTimeout(()=>{msg("");tune(ci)},5e3)}}}else nopic=0;
  if(layer===""&&$("#osd").classList.contains("on"))bar()},1e3);
-setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.9})},1e4);
+setInterval(()=>{const id=vod?vod.id:slot&&slot.media_id;if(id&&v.currentTime>5)post("/api/progress",{media_id:id,position:v.currentTime,completed:v.duration&&v.currentTime>v.duration*.9,live:!vod})},1e4);
 setInterval(()=>sync().catch(()=>{}),3e5);
 const NEED_API=19;   /* must match API_LEVEL in herotv/config.py */
 let libV=null,toastT;
@@ -425,7 +425,8 @@ async function openStats(){helpBack="home";layer="help";placePreview(false);for(
  $("#help .top h2").textContent="Your watching";$("#help .top span").textContent="From what you have watched on this TV";const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent="";
  let s=null;try{s=await api("/api/stats")}catch(e){}if(layer!=="help")return;
  if(!s){L.append(el("p",0,"HERO TV is not reachable right now."));return}
- const big=el("div","sbig");for(const[n,t]of[[s.hours,"hours watched"],[s.week_hours,"hours this week"],[s.finished,"finished"],[s.added_week,"added this week"]]){const b=el("div");b.append(el("b",0,String(n)),el("small",0,t));big.append(b)}
+ const big=el("div","sbig");const wk=s.week_since&&s.week_since>new Date(Date.now()-6*864e5).toISOString().slice(0,10)?"hours since "+new Date(s.week_since+"T12:00").toLocaleDateString([],{weekday:"short"}):"hours this week";
+ for(const[n,t]of[[s.hours,"hours watched"],[s.week_hours,wk],[s.finished,"finished"],[s.added_week,"added this week"]]){const b=el("div");b.append(el("b",0,String(n)),el("small",0,t));big.append(b)}
  L.append(big,el("h3",0,"What you watch most"));
  if(!s.top.length)L.append(el("p","smute","Nothing yet. Watch something and it shows up here."));
  const mx=Math.max(...s.top.map(t=>t.hours),0.1);for(const t of s.top){const r=el("div","srow"),bar=el("i");bar.style.width=Math.max(3,t.hours/mx*100)+"%";r.append(el("span",0,t.name),el("em",0,t.hours+" h"),bar);L.append(r)}

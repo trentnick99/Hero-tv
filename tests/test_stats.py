@@ -28,8 +28,12 @@ class Stats(unittest.TestCase):
 
     def test_totals_top_and_genres(self):
         s = stats.build(self.c)
-        self.assertEqual(s["hours"], round((7200 + 900 + 1800) / 3600, 1))
-        self.assertEqual(s["week_hours"], round((900 + 1800) / 3600, 1))
+        self.assertEqual(s["hours"], round((7200 + 900 + 1800) / 3600, 1))   # each video once, never live + position
+        self.assertEqual(s["week_hours"], 0)                     # nothing logged by day yet
+        stats.log(self.c, 90)
+        stats.log(self.c, 30, time.time() - 10 * 86400)          # too long ago for this week
+        stats.log(self.c, 500)                                    # a jump (seeking), not watching: ignored
+        self.assertEqual(stats.build(self.c)["week_hours"], round(90 / 3600, 1))
         self.assertEqual((s["finished"], s["started"]), (1, 3))
         self.assertEqual([t["name"] for t in s["top"]], ["Heat (1995)", "Cool Show"])
         self.assertEqual(s["genres"][0]["name"], "Crime")
