@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.65": [
+        "Subtitles: C now simply turns them on or off (your last language, else English). Shift+C opens a list of every language to pick from. Before, C stepped through every language one by one, so a film with many took many presses to turn them off.",
+        "Sound tracks: press A while watching a film with several languages (for example Hindi and English) to switch straight away, no copy needed. HERO TV remembers your pick for the next film. Close and start HERO TV once after this update for A to work. The Roku app and phones still use the ready-to-play copy.",
+    ],
     "1.38.64": [
         "Fix: videos with an emoji in the file name (many download sites add one) no longer break the background volume check, intro finder and start-up checks. Videos that could not be measured before are measured again.",
     ],

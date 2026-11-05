@@ -150,10 +150,31 @@ async function loadSubs(id){subMid=id;subs=[];subPics=0;clearSub();
 function setSub(i,quiet){clearSub();subI=i;
  if(i>=0){const t=subs[i],tr=document.createElement("track");tr.kind="subtitles";tr.label=t.label;tr.src=withK(`/sub/${subMid}/${t.key}.vtt`);tr.default=true;v.append(tr);tr.track.mode="showing"}
  if(!quiet)toast(i>=0?"Subtitles: "+subs[i].label:"Subtitles off")}
-function cycleSub(){
+function subWanted(){   /* the track C turns on: the language you used last, else English, else the first */
+ let i=subPref&&subPref!=="*"?subs.findIndex(t=>t.language===subPref):-1;if(i<0)i=subs.findIndex(t=>/^english$/i.test(t.language||t.label||""));return i<0?0:i}
+function subMenu(){
+ if(!subs.length)return cycleSub();
+ const pick=n=>{setSub(n);subPref=n>=0?(subs[n].language||"*"):"";post("/api/prefs",{subs:subPref})},list=[{t:(subI<0?"● ":"")+"Off",fn:()=>pick(-1)}];
+ subs.forEach((s,n)=>list.push({t:(subI===n?"● ":"")+s.label,fn:()=>pick(n)}));
+ ctxOpen(innerWidth*.62,innerHeight*.12,list);ctxI=subI+1;ctxDraw()}
+function cycleSub(){   /* C: subtitles on / off (Shift+C picks a language from a list) */
  if(!subs.length)return toast(subPics?"This video's subtitles are pictures (Blu-ray style) that a browser cannot show. Use a .srt file instead.":"No subtitles for this video. Put a .srt file next to it with the same name.");
- const n=subI+1>=subs.length?-1:subI+1;setSub(n);subPref=n>=0?(subs[n].language||"*"):"";post("/api/prefs",{subs:subPref})}
-function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;evenVolume(url);v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
+ const n=subI>=0?-1:subWanted();setSub(n);subPref=n>=0?(subs[n].language||"*"):"";post("/api/prefs",{subs:subPref});
+ if(n>=0&&subs.length>1)setTimeout(()=>toast("Shift+C to pick another language"),1800)}
+/* sound tracks: a film with several languages can be switched live with A (the PC starts its browser with AudioVideoTracks on) */
+let audPref="";try{audPref=localStorage.getItem("aud")||""}catch(e){}
+const audList=()=>v.audioTracks?[...v.audioTracks]:[];
+function audUse(n){const L=audList();if(!L[n])return;L.forEach((t,i)=>{if(i!==n)t.enabled=false});L[n].enabled=true}
+function audAuto(){const L=audList();if(L.length<2)return;const want=audPref?L.findIndex(t=>(t.language||"").toLowerCase()===audPref):-1;if(want>=0&&!L[want].enabled)audUse(want);
+ const id=vod?vod.id:slot&&slot.media_id;if(vod&&id!==audAuto.told){audAuto.told=id;setTimeout(()=>toast(`This video has ${L.length} sound tracks. Press A to switch.`),2500)}}
+async function audioMenu(){const L=audList(),id=vod?vod.id:slot&&slot.media_id;
+ if(!v.audioTracks)return toast("Switching sound tracks needs the HERO TV window (restart HERO TV once after updating).");
+ if(L.length<2)return toast("This video has one sound track.");
+ let names=[];try{names=(await api("/api/audio/"+id)).tracks||[]}catch(e){}
+ const lab=(t,i)=>{const s=names[i];return s?[s.language||s.lang,s.title,s.channels>2?s.channels===6?"5.1":s.channels+" ch":""].filter(Boolean).join(" · "):(t.label||t.language||"Track "+(i+1))};
+ ctxOpen(innerWidth*.62,innerHeight*.12,L.map((t,i)=>({t:(t.enabled?"● ":"")+lab(t,i),fn:()=>{audUse(i);audPref=(t.language||"").toLowerCase();try{localStorage.setItem("aud",audPref)}catch(e){}toast("Sound: "+lab(t,i))}})));
+ ctxI=Math.max(0,L.findIndex(t=>t.enabled));ctxDraw()}
+function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;evenVolume(url);v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());audAuto();v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
 async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);show("#upcard",false);clearTimeout(cardT);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
  it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series)+"&media_id="+it.id)}catch(e){}if(vod!==it)return}
  play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
@@ -409,7 +430,7 @@ function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent
   if(h.inbox_waiting)row(false,`${h.inbox_waiting} video(s) are waiting in the Inbox folder.`,"HERO TV files them by itself once they have finished copying. Ones it cannot place wait for you in Settings > Tools > Inbox - pick a channel (or make a new one) there.");
   row(true,"Your videos are in: "+h.media_dir,"Settings > Media library > Open media folder.")}
  R.append(el("h3",0,"Keys"));const t=el("table");
- for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["X (F6 in Library)","Take a video off Continue watching"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles: off / each language"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"],["R (in the guide)","Remind me when that show starts"],["M (in Details)","Move a video to another channel"],["? or F1","This help"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
+ for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["X (F6 in Library)","Take a video off Continue watching"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles on / off"],["Shift+C","Pick the subtitle language"],["A","Pick the sound track (language)"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"],["R (in the guide)","Remind me when that show starts"],["M (in Details)","Move a video to another channel"],["? or F1","This help"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
  R.append(t);
  L.append(el("h3",0,"Where to find things"));const w=el("table");w.className="where";
  for(const[a,b]of[["Settings > Channels > a channel","Play order, start times (with shorts and Up next), breaks inside shows, time slots"],
@@ -667,7 +688,8 @@ addEventListener("keydown",e=>{const k=e.key;
   if(k==="?"||k==="F1"){e.preventDefault();return openHelp("")}
   if(k==="s"||k==="S")return cycleSleep();
   if(k==="o"||k==="O"){e.preventDefault();return openSettings()}
-  if(k==="c"||k==="C")return cycleSub();
+  if(k==="c"||k==="C")return e.shiftKey?subMenu():cycleSub();
+  if((k==="a"||k==="A")&&v.src){e.preventDefault();return audioMenu()}
   if(k==="t"||k==="T")return setBig(!document.body.classList.contains("big"),true);
   if(vod){const lk=k.toLowerCase();
    if(lk==="j"){e.preventDefault();return markSkip("intro",e.shiftKey)}
@@ -739,7 +761,7 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
     const pick=(opts,key)=>{const sel=el("select");for(const[v,t]of opts){const o=el("option",0,t);o.value=v;if(st[key]===v)o.selected=true;sel.append(o)}
      sel.onchange=()=>{st[key]=sel.value;applyCues(st);sSave({subs_style:st},"Subtitle style saved.",async()=>{await loadTheme()})};sel.dataset.k=key;return sel};
     row.append(pick([["normal","Normal size"],["large","Large"],["xl","Extra large"]],"size"),pick([["box","On a dark box"],["none","Outline only"]],"bg"),pick([["white","White"],["yellow","Yellow"]],"color"));
-    row.id="cue-style";main.append(sField("Subtitles","How subtitles look on the TV and on paired phones. Press C while watching to turn them on.",row))}
+    row.id="cue-style";main.append(sField("Subtitles","How subtitles look on the TV and on paired phones. Press C while watching to turn them on or off, Shift+C to pick the language.",row))}
   { const lg=el("select");for(const[v,t]of[["sometimes","Now and then (when a show starts, and briefly every 5 minutes)"],["always","Always"],["off","Off"]]){const o=el("option",0,t);o.value=v;if((d.logo||"sometimes")===v)o.selected=true;lg.append(o)}
     lg.onchange=()=>sSave({logo:lg.value},"Channel logo saved.",async()=>{await loadTheme()});
     main.append(sField("Channel logo","The channel's number and name in the corner of the picture, like a TV network's logo. Also on the Roku app.",lg))}

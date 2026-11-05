@@ -175,7 +175,8 @@ def open_tv(cfg, fullscreen=True):
     profile = app_data_dir() / "browser-profile"      # own profile: flags always apply, your normal browser is untouched
     profile.mkdir(parents=True, exist_ok=True)
     args = [browser, f"--app={url}", "--autoplay-policy=no-user-gesture-required", f"--user-data-dir={profile}",
-            "--no-first-run", "--no-default-browser-check", "--disable-features=Translate", "--disable-session-crashed-bubble"]
+            "--no-first-run", "--no-default-browser-check", "--disable-features=Translate", "--disable-session-crashed-bubble",
+            "--enable-blink-features=AudioVideoTracks"]     # lets the TV switch between a film's sound tracks (A key) without a copy
     if fullscreen:
         args.append("--start-fullscreen")
     subprocess.Popen(args, **tools.HIDE)

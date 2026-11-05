@@ -125,7 +125,8 @@ def run(url, fullscreen=True, profile=None):
         globals()["_mutex"] = _h                               # keep it for as long as this window lives
     except Exception:
         pass
-    os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required --disable-features=Translate")
+    os.environ.setdefault("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required --disable-features=Translate "
+                                                         "--enable-blink-features=AudioVideoTracks")
     import threading
     import time
 
