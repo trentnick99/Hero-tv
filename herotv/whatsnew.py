@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.69": [
+        "Player info bar: long titles no longer run into the VOD/channel badge (they stop at 2 lines), and the key hints fit on one line (J and E for marking intros and credits are now listed in Help).",
+        "Intros: the title card uses smaller letters for long names, is not shown before short clips (under 10 minutes), and the info bar stays hidden while it plays.",
+    ],
     "1.38.68": [
         "Home: when you come back to Home it returns to the tile you opened, already in view. Before, the highlight jumped back to the top while the screen stayed where you were.",
     ],
