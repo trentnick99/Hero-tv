@@ -1465,9 +1465,7 @@ def make_handler(app, remote=False):
                 lim = max(1, min(int(q.get("limit", 200)), 1000))
                 group = q.get("group") == "1" and view in ("all", "recent") and not q.get("show")          # one row per show instead of one per episode
                 args = [like, like, like, like]
-                if q.get("show"):                                      # the episodes of one show (opened from the grouped list)
-                    extra += " AND m.franchise=?"
-                    args += [q.get("franchise", "")]
+                # the episodes of one show (opened from the grouped list) are picked below by the same key as the tile
                 rows = c.execute(
                     "SELECT m.id,m.path,m.size,m.title,m.year,m.franchise,m.series,m.season,m.episode,m.plot,m.runtime_s,m.tags,m.added,m.height,"
                     "COALESCE(p.position,0) AS position,COALESCE(p.completed,0) AS completed,"
@@ -1490,12 +1488,21 @@ def make_handler(app, remote=False):
                             e[1] += 1 if yr else 0
                     folders = {fr for fr, (n, dated) in loose.items() if n >= 3 and dated * 2 < n}
 
+                    home, per = {}, {}                           # 1-2 stray episodes in another folder join the show's main folder
+                    for fr, se, sn, yr in allrows:
+                        if se:
+                            per[(fr, L.show_key(se))] = per.get((fr, L.show_key(se)), 0) + 1
+                    for (fr, k), n in per.items():
+                        main = max((x for x in per if x[1] == k), key=lambda x: per[x])
+                        if main != (fr, k) and n <= 2 and per[main] >= 5:
+                            home[(fr, k)] = main
+
                     def key_of(d):
                         if d["series"]:
                             k = L.show_key(d["series"])
                             if d["franchise"] in folders and k == L.show_key(d["franchise"]):
                                 return (d["franchise"], "")      # "south park" episodes in the South Park folder: one tile
-                            return (d["franchise"], k)
+                            return home.get((d["franchise"], k), (d["franchise"], k))
                         return (d["franchise"], "") if d["franchise"] in folders else None
                     for fr, se, sn, yr in allrows:
                         k = key_of({"franchise": fr, "series": se})

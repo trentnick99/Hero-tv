@@ -189,3 +189,16 @@ class NewTabGroups(Groups):
         self.assertEqual(len(spidey), 1)
         self.assertEqual(spidey[0]["episodes"], 3)
         self.assertFalse([i for i in items if i.get("series") == "Spidey Show" and not i.get("show")])
+
+
+class ShowAcrossFolders(Groups):
+    def test_one_tile_for_a_show_spread_over_folders(self):
+        for e in range(1, 7):
+            self.add("Spider-Verse", "Webbed Show", 1, e, f"Ep {e}")
+        self.add("MCU", "Webbed Show", 3, 1, "Stray")
+        self.c.commit()
+        tiles = [i for i in self.get("view=all&group=1&limit=1000") if i.get("show") and i.get("series") == "Webbed Show"]
+        self.assertEqual(len(tiles), 1)
+        self.assertEqual(tiles[0]["episodes"], 7)
+        eps = self.get("view=all&show=1&franchise=Spider-Verse&series=Webbed%20Show")
+        self.assertEqual(len(eps), 7)

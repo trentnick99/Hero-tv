@@ -646,7 +646,7 @@ function openMove(){if(!infoCtx||!infoCtx.move||$("#in-move"))return;const {t,d}
  const rl=el("label","lb"),rc=el("input");rc.type="checkbox";rc.checked=true;rl.append(rc,show?" Remember: new episodes of this show go here too":" Remember: other copies of this title go here too");
  const bar=el("div","sbar"),note=el("small");
  const save=sBtn("Save",async()=>{if(!pick.size){note.textContent="Pick at least one channel.";return}save.disabled=true;note.textContent="Moving...";
-  try{await pj("/api/job",{name:"move",media_id:t.id,channels:[...pick],remember:rc.checked});await waitJob(note);if(infoCtx&&infoCtx.t===t){box.remove();const dd=await api("/api/info/"+t.id);{const o=$("#in-on");if(o)o.textContent=(dd.on||[]).length?"On: "+dd.on.join(", "):"Not on a channel yet"}moveUI(t,dd)}}
+  try{await pj("/api/job",{name:"move",media_id:t.id,channels:[...pick],remember:rc.checked});await waitJob(note);if(infoCtx&&infoCtx.t===t){box.remove();let dd;try{dd=await api("/api/info/"+t.id)}catch(e){dd=null}if(!dd||dd.error){closeInfo();if(layer==="lib")search();return}   /* the file moved and got a new entry */{const o=$("#in-on");if(o)o.textContent=(dd.on||[]).length?"On: "+dd.on.join(", "):"Not on a channel yet"}moveUI(t,dd)}}
   catch(e){note.textContent=String(e.message||e).replace(/^Error: /,"");save.disabled=false}},"pri");
  bar.append(save,sBtn("Cancel",()=>{box.remove();const b=$("#in-btns button:last-child");if(b)b.focus()}));box.append(row,rl,bar,note);
  $("#in-btns").after(box);const f=row.querySelector("button.on")||row.querySelector("button");if(f)f.focus()}

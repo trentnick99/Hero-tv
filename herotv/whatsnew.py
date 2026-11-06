@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.38.79": [
+        "Spider-Man: The Animated Series now gets the 1994 show's details instead of the 2003 MTV series (it is looked up again once).",
+        "A show with one or two stray episodes in another folder is still one tile (the strays join the show's main folder tile).",
+        "Details: after moving a video, the screen closes and the list refreshes when the video got a new entry (no more \"that video is no longer there\").",
+    ],
     "1.38.78": [
         "Library: the New tab now shows each show as one tile too (with how many of its episodes are new), instead of a tile per episode.",
         "Two copies of a film where one has no year in its name (Spider-man Homecoming / Spider-Man Homecoming 2017) are now one tile with a version picker.",

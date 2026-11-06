@@ -61,6 +61,10 @@ _JUNK = (r"complete|seasons?\s*\d+(?:\s*(?:to|-)\s*\d+)?|s\d{1,2}(?:e\d{1,3})?|e
 _JUNK_RE = re.compile(r"\b(?:" + _JUNK + r")\b.*$", re.I)
 # a folder that is named for a show but is really another one (the lookup only; the folder and the library stay as they are)
 ALIASES = {"dragon ball": "Dragon Ball Super", "x men 2": "X2", "x men 2 united": "X2", "x2 x men united": "X2"}
+# Shows whose name alone finds the wrong one on TMDB: the year it started picks the right one.
+SHOW_YEARS = {"spider man the animated series": 1994}       # not 'Spider-Man: The New Animated Series' (2003)
+# Matches that were wrong before, looked up again once (with the year above) when MATCH_VERSION goes up.
+REMATCH = {"s:spider man the animated series"}
 NOT_SHOW_FOLDERS = {"inbox", "movies", "films", "tv", "shows", "videos", "downloads", ""}
 
 
@@ -116,7 +120,8 @@ def show_of(row):
     """The show a video belongs to for the lookup: its series, or - for loose numbered episodes in a folder named for the show -
     that folder. None for a movie."""
     if _g(row, "series"):
-        return clean_show(row["series"])
+        name, year = clean_show(row["series"])
+        return name, year or SHOW_YEARS.get(norm(name))
     ep, fr = _g(row, "episode"), str(_g(row, "franchise") or "").strip()
     if ep and int(ep) > 0 and not _g(row, "season") and norm(fr) not in NOT_SHOW_FOLDERS:
         name, year = clean_show(fr)
@@ -143,7 +148,7 @@ def poster_file(cfg, key):
 
 
 # ---------- lookup ----------
-MATCH_VERSION = 4                    # older misses are tried again once after the matching got better
+MATCH_VERSION = 5                    # older misses are tried again once after the matching got better
 
 
 def _close(a, b):
@@ -296,6 +301,10 @@ def pending(conn):
     v = conn.execute("SELECT value FROM prefs WHERE key='art_match'").fetchone()
     if not v or v["value"] != str(MATCH_VERSION):          # better matching: give every earlier miss another go
         conn.execute("DELETE FROM art WHERE miss=1")
+        for k in REMATCH:                                    # known wrong matches: look them up again
+            conn.execute("DELETE FROM art WHERE key=?", (k,))
+            conn.execute("DELETE FROM art_ep WHERE key=?", (k,))
+            conn.execute("DELETE FROM prefs WHERE key=?", ("art_eps:" + k,))
         conn.execute("INSERT OR REPLACE INTO prefs(key,value) VALUES('art_match',?)", (str(MATCH_VERSION),))
         conn.commit()
     have = {r["key"]: r for r in conn.execute("SELECT key,miss,fetched FROM art")}
