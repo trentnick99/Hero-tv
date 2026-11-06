@@ -47,7 +47,12 @@ def pick_pool(conn, cfg=None):
     rows = _rows(conn)
     pool = _one_per_show(sorted([d for d in rows if not _seen(d)], key=lambda d: (d["season"] or 0, d["episode"] or 0, d["ord"] or 0)))
     random.shuffle(pool)
-    return [dict(_clean(d), **_about(conn, cfg, d)) for d in pool[:PICK_LEN]]
+    out = []
+    for d in pool[:PICK_LEN]:
+        sh = art.show_of(d)
+        show = sh[0] if sh else (d["franchise"] if art.folder_show(conn, d) else "")
+        out.append(dict(_clean(d), show=show, **_about(conn, cfg, d)))
+    return out
 
 
 def valid_id(x):

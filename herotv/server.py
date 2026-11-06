@@ -1510,6 +1510,24 @@ def make_handler(app, remote=False):
                     f"(SELECT COUNT(*) FROM media m WHERE m.available=1 AND m.verified=1 AND m.playable=1 AND m.added>{int(now) - RECENT_S})").fetchone()
                 items = [dict(r) for r in rows]
                 items = versions.merge(items) if view != "continue" and not q.get("show") else [{k: v for k, v in d.items() if k != "path"} for d in items]
+                if q.get("show"):                  # episodes with no name of their own ("Episode 3") get their TMDB name
+                    import re as _re
+                    for d in items:
+                        if d.get("season") and d.get("episode") and (not d.get("title") or _re.fullmatch(r"(?i)episode \d+", d["title"]) or d["title"] == d.get("series")
+                                                                           or (d["title"].isupper() and len(d["title"]) > 4)):
+                            try:
+                                e = art.episode_for(c, art.key_for(d)[0], d)
+                            except Exception:
+                                e = None
+                            if e and e["name"]:
+                                d["title"] = e["name"]
+                qq = q.get("q", "").strip().lower()
+                if qq and not q.get("show") and view != "continue":     # best match first: the name itself, then the rest
+                    def _rank(d):
+                        t = (d.get("title") or "").lower()
+                        s = ((d.get("series") or "") + " " + (d.get("franchise") or "")).lower()
+                        return 0 if t == qq else 1 if t.startswith(qq) else 2 if qq in t else 3 if qq in s else 4
+                    items.sort(key=_rank)
                 return self.send_json({"items": items, "counts": {"continue": counts[0], "favorites": counts[1], "recent": counts[2]}})
             if p.startswith("next/"):
                 m = c.execute("SELECT * FROM media WHERE id=?", (p[5:] if p[5:].isdigit() else -1,)).fetchone()

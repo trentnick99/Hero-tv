@@ -408,10 +408,25 @@ def local_picture(row):
     return None
 
 
+def folder_show(conn, row):
+    """For a video with no number in its name inside a show's folder (Dragon Ball/"His Name is Ginyu.mp4"): that show's art key
+    when HERO TV already knows the show from its numbered episodes. None otherwise."""
+    fr = str(_g(row, "franchise") or "").strip()
+    if not fr or _g(row, "series") or norm(fr) in NOT_SHOW_FOLDERS:
+        return None
+    k = "s:" + norm(_alias(clean_show(fr)[0]))
+    r = conn.execute("SELECT 1 FROM art WHERE key=? AND miss=0", (k,)).fetchone()
+    return k if r else None
+
+
 def info(conn, cfg, row):
     """What the details screen shows for one video."""
     k, kind, title, year = key_for(row)
     a = conn.execute("SELECT * FROM art WHERE key=?", (k,)).fetchone()
+    if (not a or a["miss"]) and kind == "movie":
+        fk = folder_show(conn, row)                       # an unnumbered episode in a known show's folder
+        if fk:
+            k, a = fk, conn.execute("SELECT * FROM art WHERE key=?", (fk,)).fetchone()
     got = bool(a and not a["miss"])
     out = {"title": row["title"], "series": row["series"], "year": row["year"], "plot": row["plot"] or "",
            "tagline": "", "genres": [], "cast": [], "rating": 0, "runtime_min": round((row["runtime_s"] or 0) / 60),

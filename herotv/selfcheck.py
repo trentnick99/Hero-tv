@@ -136,12 +136,12 @@ def _descriptions(c, cfg, now):
 def _log(c, cfg, now):
     from . import report
     from .launcher import app_data_dir
-    lines = report._tail(app_data_dir() / "herotv.log", 400)
+    lines = report.since_start(report._tail(app_data_dir() / "herotv.log", 400))   # errors from before the last start are old news
     bad = [x for x in lines if "Traceback (most recent call last)" in x]
     pages = [x for x in lines if "[page-error]" in x]
     r = []
     if bad:
-        r.append(_chk("Errors in the log", WARN, f"{len(bad)} program error(s) in the recent log. Use Report a problem and send it to Claude."))
+        r.append(_chk("Errors in the log", WARN, f"{len(bad)} program error(s) since HERO TV started. Use Report a problem and send it to Claude."))
     if pages or report.PAGE_ERRORS:
         r.append(_chk("Screen errors", WARN, f"{max(len(pages), len(report.PAGE_ERRORS))} screen error(s) were noticed recently. Use Report a problem and send it to Claude."))
     if not r:

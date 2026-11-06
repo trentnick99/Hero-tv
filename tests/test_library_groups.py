@@ -126,3 +126,27 @@ class Groups(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SearchRank(Groups):
+    def test_the_show_named_like_the_search_comes_first(self):
+        # an episode of another show that merely has the word in its title must not come before the show itself
+        self.add("Cartoons", "South Park", 3, 1, "The Galactica Episode")
+        self.c.commit()
+        items = self.get("view=all&group=1&q=galactica")
+        self.assertEqual(items[0]["title"], "Galactica")
+        self.assertEqual(items[-1]["series"], "South Park")
+
+
+class EpisodeNames(Groups):
+    def test_unnamed_episodes_get_their_tmdb_name(self):
+        self.c.execute("UPDATE media SET title='Episode 2' WHERE series='South Park' AND season=1 AND episode=2")
+        self.c.execute("INSERT INTO art_ep(key,season,episode,name) VALUES('s:south park',1,2,'Weight Gain 4000')")
+        self.c.execute("UPDATE media SET title='VOLCANO' WHERE series='South Park' AND season=1 AND episode=3")
+        self.c.execute("INSERT INTO art_ep(key,season,episode,name) VALUES('s:south park',1,3,'Volcano')")
+        self.c.commit()
+        eps = self.get("view=all&show=1&franchise=Cartoons&series=South%20Park")
+        names = {(d["season"], d["episode"]): d["title"] for d in eps}
+        self.assertEqual(names[(1, 2)], "Weight Gain 4000")
+        self.assertEqual(names[(1, 3)], "Volcano")                     # SHOUTING file names get the proper name
+        self.assertEqual(names[(1, 1)], "Ep 1x1")                     # a real title is kept

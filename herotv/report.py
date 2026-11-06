@@ -262,6 +262,11 @@ def build(c, cfg, note="", lan=False, dlna_on=False, page=""):
     add("")
     add("Errors on the TV page (newest last):" if PAGE_ERRORS else "Errors on the TV page: none")
     L.extend("  " + e for e in PAGE_ERRORS)
+    errs = program_errors(_tail(app_data_dir() / "herotv.log", 400))
+    add("")
+    add("Program errors since HERO TV started:" if errs else "Program errors since HERO TV started: none")
+    for blk in errs:
+        L.extend("  " + x for x in blk)
     for name, n in (("herotv.log", 60), ("update.log", 25)):
         lines = _tail(app_data_dir() / name, n)
         if lines:
@@ -269,6 +274,31 @@ def build(c, cfg, note="", lan=False, dlna_on=False, page=""):
             add(f"Last lines of {name}:")
             L.extend("  " + x for x in lines)
     return _hide("\n".join(L)) + "\n"
+
+
+START = "HERO TV - starting checks"
+
+
+def since_start(lines):
+    """Only the log lines since HERO TV last started (older errors were from an earlier run or version)."""
+    for i in range(len(lines) - 1, -1, -1):
+        if START in lines[i]:
+            return lines[i:]
+    return lines
+
+
+def program_errors(lines, keep=3):
+    """The newest few 'Traceback ...' blocks since the last start, each with its lines up to the error message."""
+    lines, out = since_start(lines), []
+    for i, x in enumerate(lines):
+        if "Traceback (most recent call last)" in x:
+            blk = [x]
+            for y in lines[i + 1:i + 40]:
+                blk.append(y)
+                if y and not y.startswith((" ", "\t")) and ("Error" in y or "Exception" in y):
+                    break
+            out.append(blk)
+    return out[-keep:]
 
 
 def save(text):

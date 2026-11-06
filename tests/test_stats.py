@@ -47,3 +47,20 @@ class Stats(unittest.TestCase):
         self.assertNotIn(1, [d["id"] for d in pool])                       # finished: not offered
         self.assertEqual(sum(1 for d in pool if d["series"]), 1)           # one tile for the show
         self.assertTrue(smart.valid_id("week"))
+
+
+class FolderShow(unittest.TestCase):
+    def test_unnumbered_episode_in_a_known_show_folder_gets_the_show(self):
+        from herotv import art
+        c = connect(os.path.join(tempfile.mkdtemp(), "t.sqlite3"))
+        for i, title, fr, ep in ((1, "Ep 5", "Dragon Ball", 5), (2, "His Name is Ginyu", "Dragon Ball", 0), (3, "Heat", "Movies", 0)):
+            c.execute("INSERT INTO media(id,path,title,franchise,episode,verified,playable,available,runtime_s) VALUES(?,?,?,?,?,1,1,1,1400)",
+                      (i, f"/m/{i}.mp4", title, fr, ep))
+        art_row(c, "s:dragon ball super", ["Animation"], 8)
+        c.commit()
+        row = c.execute("SELECT * FROM media WHERE id=2").fetchone()
+        self.assertEqual(art.folder_show(c, row), "s:dragon ball super")
+        self.assertIsNone(art.folder_show(c, c.execute("SELECT * FROM media WHERE id=3").fetchone()))
+        import types
+        i = art.info(c, types.SimpleNamespace(db_path=os.path.join(tempfile.mkdtemp(), "t.sqlite3")), row)
+        self.assertEqual(i["rating"], 8)

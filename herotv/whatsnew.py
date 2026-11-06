@@ -2,6 +2,13 @@
 from . import __version__
 
 NOTES = {
+    "1.38.70": [
+        "Guide: the picture box at the top is always there (the channel you are watching shows its still too, weather shows the channel number), so the text no longer jumps sideways between channels.",
+        "Library: search puts the best match first (typing invincible shows Invincible before a Dragon Ball episode that mentions the word). Length badges read \"127 min HD\" instead of the HD tag covering the minutes, and the key hints no longer break across lines.",
+        "Episodes without a proper name (Invincible S1E1, or SHOUTING file names) get their real name from TMDB in the library and the P episode list.",
+        "Videos with no episode number inside a show's folder (for example Dragon Ball episodes named only by title) now get that show's description, rating and genres, and Pick for me says which show each episode is from.",
+        "Check everything only counts program errors since HERO TV last started, and Report a problem now includes the error itself.",
+    ],
     "1.38.69": [
         "Player info bar: long titles no longer run into the VOD/channel badge (they stop at 2 lines), and the key hints fit on one line (J and E for marking intros and credits are now listed in Help).",
         "Intros: the title card uses smaller letters for long names, is not shown before short clips (under 10 minutes), and the info bar stays hidden while it plays.",

@@ -445,7 +445,7 @@ function drawPick(){const e=$("#pick"),it=pk.list[pk.i];e.textContent="";paint(e
  if(!it)return pickDone();
  const bg=el("div","pbg");bg.style.backgroundImage=`url(${withK("/hero/"+it.id)}), ${tile(it.title)}`;
  const card=el("div","pcard"),pic=el("div","ppos");pic.style.background=`center/cover no-repeat url(${withK("/poster/"+it.id)}), center/cover no-repeat url(${withK("/thumb/"+it.id)}), ${tile(it.title)}`;
- const tx=el("div","ptx");tx.append(el("small",0,`${pk.i+1} of ${pk.list.length}${pk.keep.length?"  ·  "+pk.keep.length+" maybe":""}`),el("h2",0,it.series?label(it):it.title),
+ const tx=el("div","ptx");tx.append(el("small",0,`${pk.i+1} of ${pk.list.length}${it.show?"  ·  "+it.show:""}${pk.keep.length?"  ·  "+pk.keep.length+" maybe":""}`),el("h2",0,it.series?label(it):it.title),
   el("div","pm",[it.year,it.runtime_s?Math.round(it.runtime_s/60)+" min":"",it.rating?"★ "+Number(it.rating).toFixed(1):"",(it.genres||[]).join(", ")].filter(Boolean).join("  ·  ")),el("p",0,it.about||it.plot||""));
  const btns=el("div","pbtn");for(const[t,fn,c]of[["← Skip",()=>pickGo(false),""],["Play now",()=>pickPlay(it),"pri"],["Maybe →",()=>pickGo(true),""]]){const b=el("button",c,t);b.type="button";b.onclick=fn;btns.append(b)}
  tx.append(btns);card.append(pic,tx);e.append(bg,card);hints(e.appendChild(el("div","hints")),[["←","skip"],["→","maybe"],["Enter","play now"],["Esc","done"]])}
@@ -503,11 +503,11 @@ function drawGuide(){const grid=$("#grid");grid.textContent="";const left=innerW
  const nl=el("div");nl.id="nowline";const x=(nowS()-g.t0)*pxs;if(x>=0&&x<=WIN*pxs){nl.style.left=left+x+"px";grid.append(nl)}
  const c=g.data[g.row]||{slots:[]},s=inSlot(c,g.t),root=$("#detail");root.textContent="";paint(root,c.color);
  const still=s&&c.kind!=="weather"&&s.media_id?withK(`/thumb/${s.media_id}`):"";
- const live=g.row===ci&&s&&s.start<=nowS()&&nowS()<s.end;      /* the live preview already shows it */
- const pic=live?"":still;root.classList.toggle("withpic",!!pic);
+ root.classList.add("withpic");   /* the picture box is always there, so the text never jumps sideways between channels */
  $("#guide").style.setProperty("--bd",still?`url("${still}")`:"none");
- if(pic){const p=el("div","pic"),im=el("img");im.alt="";im.src=pic;im.onerror=()=>{p.remove();root.classList.remove("withpic")};p.append(im);root.append(p)}
- const d=pic?el("div","txt"):root;if(pic)root.append(d);
+ {const p=el("div","pic");const blank=()=>{p.textContent="";p.classList.add("blank");p.append(el("span","plate",c.number))};
+  if(still){const im=el("img");im.alt="";im.src=still;im.onerror=blank;p.append(im)}else blank();root.append(p)}
+ const d=el("div","txt");root.append(d);
  const chn=el("div","chn");chn.append(el("span","plate",c.number),el("span",0,c.name));d.append(chn);
  if(c.kind==="weather"){d.append(el("h3",0,"Local weather"),el("p","meta","Live, around the clock"),el("p",0,"Current conditions, the hourly and 7-day forecast, and live weather alerts. Press Enter to watch."))}
  else if(s){d.append(el("h3",0,s.card?"Up next: "+(s.next_title||""):label(s)),el("p","meta",`${T(s.start)} to ${T(s.end)}, ${mins(s.end-s.start)} min`+(s.start<=nowS()&&nowS()<s.end?", on now":"")+([s.franchise,s.year].filter(Boolean).length?"   ·   "+[s.franchise,s.year].filter(Boolean).join(", "):"")+(s.block?"   ·   "+s.block:"")));if(s.plot)d.append(el("p",0,s.plot))}
@@ -550,7 +550,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
   else{e.append(el("b",0,"No videos yet."),el("br"),document.createTextNode("Drag movies or shows onto this window to add them."))}L.append(e);return}
  items.forEach((it,k)=>{const c=el("div","card"+(k===li?" sel":"")),pic=el("div","pic");pic.style.background=tile(it.title);pic.append(thumb(it.id,true));
   const resume=it.position>10&&!it.completed;if(resume&&it.runtime_s){const p=el("i");p.style.width=Math.min(100,it.position/it.runtime_s*100)+"%";pic.append(p)}
-  if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else pic.append(el("em",0,mins(it.runtime_s)+" min"));if(it.favorite)pic.append(el("u",0,"★"));{const q=qual(it.height);if(q&&!it.show)pic.append(el("span","qb",q));if(it.completed&&!it.show)pic.append(el("span","dn","Watched"))}
+  if(it.show){c.classList.add("show");pic.append(el("em",0,`${it.episodes} ${it.episodes===1?"episode":"episodes"}`))}else{const em=el("em",0,mins(it.runtime_s)+" min"),q=qual(it.height);if(q)em.append(el("span","qbi",q));pic.append(em)}if(it.favorite)pic.append(el("u",0,"★"));{if(it.completed&&!it.show)pic.append(el("span","dn","Watched"))}
   const meta=it.show?[it.franchise!==it.title?it.franchise:"",it.seasons>1?it.seasons+" seasons":""].filter(Boolean).join(", ")||"Show":[it.franchise,it.year].filter(Boolean).join(", ")+(resume?(it.franchise||it.year?", ":"")+"resume at "+mins(it.position)+" min":"")+(it.versions?(it.franchise||it.year||resume?", ":"")+it.versions.length+" versions":"");
   c.append(pic,el("b",0,it.show?it.title:label(it)),el("small",0,meta||" "));c.onclick=()=>{if(COARSE&&li===k)return playOrOpen(it);li=k;drawList()};c.ondblclick=()=>playOrOpen(it);L.append(c)});
  const f=L.firstElementChild;if(f&&f.classList.contains("card")){const second=L.children[cols],step=second?second.offsetTop-f.offsetTop:f.offsetHeight;
@@ -558,7 +558,7 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
 function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
 function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
-async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#guide",false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play / open a show"],["Tab","switch list"],["F2","favorite"],["F6","clear from Continue"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
+async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#guide",false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play"],["Tab","list"],["F2","favorite"],["F6","clear"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
 function closeAll(){snipStop();layer="";{const pe=$("#pick");if(pe)pe.classList.remove("on")}show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
