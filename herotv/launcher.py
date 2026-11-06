@@ -1130,13 +1130,15 @@ def move_to(cfg, paths, picked, all_channels):
     media = os.path.abspath(str(cfg.media_dir))
     chan_tags = {t.lower() for c in all_channels for t in (c.get("match") or {}).get("tags", [])}
     chan_folders = {f.lower() for c in all_channels for f in (c.get("match") or {}).get("franchise", [])}
+    chan_names = {str(c.get("name", "")).lower() for c in all_channels} - {""}
+    chan_dirs = chan_folders | chan_names          # the sorter files a tag channel's films in a folder named after it
     new_tags = [c["match"]["tags"][0] for c in picked if c["match"].get("tags")]
     new_folder = next((c["match"]["franchise"][0] for c in picked if c["match"].get("franchise")), None)
     moved, bad, left_dirs = 0, 0, {}
     for src in paths:
         rel = os.path.relpath(os.path.dirname(src), media) if _under(src, media) else ""
         parts = [] if rel in ("", ".") else rel.split(os.sep)
-        on_channel_folder = bool(parts) and parts[0].lower() in chan_folders
+        on_channel_folder = bool(parts) and parts[0].lower() in chan_dirs
         if new_folder:
             target_top = new_folder
         elif on_channel_folder:
@@ -1145,7 +1147,7 @@ def move_to(cfg, paths, picked, all_channels):
             target_top = None
         dest_dir = os.path.dirname(src)
         if target_top is not None:
-            rest = parts[1:] if on_channel_folder else parts
+            rest = [p for p in (parts[1:] if on_channel_folder else parts) if p.lower() not in chan_dirs]   # never MCU/Spider-Verse
             if parts and parts[0].lower() == "inbox":
                 rest = []
             dest_dir = os.path.join(media, target_top, *rest)

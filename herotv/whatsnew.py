@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.38.77": [
+        "Library: a show spelled two ways (Your Friendly Neighborhood Spider Man / Spider-Man) is now one tile, and South Park episodes that carry the show name join the South Park tile instead of making a second one.",
+        "Move to another channel no longer files a film in a sub-folder named after a channel (Spider-Man: Brand New Day had ended up in MCU\\Spider-Verse and was taken for a TV show). Moving it again tidies it up.",
+        "Descriptions: better matching for films TMDB names differently: Shang-Chi, X-Men: Dark Phoenix (Dark Phoenix), The Fantastic Four: First Steps (Fantastic 4), X2, Thunderbolts* and titles numbered like \"36. Thunderbolts\". Missing descriptions are looked up again.",
+    ],
     "1.38.76": [
         "Help (and Your watching) now scroll: Up/Down move both columns, Page Up/Page Down jump further, Home/End go to the top or bottom, and the mouse wheel works too. Before, text that did not fit (for example with Bigger text on) was cut off.",
     ],

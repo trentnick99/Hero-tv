@@ -1481,14 +1481,10 @@ def make_handler(app, remote=False):
                     # A show is its series name without any "season N" ending, or - for loose episodes in a show's folder
                     # that have no series name - the folder itself (when most of it is not dated movies).
                     sizes, loose = {}, {}
-                    for fr, se, sn, yr in c.execute("SELECT franchise,series,season,year FROM media "
-                                                    "WHERE available=1 AND verified=1 AND playable=1"):
-                        if se:
-                            e = sizes.setdefault((fr, L.show_key(se)), [0, set()])
-                            e[0] += 1
-                            if sn:
-                                e[1].add(sn)
-                        elif fr:
+                    allrows = c.execute("SELECT franchise,series,season,year FROM media "
+                                        "WHERE available=1 AND verified=1 AND playable=1").fetchall()
+                    for fr, se, sn, yr in allrows:
+                        if not se and fr:
                             e = loose.setdefault(fr, [0, 0])
                             e[0] += 1
                             e[1] += 1 if yr else 0
@@ -1496,10 +1492,20 @@ def make_handler(app, remote=False):
 
                     def key_of(d):
                         if d["series"]:
-                            return (d["franchise"], L.show_key(d["series"]))
+                            k = L.show_key(d["series"])
+                            if d["franchise"] in folders and k == L.show_key(d["franchise"]):
+                                return (d["franchise"], "")      # "south park" episodes in the South Park folder: one tile
+                            return (d["franchise"], k)
                         return (d["franchise"], "") if d["franchise"] in folders else None
+                    for fr, se, sn, yr in allrows:
+                        k = key_of({"franchise": fr, "series": se})
+                        if k:
+                            e = sizes.setdefault(k, [0, set()])
+                            e[0] += 1
+                            if sn:
+                                e[1].add(sn)
                 if q.get("show"):
-                    want = (q.get("franchise", ""), L.show_key(q.get("series", "")))
+                    want = key_of({"franchise": q.get("franchise", ""), "series": q.get("series", "")}) or (q.get("franchise", ""), "")
                     rows = [r for r in rows if key_of(dict(r)) == want][:lim]
                 elif group:
                     merged, seen = [], {}
@@ -1509,7 +1515,7 @@ def make_handler(app, remote=False):
                         if key is None:
                             merged.append(d)
                         elif key not in seen:                         # the first episode (lowest season/episode) stands for the show
-                            n, seas = sizes[key] if key[1] else (loose[key[0]][0], set())
+                            n, seas = sizes[key]
                             seen[key] = dict(d, show=True, title=L.show_name(d["series"]) if key[1] else key[0], episodes=n,
                                              seasons=max(1, len(seas)), season=0, episode=0, plot="", position=0, completed=0,
                                              favorite=0, runtime_s=0)

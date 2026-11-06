@@ -470,7 +470,9 @@ def show_name(series):
 
 
 def show_key(series):
-    return show_name(series).casefold()
+    """What makes two series names the same show: case, dashes and other punctuation do not count
+    ("Your Friendly Neighborhood Spider Man" = "Your Friendly Neighborhood Spider-Man")."""
+    return " ".join(re.sub(r"[^0-9a-z]+", " ", show_name(series).casefold()).split())
 
 
 def _guess(parts, stem):

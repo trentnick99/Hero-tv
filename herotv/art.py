@@ -60,7 +60,7 @@ _JUNK = (r"complete|seasons?\s*\d+(?:\s*(?:to|-)\s*\d+)?|s\d{1,2}(?:e\d{1,3})?|e
          r"h\.?26[45]|hevc|10\s*bit|dual audio|hindi|english|vegamovies\S*|60\s*fps|uncut|esub|dvdrip|brrip")
 _JUNK_RE = re.compile(r"\b(?:" + _JUNK + r")\b.*$", re.I)
 # a folder that is named for a show but is really another one (the lookup only; the folder and the library stay as they are)
-ALIASES = {"dragon ball": "Dragon Ball Super"}
+ALIASES = {"dragon ball": "Dragon Ball Super", "x men 2": "X2", "x men 2 united": "X2", "x2 x men united": "X2"}
 NOT_SHOW_FOLDERS = {"inbox", "movies", "films", "tv", "shows", "videos", "downloads", ""}
 
 
@@ -87,6 +87,8 @@ def clean_show(name):
 def clean_movie(title, year):
     """'[60FPS] Spider-Man Into the Spider-Verse' -> that without the tag; 'Avengers Endgame 2019 Hindi English' -> ('Avengers Endgame', 2019)."""
     t = re.sub(r"\[[^\]]*\]", " ", str(title or ""))
+    t = re.sub(r"^\s*\d{1,3}\.\s+(?=\D)", "", t)          # '36. Thunderbolts' (numbered in a watch order) -> 'Thunderbolts'
+    t = re.sub(r"(?i)^thunderboltsx\b", "Thunderbolts", t)    # the * in 'Thunderbolts*' becomes an x in file names
     m = re.match(r"^(.*?)\s+((?:19|20)\d{2})\s+(?:" + _JUNK + r")\b.*$", t, re.I)
     if m:
         t, year = m.group(1), year or int(m.group(2))
@@ -128,6 +130,7 @@ def key_for(row):
     if sh:
         return "s:" + norm(sh[0]), "tv", sh[0], sh[1]
     t, y = clean_movie(row["title"], row["year"])
+    t = _alias(t)
     return f"m:{norm(t)}:{y or ''}", "movie", t, y
 
 
@@ -140,7 +143,7 @@ def poster_file(cfg, key):
 
 
 # ---------- lookup ----------
-MATCH_VERSION = 3                    # older misses are tried again once after the matching got better
+MATCH_VERSION = 4                    # older misses are tried again once after the matching got better
 
 
 def _close(a, b):
@@ -156,15 +159,37 @@ def _close(a, b):
     return SequenceMatcher(None, a, b).ratio() >= 0.88
 
 
+_NUMS = {"one": "1", "two": "2", "three": "3", "four": "4", "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9", "ten": "10"}
+
+
+def _numw(t):
+    """'fantastic four' and 'fantastic 4' are the same name."""
+    return " ".join(_NUMS.get(w, w) for w in t.split())
+
+
+_SEQUEL = re.compile(r"^(?:\d+|ii|iii|iv|v|vi|part|chapter|vol|volume|returns|reloaded)$")
+
+
+def _longer_name(short, long):
+    """'shang chi' starts 'shang chi and the legend of the 10 rings', 'dark phoenix' ends 'x men dark phoenix'.
+    Not when what is added is a sequel ('iron man' / 'iron man 2', 'iron man part 2')."""
+    if long.startswith(short + " "):
+        extra = long[len(short):].split()
+        return not _SEQUEL.match(extra[0])
+    if long.endswith(" " + short):
+        return not re.findall(r"\d+", long[:-len(short)])
+    return False
+
+
 def _pick(results, title, year, kind):
     """TMDB's best result that is really this title: the same name (small differences allowed, sequel numbers must
     match) and, when the file says a year, within a year of it. TMDB lists the likeliest first."""
-    want = norm(title)
+    want = _numw(norm(title))
     date_key = "release_date" if kind == "movie" else "first_air_date"
     exact = close = None
     for r in results or []:
         name = r.get("title") if kind == "movie" else r.get("name")
-        names = {norm(name), norm(r.get("original_title" if kind == "movie" else "original_name"))}
+        names = {_numw(norm(name)), _numw(norm(r.get("original_title" if kind == "movie" else "original_name")))}
         y = int((r.get(date_key) or "0000")[:4] or 0)
         if year and y and abs(y - year) > 1:
             continue
@@ -175,6 +200,9 @@ def _pick(results, title, year, kind):
             close = r
         elif close is None and want in subs and len(want.split()) >= 3:       # 'Bigger Longer and Uncut' = 'South Park: Bigger, Longer & Uncut'
             close = r
+        elif close is None and kind == "movie" and year and y and abs(y - year) <= 1 and len(want.split()) >= 2 and any(
+                n and len(n.split()) >= 2 and (_longer_name(want, n) or _longer_name(n, want)) for n in names):
+            close = r                     # 'Shang-Chi' = 'Shang-Chi and the Legend of the Ten Rings'; 'X-Men Dark Phoenix' = 'Dark Phoenix'
         elif close is None and kind == "tv" and year and y == year and any(n and len(n.split()) >= 2 and want.startswith(n + " ") for n in names):
             close = r                                                          # '1994' 'Spider-Man The Animated Series' = TMDB's 'Spider-Man' (1994)
     return exact or close

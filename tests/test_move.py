@@ -77,6 +77,18 @@ class MoveTests(unittest.TestCase):
         self.assertFalse(os.path.exists(base))                      # emptied folders are tidied away...
         self.assertTrue(os.path.isdir(os.path.join(self.media, "Marvel Television")))  # ...but not the channel folder
 
+    def test_folder_named_after_a_tag_channel_is_not_kept_as_a_sub_folder(self):
+        # the sorter files Spider-Verse films (a tag channel) in a "Spider-Verse" folder; adding Marvel Movies must give
+        # MCU/<film>, not MCU/Spider-Verse/<film> (which the library then took for a TV show called Spider-Verse)
+        sv = self.by["spider-verse"]["name"]
+        for where in ([sv], ["MCU", sv]):
+            d = os.path.join(self.media, *where)
+            os.makedirs(d, exist_ok=True)
+            f = os.path.join(d, f"Spider-Man Brand New Day {len(where)} (2026).mp4")
+            open(f, "wb").close()
+            launcher.move_to(self.cfg, [f], [self.by["mcu"], self.by["spider-verse"]], self.chans)
+            self.assertTrue(os.path.isfile(os.path.join(self.media, "MCU", os.path.basename(f))), where)
+
     def test_move_to_a_tag_channel_swaps_tags(self):
         f = os.path.join(self.media, "MCU", "Iron Man (2008).mp4")
         touch(f)

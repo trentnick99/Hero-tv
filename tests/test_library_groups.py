@@ -150,3 +150,29 @@ class EpisodeNames(Groups):
         self.assertEqual(names[(1, 2)], "Weight Gain 4000")
         self.assertEqual(names[(1, 3)], "Volcano")                     # SHOUTING file names get the proper name
         self.assertEqual(names[(1, 1)], "Ep 1x1")                     # a real title is kept
+
+
+class SameShowSpelledTwoWays(Groups):
+    def test_dash_or_space_is_one_show_tile(self):
+        for e in (1, 2):
+            self.add("Marvel Animation", "Your Friendly Neighborhood Spider Man", 1, e, f"Ep {e}")
+        for e in (3, 4, 5):
+            self.add("Marvel Animation", "Your Friendly Neighborhood Spider-Man", 1, e, f"Ep {e}")
+        self.c.commit()
+        shows = [i for i in self.get("view=all&group=1&limit=1000") if i.get("franchise") == "Marvel Animation"]
+        self.assertEqual(len(shows), 1)
+        self.assertEqual(shows[0]["episodes"], 5)
+        eps = self.get("view=all&show=1&franchise=Marvel%20Animation&series=Your%20Friendly%20Neighborhood%20Spider%20Man")
+        self.assertEqual(len(eps), 5)
+
+    def test_folder_show_with_some_named_episodes_is_one_tile(self):
+        for e in range(1, 5):
+            self.add("Toons Park", "", 0, e, f"Loose {e}")
+        for e in (5, 6):
+            self.add("Toons Park", "toons park", 0, e, f"Named {e}")
+        self.c.commit()
+        shows = [i for i in self.get("view=all&group=1&limit=1000") if i.get("franchise") == "Toons Park"]
+        self.assertEqual(len(shows), 1)
+        self.assertEqual(shows[0]["episodes"], 6)
+        self.assertEqual(len(self.get("view=all&show=1&franchise=Toons%20Park&series=toons%20park")), 6)
+        self.assertEqual(len(self.get("view=all&show=1&franchise=Toons%20Park&series=")), 6)
