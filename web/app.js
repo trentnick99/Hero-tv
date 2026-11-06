@@ -260,6 +260,7 @@ async function loadHome(){const d={};
    const cur=c.kind!=="weather"&&c.slots.find(s=>s.start<=n&&n<s.end);if(cur)on.push({c,s:cur})}
   d.special=best;d.onnow=on}catch(e){}
  try{d.help=await api("/api/help")}catch(e){}
+ try{d.cols=(await api("/api/collections")).collections||[]}catch(e){d.cols=[]}
  try{d.check=(await api("/api/checklist")).lists}catch(e){}
  if(!REMOTE)try{d.setup=await api("/api/setup")}catch(e){}
  homeData=d}
@@ -311,6 +312,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(wxc)ch.push({k:"chip",ic:"weather",t:"Weather",s:"Forecast and alerts",go:()=>tuneTo(chans.indexOf(wxc))});
  ch.push({k:"chip",ic:"star",t:"Surprise me",s:"Play something you have not watched",go:async()=>{try{const j=await api("/api/smart?surprise=1");if(j.item){closeAll();startVod(j.item)}else toast("Nothing to pick yet.")}catch(e){toast("Could not pick one right now.")}}});
  ch.push({k:"chip",ic:"list",t:"Pick for me",s:"Swipe through films and shows you have not seen",go:()=>openPick()});
+for(const cl of d.cols||[])ch.push({k:"chip",ic:"list",t:cl.name,s:cl.next_title?`Next up: ${cl.next_n}. ${cl.next_title}`:`All ${cl.have} watched`,go:()=>openCollection(cl.id)});
  ch.push({k:"chip",ic:"star",t:"Your watching",s:"Hours watched, top shows, favourite genres",go:()=>openStats()});
  ch.push({k:"chip",ic:"moon",t:"Sleep timer",s:sleepLeft()?"Pauses in "+sleepLeft()+". Select to change":"Off. Pick 30 to 120 minutes",stay:1,go:cycleSleep});
  const big=document.body.classList.contains("big");ch.push({k:"chip",ic:"text",t:"Bigger text",s:big?"On. Select to turn off":"Off. Select to make text bigger",stay:1,go:()=>setBig(!big,true)});
@@ -529,9 +531,12 @@ async function guideKey(k){const c=g.data[g.row],s=inSlot(c,g.t);
  drawGuide()}
 
 /* ---- library: grid of screengrabs ---- */
-let showCtx=null,showBack=0;let items=[],li=0,qT,cols=4,view="all",counts={continue:0,favorites:0,recent:0};const VIEWS=[["all","All"],["recent","New"],["continue","Continue watching"],["favorites","Favorites"]];
+let showCtx=null,showBack=0,colCtx=null;let items=[],li=0,qT,cols=4,view="all",counts={continue:0,favorites:0,recent:0};const VIEWS=[["all","All"],["recent","New"],["continue","Continue watching"],["favorites","Favorites"]];
 const colCount=()=>innerWidth>1700?6:innerWidth>1400?5:innerWidth>1150?4:innerWidth>700?3:2;
-async function search(){let u="/api/library?view="+view+"&q="+encodeURIComponent($("#q").value);
+async function search(){
+ if(colCtx){let j;try{j=await api("/api/collections/"+colCtx.id)}catch(e){j={items:[],missing:[]}}const q=$("#q").value.trim().toLowerCase();
+  colCtx.data=j;items=(j.items||[]).filter(x=>!q||(x.story_title+" "+x.title).toLowerCase().includes(q)).map(x=>Object.assign({},x,{title:`${x.n}. ${x.story_title}`}));li=Math.max(0,items.findIndex(x=>x.id===j.next));allHits=0;return drawList()}
+ let u="/api/library?view="+view+"&q="+encodeURIComponent($("#q").value);
  if(showCtx)u+="&show=1&series="+encodeURIComponent(showCtx.series)+"&franchise="+encodeURIComponent(showCtx.franchise)+"&limit=1000";else if(view==="all")u+="&group=1&limit=1000";
  const j=await api(u);items=j.items;counts=j.counts||counts;li=0;allHits=0;
  const q=$("#q").value.trim();if(q&&!items.length&&view!=="all"&&!showCtx){try{allHits=(await api("/api/library?view=all&group=1&limit=1000&q="+encodeURIComponent(q))).items.length}catch(e){}}   /* the film may simply not be on this tab */
@@ -543,10 +548,10 @@ const verName=v=>[v.height?(v.height>=2000?"4K":v.height+"p"):"Standard",v.size?
 const pickVersion=it=>{const r=($("#list .card.sel")||document.body).getBoundingClientRect();ctxOpen(r.left+8,r.bottom+4,it.versions.map(v=>({t:verName(v),fn:()=>startVod(Object.assign({},it,{id:v.id,height:v.height,position:v.position,completed:v.completed,runtime_s:v.runtime_s||it.runtime_s}))})))};
 const playOrOpen=it=>it.show?openShow(it):it.versions&&it.versions.length>1?pickVersion(it):startVod(it);
 function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.height="";cols=colCount();L.style.setProperty("--cols",cols);paint(L.parentNode,chans[ci]&&chans[ci].color);
- const tb=$("#l-tabs");tb.textContent="";for(const[k,n]of VIEWS){const sp=el("span",k===view?"on":"",n+(k==="all"?"":" "+counts[k]));sp.onclick=()=>{showCtx=null;view=k;saveView();search()};tb.append(sp)}
+ const tb=$("#l-tabs");tb.textContent="";for(const[k,n]of VIEWS){const sp=el("span",k===view?"on":"",n+(k==="all"?"":" "+counts[k]));sp.onclick=()=>{showCtx=null;colCtx=null;view=k;saveView();search()};if(colCtx)sp.classList.remove("on");tb.append(sp)}
  const q=$("#q").value.trim();const nShows=items.filter(x=>x.show).length,nRest=items.length-nShows;
- $("#l-count").textContent=!items.length?"":showCtx?`${items.length} ${items.length===1?"episode":"episodes"}`:nShows?`${nShows} ${nShows===1?"show":"shows"}${nRest?`, ${nRest} ${nRest===1?"video":"videos"}`:""}`:`${items.length} ${items.length===1?"video":"videos"}`;
- {const h=$("#lib .top h2");if(h)h.textContent=showCtx?showCtx.title:"Library"}
+ $("#l-count").textContent=colCtx&&colCtx.data?`${(colCtx.data.items||[]).length} of ${colCtx.data.total} films, in story order`:!items.length?"":showCtx?`${items.length} ${items.length===1?"episode":"episodes"}`:nShows?`${nShows} ${nShows===1?"show":"shows"}${nRest?`, ${nRest} ${nRest===1?"video":"videos"}`:""}`:`${items.length} ${items.length===1?"video":"videos"}`;
+ {const h=$("#lib .top h2");if(h)h.textContent=colCtx&&colCtx.data?colCtx.data.name:showCtx?showCtx.title:"Library"}
  if(!items.length){const e=el("div","empty");if(q&&allHits){const tn=(VIEWS.find(v=>v[0]===view)||[0,""])[1];e.append(el("b",0,`Nothing on ${tn} matches "${q}".`),el("br"),document.createTextNode(`${allHits} found in All. `));const b=el("button","pri",`Show ${allHits===1?"it":"all "+allHits}`);b.type="button";b.onclick=()=>{view="all";saveView();search()};e.append(b)}
   else if(q){e.append(el("b",0,`Nothing matches "${q}".`),el("br"),document.createTextNode("Try a title, a series or a channel name."))}
   else if(view==="continue")e.append(el("b",0,"Nothing in progress."),el("br"),document.createTextNode("Videos you start from the library show up here so you can pick up where you left off."));
@@ -562,7 +567,8 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const sel=L.querySelector(".card.sel");if(sel)sel.scrollIntoView({block:"nearest"})}
 function saveView(){try{localStorage.setItem("herotv.libView",view)}catch(e){}}
 function savedView(){try{const v=localStorage.getItem("herotv.libView");return VIEWS.some(x=>x[0]===v)?v:"all"}catch(e){return"all"}}
-async function openLib(v0){showCtx=null;layer="lib";placePreview(false);show("#guide",false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play"],["Tab","list"],["F2","favorite"],["F6","clear"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
+function openCollection(id){openLib(null,{id})}
+async function openLib(v0,col){showCtx=null;colCtx=col||null;layer="lib";placePreview(false);show("#guide",false);show("#settings",false);show("#info",false);view=v0||savedView();show("#home",false);show("#help",false);hints($("#l-hints"),[["← → ↑ ↓","browse"],["Enter","play"],["Tab","list"],["F2","favorite"],["F6","clear"],["F8","details"],["F3 / F4","rename"],["Esc","back"]]);show("#lib",true);show("#osd",false);$("#q").value="";await search();$("#q").focus()}
 function closeAll(){snipStop();layer="";{const pe=$("#pick");if(pe)pe.classList.remove("on")}show("#guide",false);show("#lib",false);show("#home",false);show("#help",false);show("#check",false);show("#info",false);show("#settings",false);$("#q").blur();placePreview(false)}
 $("#q").addEventListener("input",()=>{clearTimeout(qT);qT=setTimeout(search,200)});
 addEventListener("resize",()=>{if(layer==="lib")drawList();if(layer==="guide"){drawGuide();placePreview(true)}});
@@ -721,7 +727,7 @@ addEventListener("keydown",e=>{const k=e.key;
    if(view==="favorites"&&!on){items.splice(li,1);li=Math.min(li,items.length-1)}drawList();return}
   if(k==="F6"&&items[li]&&!items[li].show&&view==="continue"){e.preventDefault();const it=items[li];post("/api/progress",{media_id:it.id,position:0,completed:true});items.splice(li,1);li=Math.max(0,Math.min(li,items.length-1));counts.continue=Math.max(0,counts.continue-1);toast("Taken off Continue watching.");drawList();return}
   if(k==="F8"&&items[li]){e.preventDefault();return openInfo()}
-  if(k==="Escape"||k==="Backspace"&&!$("#q").value){if(showCtx){e.preventDefault();leaveShow()}else closeAll()}else if(k==="ArrowDown")mv(cols);else if(k==="ArrowUp")mv(-cols);
+  if(k==="Escape"||k==="Backspace"&&!$("#q").value){if(showCtx){e.preventDefault();leaveShow()}else if(colCtx){e.preventDefault();colCtx=null;openHome()}else closeAll()}else if(k==="ArrowDown")mv(cols);else if(k==="ArrowUp")mv(-cols);
   else if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);else if(k==="Enter"&&items[li])playOrOpen(items[li]);else if(k==="Enter"&&!items.length&&allHits){view="all";saveView();search()}return}
  if(layer==="guide"){if(k==="Escape"||k==="g"||k==="G")closeAll();else if(k==="l"||k==="L"){e.preventDefault();openLib()}else if(k==="h"||k==="H"){e.preventDefault();openHome()}else if(k.startsWith("Arrow")||k==="Enter"||k==="r"||k==="R"){e.preventDefault();guideKey(k)}return}
  if(layer===""){

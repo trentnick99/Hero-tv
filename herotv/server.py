@@ -1431,6 +1431,15 @@ def make_handler(app, remote=False):
                 chans = [{"id": ch["id"], "number": ch["number"], "name": ch["name"], "color": ch["color"], "kind": ch["kind"] or "tv", "slots": by.get(ch["id"], [])}
                          for ch in S.channels(c)]
                 return self.send_json({"source": "generated", "notice": NOTICE, "tz": js_zone(tz), "from": t0, "to": t1, "channels": chans})
+            if p == "collections":            # on-demand collections (Home > More)
+                from . import collections as COL
+                return self.send_json({"collections": COL.summary(c, app.cfg)})
+            if p.startswith("collections/"):
+                from . import collections as COL
+                col = next((x for x in COL.load(app.cfg) if x["id"] == p.split("/", 1)[1]), None)
+                if not col:
+                    return self.send_json({"error": "no such collection"}, 404)
+                return self.send_json(COL.build(c, col))
             if p == "stats":                  # Your watching (Home > More)
                 from . import stats
                 return self.send_json(stats.build(c))

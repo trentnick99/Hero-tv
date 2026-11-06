@@ -1,0 +1,189 @@
+{
+ "_help": "On-demand collections: films in a set order (Home > More). Edit freely in Notepad: the order of 'items' is the order they play. A title you do not have is simply left out. Matching works like the Checklist (title, and year within one).",
+ "collections": [
+  {
+   "id": "mcu-story",
+   "name": "MCU in story order",
+   "sub": "Every Marvel Studios film in the order the story happens (Marvel's official timeline order)",
+   "items": [
+    {
+     "title": "Captain America: The First Avenger",
+     "year": 2011
+    },
+    {
+     "title": "Captain Marvel",
+     "year": 2019
+    },
+    {
+     "title": "Iron Man",
+     "year": 2008
+    },
+    {
+     "title": "Iron Man 2",
+     "year": 2010
+    },
+    {
+     "title": "The Incredible Hulk",
+     "year": 2008
+    },
+    {
+     "title": "Thor",
+     "year": 2011
+    },
+    {
+     "title": "The Avengers",
+     "year": 2012,
+     "aka": [
+      "Marvel's The Avengers"
+     ]
+    },
+    {
+     "title": "Thor: The Dark World",
+     "year": 2013
+    },
+    {
+     "title": "Iron Man 3",
+     "year": 2013
+    },
+    {
+     "title": "Captain America: The Winter Soldier",
+     "year": 2014
+    },
+    {
+     "title": "Guardians of the Galaxy",
+     "year": 2014
+    },
+    {
+     "title": "Guardians of the Galaxy Vol. 2",
+     "year": 2017,
+     "aka": [
+      "Guardians of the Galaxy Volume 2"
+     ]
+    },
+    {
+     "title": "Avengers: Age of Ultron",
+     "year": 2015
+    },
+    {
+     "title": "Ant-Man",
+     "year": 2015
+    },
+    {
+     "title": "Captain America: Civil War",
+     "year": 2016
+    },
+    {
+     "title": "Black Widow",
+     "year": 2021
+    },
+    {
+     "title": "Black Panther",
+     "year": 2018
+    },
+    {
+     "title": "Spider-Man: Homecoming",
+     "year": 2017
+    },
+    {
+     "title": "Doctor Strange",
+     "year": 2016
+    },
+    {
+     "title": "Thor: Ragnarok",
+     "year": 2017
+    },
+    {
+     "title": "Ant-Man and the Wasp",
+     "year": 2018
+    },
+    {
+     "title": "Avengers: Infinity War",
+     "year": 2018
+    },
+    {
+     "title": "Avengers: Endgame",
+     "year": 2019
+    },
+    {
+     "title": "Shang-Chi and the Legend of the Ten Rings",
+     "year": 2021,
+     "aka": [
+      "Shang-Chi"
+     ]
+    },
+    {
+     "title": "Eternals",
+     "year": 2021
+    },
+    {
+     "title": "Spider-Man: Far From Home",
+     "year": 2019
+    },
+    {
+     "title": "Spider-Man: No Way Home",
+     "year": 2021
+    },
+    {
+     "title": "Doctor Strange in the Multiverse of Madness",
+     "year": 2022
+    },
+    {
+     "title": "Black Panther: Wakanda Forever",
+     "year": 2022
+    },
+    {
+     "title": "Thor: Love and Thunder",
+     "year": 2022
+    },
+    {
+     "title": "Ant-Man and the Wasp: Quantumania",
+     "year": 2023
+    },
+    {
+     "title": "Guardians of the Galaxy Vol. 3",
+     "year": 2023,
+     "aka": [
+      "Guardians of the Galaxy Volume 3"
+     ]
+    },
+    {
+     "title": "The Marvels",
+     "year": 2023
+    },
+    {
+     "title": "Deadpool & Wolverine",
+     "year": 2024,
+     "aka": [
+      "Deadpool and Wolverine"
+     ]
+    },
+    {
+     "title": "Captain America: Brave New World",
+     "year": 2025
+    },
+    {
+     "title": "Thunderbolts*",
+     "year": 2025,
+     "aka": [
+      "Thunderbolts"
+     ]
+    },
+    {
+     "title": "The Fantastic Four: First Steps",
+     "year": 2025,
+     "aka": [
+      "Fantastic Four First Steps"
+     ]
+    },
+    {
+     "title": "Spider-Man: Brand New Day",
+     "year": 2026
+    },
+    {
+     "title": "Avengers: Doomsday",
+     "year": 2026
+    }
+   ]
+  }
+ ]
+}
