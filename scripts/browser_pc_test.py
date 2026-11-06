@@ -98,7 +98,11 @@ def main(engine):
         pg.locator("#tiles section.hrow", has_text="New in your library").locator(".tl.more").click(); pg.wait_for_timeout(1200)
         tabs = pg.inner_text("#l-tabs")
         cards = pg.locator("#list .card").all_inner_texts()
-        check("New 3" in tabs.replace("\n", " ") and cards and "S1E1" in cards[0], f"the library's New tab lists the newest first ({cards[:1]!r})")
+        check("New 3" in tabs.replace("\n", " ") and cards and "Invincible" in cards[0] and "3 episodes" in cards[0],
+              f"the library's New tab shows the new show as one tile ({cards[:1]!r})")
+        pg.locator("#list .card").nth(0).dblclick(); pg.wait_for_timeout(1200)          # opens the show
+        cards = pg.locator("#list .card").all_inner_texts()
+        check(cards and "S1E1" in cards[0], f"the show opens on its first episode ({cards[:1]!r})")
         pg.locator("#list .card").nth(0).dblclick(); pg.wait_for_timeout(2500)
         check(pg.evaluate("!document.querySelector('#v').paused"), "an episode plays on demand")
         pg.evaluate("document.querySelector('#v').currentTime = document.querySelector('#v').duration - 0.3")
