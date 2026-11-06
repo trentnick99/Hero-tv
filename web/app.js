@@ -539,6 +539,7 @@ async function search(){
  let u="/api/library?view="+view+"&q="+encodeURIComponent($("#q").value);
  if(showCtx)u+="&show=1&series="+encodeURIComponent(showCtx.series)+"&franchise="+encodeURIComponent(showCtx.franchise)+"&limit=1000";else if(view==="all"||view==="recent")u+="&group=1&limit=1000";   /* shows are one tile on New too */
  const j=await api(u);items=j.items;counts=j.counts||counts;li=0;allHits=0;
+ if(showCtx&&!items.length&&!$("#q").value.trim())return leaveShow();   /* its episodes all moved away: back to the list */
  const q=$("#q").value.trim();if(q&&!items.length&&view!=="all"&&!showCtx){try{allHits=(await api("/api/library?view=all&group=1&limit=1000&q="+encodeURIComponent(q))).items.length}catch(e){}}   /* the film may simply not be on this tab */
  drawList()}
 let allHits=0;

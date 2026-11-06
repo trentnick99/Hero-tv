@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.80": [
+        "Library: a show whose episodes were all moved elsewhere takes you back to the list instead of saying \"No videos yet\".",
+    ],
     "1.38.79": [
         "Spider-Man: The Animated Series now gets the 1994 show's details instead of the 2003 MTV series (it is looked up again once).",
         "A show with one or two stray episodes in another folder is still one tile (the strays join the show's main folder tile).",
