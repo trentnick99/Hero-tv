@@ -75,8 +75,18 @@ def waiting(cfg):
     if os.path.isdir(d):
         for dp, dn, fn in os.walk(d):
             dn[:] = [x for x in dn if not x.startswith(".")]
-            n += sum(1 for f in fn if os.path.splitext(f)[1].lower() in library.EXTS | _convertible() and not f.lower().endswith(PARTIAL))
+            n += sum(1 for f in fn if os.path.splitext(f)[1].lower() in library.EXTS | _convertible() and not f.lower().endswith(PARTIAL)
+                     and not _busy(os.path.join(dp, f)))
     return n
+
+
+def _busy(path):
+    """Being converted and filed right now (it shows under 'New videos: how far along' instead)."""
+    try:
+        from . import launcher
+        return launcher.is_busy(path)
+    except Exception:
+        return False
 
 
 def waiting_names(cfg, limit=40):

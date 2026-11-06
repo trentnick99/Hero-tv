@@ -533,7 +533,10 @@ let showCtx=null,showBack=0;let items=[],li=0,qT,cols=4,view="all",counts={conti
 const colCount=()=>innerWidth>1700?6:innerWidth>1400?5:innerWidth>1150?4:innerWidth>700?3:2;
 async function search(){let u="/api/library?view="+view+"&q="+encodeURIComponent($("#q").value);
  if(showCtx)u+="&show=1&series="+encodeURIComponent(showCtx.series)+"&franchise="+encodeURIComponent(showCtx.franchise)+"&limit=1000";else if(view==="all")u+="&group=1&limit=1000";
- const j=await api(u);items=j.items;counts=j.counts||counts;li=0;drawList()}
+ const j=await api(u);items=j.items;counts=j.counts||counts;li=0;allHits=0;
+ const q=$("#q").value.trim();if(q&&!items.length&&view!=="all"&&!showCtx){try{allHits=(await api("/api/library?view=all&group=1&limit=1000&q="+encodeURIComponent(q))).items.length}catch(e){}}   /* the film may simply not be on this tab */
+ drawList()}
+let allHits=0;
 function openShow(it){showBack=li;showCtx={series:it.series,franchise:it.franchise,title:it.title};$("#q").value="";search()}
 function leaveShow(){const b=showBack;showCtx=null;$("#q").value="";search().then(()=>{li=Math.max(0,Math.min(b,items.length-1));drawList()})}
 const verName=v=>[v.height?(v.height>=2000?"4K":v.height+"p"):"Standard",v.size?(v.size/1073741824).toFixed(1)+" GB":"",v.position>10&&!v.completed?"resume at "+mins(v.position)+" min":"",v.file].filter(Boolean).join("  ·  ");
@@ -544,7 +547,8 @@ function drawList(){const L=$("#list");L.textContent="";L.style.flex="";L.style.
  const q=$("#q").value.trim();const nShows=items.filter(x=>x.show).length,nRest=items.length-nShows;
  $("#l-count").textContent=!items.length?"":showCtx?`${items.length} ${items.length===1?"episode":"episodes"}`:nShows?`${nShows} ${nShows===1?"show":"shows"}${nRest?`, ${nRest} ${nRest===1?"video":"videos"}`:""}`:`${items.length} ${items.length===1?"video":"videos"}`;
  {const h=$("#lib .top h2");if(h)h.textContent=showCtx?showCtx.title:"Library"}
- if(!items.length){const e=el("div","empty");if(q){e.append(el("b",0,`Nothing matches "${q}".`),el("br"),document.createTextNode("Try a title, a series or a channel name."))}
+ if(!items.length){const e=el("div","empty");if(q&&allHits){const tn=(VIEWS.find(v=>v[0]===view)||[0,""])[1];e.append(el("b",0,`Nothing on ${tn} matches "${q}".`),el("br"),document.createTextNode(`${allHits} found in All. `));const b=el("button","pri",`Show ${allHits===1?"it":"all "+allHits}`);b.type="button";b.onclick=()=>{view="all";saveView();search()};e.append(b)}
+  else if(q){e.append(el("b",0,`Nothing matches "${q}".`),el("br"),document.createTextNode("Try a title, a series or a channel name."))}
   else if(view==="continue")e.append(el("b",0,"Nothing in progress."),el("br"),document.createTextNode("Videos you start from the library show up here so you can pick up where you left off."));
   else if(view==="favorites")e.append(el("b",0,"No favorites yet."),el("br"),document.createTextNode("Highlight a video and press F2 to add it."));
   else{e.append(el("b",0,"No videos yet."),el("br"),document.createTextNode("Drag movies or shows onto this window to add them."))}L.append(e);return}
@@ -636,7 +640,7 @@ function openMove(){if(!infoCtx||!infoCtx.move||$("#in-move"))return;const {t,d}
  const rl=el("label","lb"),rc=el("input");rc.type="checkbox";rc.checked=true;rl.append(rc,show?" Remember: new episodes of this show go here too":" Remember: other copies of this title go here too");
  const bar=el("div","sbar"),note=el("small");
  const save=sBtn("Save",async()=>{if(!pick.size){note.textContent="Pick at least one channel.";return}save.disabled=true;note.textContent="Moving...";
-  try{await pj("/api/job",{name:"move",media_id:t.id,channels:[...pick],remember:rc.checked});await waitJob(note);if(infoCtx&&infoCtx.t===t){box.remove();const dd=await api("/api/info/"+t.id);moveUI(t,dd)}}
+  try{await pj("/api/job",{name:"move",media_id:t.id,channels:[...pick],remember:rc.checked});await waitJob(note);if(infoCtx&&infoCtx.t===t){box.remove();const dd=await api("/api/info/"+t.id);{const o=$("#in-on");if(o)o.textContent=(dd.on||[]).length?"On: "+dd.on.join(", "):"Not on a channel yet"}moveUI(t,dd)}}
   catch(e){note.textContent=String(e.message||e).replace(/^Error: /,"");save.disabled=false}},"pri");
  bar.append(save,sBtn("Cancel",()=>{box.remove();const b=$("#in-btns button:last-child");if(b)b.focus()}));box.append(row,rl,bar,note);
  $("#in-btns").after(box);const f=row.querySelector("button.on")||row.querySelector("button");if(f)f.focus()}
@@ -718,7 +722,7 @@ addEventListener("keydown",e=>{const k=e.key;
   if(k==="F6"&&items[li]&&!items[li].show&&view==="continue"){e.preventDefault();const it=items[li];post("/api/progress",{media_id:it.id,position:0,completed:true});items.splice(li,1);li=Math.max(0,Math.min(li,items.length-1));counts.continue=Math.max(0,counts.continue-1);toast("Taken off Continue watching.");drawList();return}
   if(k==="F8"&&items[li]){e.preventDefault();return openInfo()}
   if(k==="Escape"||k==="Backspace"&&!$("#q").value){if(showCtx){e.preventDefault();leaveShow()}else closeAll()}else if(k==="ArrowDown")mv(cols);else if(k==="ArrowUp")mv(-cols);
-  else if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);else if(k==="Enter"&&items[li])playOrOpen(items[li]);return}
+  else if(k==="ArrowRight")mv(1);else if(k==="ArrowLeft")mv(-1);else if(k==="Enter"&&items[li])playOrOpen(items[li]);else if(k==="Enter"&&!items.length&&allHits){view="all";saveView();search()}return}
  if(layer==="guide"){if(k==="Escape"||k==="g"||k==="G")closeAll();else if(k==="l"||k==="L"){e.preventDefault();openLib()}else if(k==="h"||k==="H"){e.preventDefault();openHome()}else if(k.startsWith("Arrow")||k==="Enter"||k==="r"||k==="R"){e.preventDefault();guideKey(k)}return}
  if(layer===""){
   if(k==="h"||k==="H"||k==="Home"||k==="BrowserHome"){e.preventDefault();return openHome()}

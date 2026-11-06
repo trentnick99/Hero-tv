@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.38.74": [
+        "Library: searching on the New, Continue watching or Favorites tab now tells you when the title is under All instead (\"1 found in All\"); press Enter or the button to see it.",
+        "Details: after Move to another channel, the \"On:\" line shows the new channels straight away.",
+        "Settings > Tools: a film that is still being prepared in the Inbox is no longer listed as one HERO TV could not place (it shows under New videos: how far along).",
+    ],
     "1.38.73": [
         "Sorting: newer MCU films (Spider-Man: Brand New Day, Thunderbolts, The Fantastic Four: First Steps, Deadpool & Wolverine, Captain America: Brave New World, Avengers: Doomsday and Secret Wars) now go on Marvel Movies as well as their other channels, even if you changed your keyword list.",
     ],

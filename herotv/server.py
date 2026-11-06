@@ -696,6 +696,8 @@ def make_handler(app, remote=False):
                 for f in sorted(fn):
                     if f.startswith(".") or f.lower().endswith(inbox.PARTIAL) or os.path.splitext(f)[1].lower() not in exts:
                         continue
+                    if inbox._busy(os.path.join(dp, f)):     # being prepared and filed right now: not one HERO TV "could not place"
+                        continue
                     stem = os.path.splitext(f)[0]
                     g = L._guess([stem], stem)
                     about = art.describe(art.facts_for(c, app.cfg, stem, cached_only=True))
