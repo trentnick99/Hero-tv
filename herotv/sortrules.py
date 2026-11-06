@@ -41,6 +41,21 @@ def migrate(rules, channels):
     return changed
 
 
+# Titles that came out after your keyword list was written. They are added to your list as it is read (the file itself is
+# yours and is never rewritten for this), so a customised auto-sort.json still knows the new films.
+NEWER = {"mcu": ["spider man brand new day", "deadpool wolverine", "deadpool and wolverine", "thunderbolts",
+                 "fantastic four first steps", "avengers doomsday", "avengers secret wars", "captain america brave new world"]}
+
+
+def _add_newer(rules):
+    for ch, words in NEWER.items():
+        for r in rules.get("rules", []) if isinstance(rules, dict) else []:
+            if isinstance(r, dict) and ch in (r.get("channels") or []) and isinstance(r.get("keywords"), list):
+                have = {str(k).lower() for k in r["keywords"]}
+                r["keywords"] += [w for w in words if w not in have]
+                break
+
+
 def load(cfg, write=True):
     """(rules, channels) from the config folder, converting an old number-based rules file on the way."""
     from . import channels_api
@@ -54,6 +69,7 @@ def load(cfg, write=True):
             rules["_help"] = HELP
         if write:
             channels_api._write(af, json.dumps(rules, indent=1, ensure_ascii=False) + "\n")
+    _add_newer(rules)
     return rules, channels
 
 

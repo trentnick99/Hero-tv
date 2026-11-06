@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.73": [
+        "Sorting: newer MCU films (Spider-Man: Brand New Day, Thunderbolts, The Fantastic Four: First Steps, Deadpool & Wolverine, Captain America: Brave New World, Avengers: Doomsday and Secret Wars) now go on Marvel Movies as well as their other channels, even if you changed your keyword list.",
+    ],
     "1.38.72": [
         "Fix (finishes 1.38.71): videos sorted automatically out of the Inbox now keep playing straight away; the automatic sorter had not been updating the library entry at all. Subtitle files and posters now move along with the film.",
     ],
