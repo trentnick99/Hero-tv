@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.76": [
+        "Help (and Your watching) now scroll: Up/Down move both columns, Page Up/Page Down jump further, Home/End go to the top or bottom, and the mouse wheel works too. Before, text that did not fit (for example with Bigger text on) was cut off.",
+    ],
     "1.38.75": [
         "New: Home > More > MCU in story order. Every Marvel Studios film you have, numbered in the order the story happens (Marvel's official timeline order), with watched ticks and resume points. It opens on the next one you have not finished, and the tile says what is next. Not a channel: watch at your own pace. The list is in config\\collections.json if you want to change the order.",
     ],

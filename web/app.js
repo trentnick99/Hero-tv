@@ -423,7 +423,7 @@ function checkKey(e){const k=e.key;
  else if(k==="ArrowDown"){e.preventDefault();$("#ck-body").scrollBy(0,innerHeight*.25)}
  else if(k==="ArrowUp"){e.preventDefault();$("#ck-body").scrollBy(0,-innerHeight*.25)}}
 let helpBack="";
-async function openHelp(back){$("#help .top h2").textContent="Help";$("#help .top span").textContent="Plain-English answers";helpBack=back||"";layer="help";placePreview(false);show("#settings",false);show("#home",false);show("#guide",false);show("#lib",false);show("#osd",false);show("#help",true);hints($("#hp-hints"),[["Esc","back"]]);paint($("#help"),theme.color);
+async function openHelp(back){$("#help .top h2").textContent="Help";$("#help .top span").textContent="Plain-English answers";helpBack=back||"";layer="help";placePreview(false);show("#settings",false);show("#home",false);show("#guide",false);show("#lib",false);show("#osd",false);show("#help",true);hints($("#hp-hints"),[["↑ ↓","scroll"],["Esc","back"]]);paint($("#help"),theme.color);
  let h=null;try{h=await api("/api/help")}catch(e){}drawHelp(h)}
 /* Your watching (Home > More): shown in the Help panel's frame */
 async function openStats(){helpBack="home";layer="help";placePreview(false);for(const id of["#settings","#home","#guide","#lib","#osd"])show(id,false);show("#help",true);hints($("#hp-hints"),[["Esc","back"]]);paint($("#help"),theme.color);
@@ -717,7 +717,9 @@ addEventListener("keydown",e=>{const k=e.key;
  if(layer==="home")return homeKey(e);
  if(layer==="check")return checkKey(e);
  if(layer==="pick")return pickKey(e);
- if(layer==="help"){if(k==="Escape"||k==="Backspace"||k==="?"||k==="F1"||k==="h"||k==="H"){e.preventDefault();return helpBack==="home"?openHome():closeAll()}return}
+ if(layer==="help"){if(k==="Escape"||k==="Backspace"||k==="?"||k==="F1"||k==="h"||k==="H"){e.preventDefault();return helpBack==="home"?openHome():closeAll()}
+  {const st={ArrowDown:.12,ArrowUp:-.12,PageDown:.6,PageUp:-.6}[k];if(st){e.preventDefault();for(const id of["#hp-l","#hp-r"]){const c=$(id);if(c)c.scrollBy({top:innerHeight*st,behavior:"smooth"})}}
+   else if(k==="Home"||k==="End"){e.preventDefault();for(const id of["#hp-l","#hp-r"]){const c=$(id);if(c)c.scrollTop=k==="Home"?0:c.scrollHeight}}}return}   /* both columns scroll together */
  if((k==="F3"||k==="F4")&&layer==="lib"&&items[li]&&items[li].show&&!items[li].series){e.preventDefault();return toast("This group is a folder. Open it, then press F3 on an episode to rename that one.")}
  if((k==="F3"||k==="F4")&&(layer==="lib"||layer==="guide"||layer===""||vod)){e.preventDefault();return openRename(k==="F4"||(layer==="lib"&&items[li]&&items[li].show)?"series":"title")}
  if(layer==="lib"){const mv=d=>{li=Math.max(0,Math.min(items.length-1,li+d));drawList();e.preventDefault()};

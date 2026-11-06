@@ -573,3 +573,5 @@ body:has(#ident.c) #osd,body:has(#ident.b) #osd{opacity:0!important}   /* the in
 #detail .pic.blank .plate{font-size:calc(7vh*var(--tx));background:#0008;color:#fff}
 .pic em .qbi{margin-left:.5em;font-weight:800;font-size:.85em;letter-spacing:.03em;opacity:.95}   /* "127 min HD" in one badge */
 .hints .kbd b,.hints .kbd span{white-space:nowrap}   /* a hint never breaks inside itself */
+#hp-l,#hp-r{overflow-y:auto;min-height:0;overscroll-behavior:contain;padding-right:.6vw}   /* Help: each column scrolls (keys, wheel, touch) */
+#help .cols{grid-template-rows:minmax(0,1fr)}
