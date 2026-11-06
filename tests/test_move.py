@@ -181,7 +181,7 @@ class ServerMoveTests(unittest.TestCase):
         z = files["Zoboomafoo Collection/Episode 1.mp4"]
         self.assertEqual((z["pack"], z["group"]), ("Zoboomafoo Collection", 3))
         placed = []
-        with mock.patch.object(launcher, "_place", side_effect=lambda src, picked, media, force_move=False: placed.append((os.path.basename(src), picked[0]["id"])) or True):
+        with mock.patch.object(launcher, "_place", side_effect=lambda src, picked, media, force_move=False, **kw: placed.append((os.path.basename(src), picked[0]["id"])) or True):
             self.call("/api/job", {"name": "newchan", "file": "Arthur.S01E01.mp4", "channel_name": "PBS Kids"})
             self.assertEqual(self.wait()["state"], "done")
         self.assertEqual(sorted(placed), [("Arthur.S01E01.mp4", "pbs-kids"), ("Arthur.S01E02.mp4", "pbs-kids")])

@@ -93,7 +93,7 @@ class SmartSortTests(unittest.TestCase):
         for n in ("Iron Man (1931).mp4", "Iron Man (2008).mp4"):
             (ib / n).write_bytes(b"x" * 10); old = time.time() - 600; os.utime(ib / n, (old, old))
         got = []
-        place = lambda src, picked, media, force_move=False: got.append((os.path.basename(src), [c["id"] for c in picked])) or True
+        place = lambda src, picked, media, force_move=False, **kw: got.append((os.path.basename(src), [c["id"] for c in picked])) or True
         seen = {}
         inbox.run_once(self.cfg, seen, place=place, facts=F.get)
         r = inbox.run_once(self.cfg, seen, place=place, facts=F.get)

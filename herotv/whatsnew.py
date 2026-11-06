@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.72": [
+        "Fix (finishes 1.38.71): videos sorted automatically out of the Inbox now keep playing straight away; the automatic sorter had not been updating the library entry at all. Subtitle files and posters now move along with the film.",
+    ],
     "1.38.71": [
         "Fix: a film sorted out of the Inbox could refuse to play (\"format error\") until the next library scan, when the library already knew its new folder from an earlier copy. HERO TV now switches that entry back on and reads newly filed videos straight away.",
     ],

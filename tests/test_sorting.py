@@ -27,7 +27,7 @@ class LooseFileTests(unittest.TestCase):
         for f in Path(d).rglob("*"):
             os.utime(f, (old, old))
         got = []
-        place = lambda src, picked, media, force_move=False: got.append(os.path.basename(src)) or True
+        place = lambda src, picked, media, force_move=False, **kw: got.append(os.path.basename(src)) or True
         seen = {}
         inbox.run_once(cfg, seen, place=place, facts=lambda s: None)
         r = inbox.run_once(cfg, seen, place=place, facts=lambda s: None)
@@ -50,7 +50,7 @@ class LooseFileTests(unittest.TestCase):
         old = time.time() - 600
         os.utime(f, (old, old))
         got = []
-        place = lambda src, picked, media, force_move=False: got.append(src) or True
+        place = lambda src, picked, media, force_move=False, **kw: got.append(src) or True
         seen = {}
         inbox.run_once(cfg, seen, place=place, facts=lambda s: None)
         with launcher._Claim(str(f)) as mine:

@@ -241,7 +241,7 @@ class UpdateInboxTests(unittest.TestCase):
         for f in ib.iterdir():
             os.utime(f, (old, old))
         got = []
-        place = lambda src, picked, media, force_move=False: got.append((os.path.basename(src), [c["name"] for c in picked])) or True
+        place = lambda src, picked, media, force_move=False, **kw: got.append((os.path.basename(src), [c["name"] for c in picked])) or True
         seen = {}
         self.assertEqual(inbox.run_once(cfg, seen, place=place)["filed"], [])      # first sight: wait one pass
         r = inbox.run_once(cfg, seen, place=place)

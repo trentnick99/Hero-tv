@@ -179,7 +179,7 @@ def _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, plac
             move_in([src], cfg)                       # a loose video nothing matched: into the Inbox list
         return
     try:
-        if place(src, picked, media, force_move=True):
+        if place(src, picked, media, force_move=True, db=cfg.db_path):
             out["filed"].append(os.path.basename(src))
     except Exception:
         traceback.print_exc()

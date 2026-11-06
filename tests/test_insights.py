@@ -48,7 +48,7 @@ class InsightTests(unittest.TestCase):
         open(f, "wb").write(b"x")
         placed = []
         with mock.patch.object(inbox, "candidates", return_value=([f], {f: 1})):
-            inbox.run_once(self.cfg, {}, place=lambda src, picked, media, force_move=False: placed.append([c["id"] for c in picked]) or True)
+            inbox.run_once(self.cfg, {}, place=lambda src, picked, media, force_move=False, **kw: placed.append([c["id"] for c in picked]) or True)
         self.assertEqual(placed, [["dc"]])
         self.c = connect(self.cfg.db_path)
 
