@@ -254,7 +254,10 @@ def watch_forever(cfg, every=30):
         while True:
             try:
                 if enabled():
-                    run_once(cfg, seen)
+                    out = run_once(cfg, seen)
+                    if out.get("filed"):              # read the filed videos properly now (sound, picture, channel), not at the next scan
+                        from . import launcher
+                        launcher.rescan_running(cfg)
             except Exception:
                 traceback.print_exc()
             time.sleep(every)

@@ -838,7 +838,7 @@ def make_handler(app, remote=False):
 
                 def run():
                     media = os.path.abspath(str(app.cfg.media_dir))
-                    bad = sum(0 if LA._place(g, picked, media, force_move=True) else 1 for g in group)
+                    bad = sum(0 if LA._place(g, picked, media, force_move=True, db=app.cfg.db_path) else 1 for g in group)
                     LA.rescan_running(app.cfg)
                     return 1 if bad == len(group) else 0
                 what = self.pack_name(os.path.relpath(src, d).replace(os.sep, "/")) if len(group) > 1 else stem
@@ -879,7 +879,7 @@ def make_handler(app, remote=False):
 
                 def run():
                     LA.say(f"New channel {new['number']} {new['name']} - filing {len(group)} video(s) onto it.")
-                    bad = sum(0 if LA._place(g, [new], media, force_move=True) else 1 for g in group)
+                    bad = sum(0 if LA._place(g, [new], media, force_move=True, db=app.cfg.db_path) else 1 for g in group)
                     LA.rescan_running(app.cfg)
                     LA.say(f"\n[ OK ] {len(group) - bad} video(s) now on {new['name']}" + (f" ({bad} could not be moved)" if bad else ""))
                     return 1 if bad == len(group) else 0

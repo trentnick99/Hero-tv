@@ -1019,18 +1019,19 @@ def add_to_channels(paths, choice=None):
         return 1
     bad = 0
     for src in paths:
-        if not _place(os.path.abspath(src), picked, media):
+        if not _place(os.path.abspath(src), picked, media, db=cfg.db_path):
             bad += 1
     return _after_change(cfg, bad)
 
 
-def _place(src, picked, media, force_move=False):
+def _place(src, picked, media, force_move=False, db=None):
     """Put one video on the picked channels. Returns True on success."""
     stem, ext = os.path.splitext(os.path.basename(src))
     if ext.lower() not in library.EXTS | CONVERTIBLE or not os.path.isfile(src):
         say(f"\n{os.path.basename(src)}\n  [FAIL] not a video file HERO TV can use")
         return False
     say(f"\n{os.path.basename(src)}")
+    orig = src                                         # the library may already know the file by this path (Inbox scan)
     ffmpeg = tools.find_tool("ffmpeg")
     work.stage("Checking the file")
     if ffmpeg and tools.find_tool("ffprobe"):       # fix AC-3/DTS sound, .avi etc. on the way in
@@ -1053,10 +1054,13 @@ def _place(src, picked, media, force_move=False):
             if os.path.exists(dest) and os.path.normcase(dest) != os.path.normcase(src):
                 say("  [skip] a file with this name is already in " + target)
                 return False
-            for old, new in ((src, dest), (os.path.join(os.path.dirname(src), stem + ".hero.json"), os.path.join(target, stem + ".hero.json"))):
-                if os.path.isfile(old) and old != new:
+            for old in _companions(src):                # the video and everything that belongs to it: .hero.json, subtitles, poster
+                new = os.path.join(target, os.path.basename(old))
+                if old != new and not os.path.exists(new):
                     shutil.move(old, new)
             say(f"  moved into  {os.path.relpath(target, media)}")
+    if os.path.normcase(dest) != os.path.normcase(orig):
+        _repoint(db, {orig, src}, dest)
     if tags:
         side = os.path.join(os.path.dirname(dest), stem + ".hero.json")
         data = {}
@@ -1073,6 +1077,33 @@ def _place(src, picked, media, force_move=False):
         say("  tagged: " + ", ".join(data["tags"]))
     say("  [ OK ] on: " + ", ".join(c["name"] for c in picked))
     return True
+
+
+def _repoint(db, olds, new):
+    """The library may already list a video under its Inbox path (it is scanned there first). Point that entry at where the
+    video went, at once, so it plays (and keeps its progress) before the next scan instead of failing with a missing file."""
+    if not db:
+        return
+    try:
+        from .db import connect
+        c = connect(db)
+    except Exception:
+        return
+    try:
+        if c.execute("SELECT 1 FROM media WHERE lower(path)=lower(?)", (new,)).fetchone():
+            for o in olds:                            # the new place is already known: the old entry is simply gone
+                c.execute("UPDATE media SET available=0 WHERE lower(path)=lower(?)", (o,))
+            if os.path.isfile(new):                   # ...and the known entry may be one left unavailable from an earlier copy
+                c.execute("UPDATE media SET available=1,mtime=0 WHERE lower(path)=lower(?)", (new,))
+        else:
+            for o in olds:
+                if c.execute("UPDATE media SET path=?,available=1,mtime=0 WHERE lower(path)=lower(?)", (new, o)).rowcount:
+                    break
+        c.commit()
+    except Exception:
+        pass
+    finally:
+        c.close()
 
 
 FOLDER_PICS = ("poster.jpg", "poster.png", "folder.jpg", "folder.png", "fanart.jpg")
@@ -1256,7 +1287,7 @@ def sort_movies(assume_yes=False, cfg=None):
     if not assume_yes and not ask("\nMove/tag these now?"):
         say("Nothing changed.")
         return 0
-    bad = sum(0 if _place(src, picked, media, force_move=True) else 1 for src, picked in plan)
+    bad = sum(0 if _place(src, picked, media, force_move=True, db=cfg.db_path) else 1 for src, picked in plan)
     return _after_change(cfg, bad)
 
 

@@ -114,6 +114,25 @@ class ImportTests(unittest.TestCase):
         self.assertTrue(launcher._place(src, picked, media, force_move=True))
         self.assertTrue(os.path.isfile(os.path.join(media, "DC", "Old Film (1950).mp4")))
 
+    def test_subtitles_move_with_the_film_and_the_library_entry_follows(self):
+        from herotv.db import connect
+        media = tempfile.mkdtemp()
+        src = os.path.join(media, "Inbox", "Heat (1995).mp4")
+        clip(src, 2)
+        open(os.path.join(media, "Inbox", "Heat (1995).en.srt"), "w").write("1\n00:00:00,000 --> 00:00:01,000\nhi\n")
+        db = os.path.join(media, "t.sqlite3")
+        c = connect(db)
+        c.execute("INSERT INTO media(path,title,verified,playable,available) VALUES(?,?,1,1,1)", (src, "Heat"))
+        c.execute("INSERT INTO progress(media_id,position,completed,updated) VALUES(1,600,0,1)")
+        c.commit()
+        picked = [c2 for c2 in CHANNELS if c2["id"] == "dc"]
+        self.assertTrue(launcher._place(src, picked, media, force_move=True, db=db))
+        dest = os.path.join(media, "DC", "Heat (1995).mp4")
+        self.assertTrue(os.path.isfile(os.path.join(media, "DC", "Heat (1995).en.srt")))      # not left in the Inbox
+        row = c.execute("SELECT id,path,available FROM media").fetchone()
+        self.assertEqual((row["id"], row["path"], row["available"]), (1, dest, 1))          # same entry, so progress stays
+        c.close()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,13 @@
 from . import __version__
 
 NOTES = {
+    "1.38.71": [
+        "Fix: a film sorted out of the Inbox could refuse to play (\"format error\") until the next library scan, when the library already knew its new folder from an earlier copy. HERO TV now switches that entry back on and reads newly filed videos straight away.",
+    ],
+    "1.38.71": [
+        "Fix: a new film dropped in the Inbox could fail to play (\"format error\") right after it was sorted onto its channel, because the library still pointed at its old place in the Inbox. The library entry now follows the film at once (and keeps its progress).",
+        "Fix: subtitle files (.srt) and the film's own poster now move with the film when it is sorted onto a channel, instead of staying behind in the Inbox.",
+    ],
     "1.38.70": [
         "Guide: the picture box at the top is always there (the channel you are watching shows its still too, weather shows the channel number), so the text no longer jumps sideways between channels.",
         "Library: search puts the best match first (typing invincible shows Invincible before a Dragon Ball episode that mentions the word). Length badges read \"127 min HD\" instead of the HD tag covering the minutes, and the key hints no longer break across lines.",
