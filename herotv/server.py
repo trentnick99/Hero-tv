@@ -1463,7 +1463,7 @@ def make_handler(app, remote=False):
                 elif view == "recent":      # found in the last 30 days, newest first
                     extra, order = f" AND m.added>{int(now) - RECENT_S}", "m.added DESC,m.id DESC"
                 lim = max(1, min(int(q.get("limit", 200)), 1000))
-                group = q.get("group") == "1" and view == "all" and not q.get("show")          # one row per show instead of one per episode
+                group = q.get("group") == "1" and view in ("all", "recent") and not q.get("show")          # one row per show instead of one per episode
                 args = [like, like, like, like]
                 if q.get("show"):                                      # the episodes of one show (opened from the grouped list)
                     extra += " AND m.franchise=?"
@@ -1514,11 +1514,15 @@ def make_handler(app, remote=False):
                         key = key_of(d)
                         if key is None:
                             merged.append(d)
+                        elif key in seen and view == "recent":
+                            seen[key]["episodes"] += 1                # New: how many of its episodes are new
                         elif key not in seen:                         # the first episode (lowest season/episode) stands for the show
                             n, seas = sizes[key]
                             seen[key] = dict(d, show=True, title=L.show_name(d["series"]) if key[1] else key[0], episodes=n,
                                              seasons=max(1, len(seas)), season=0, episode=0, plot="", position=0, completed=0,
                                              favorite=0, runtime_s=0)
+                            if view == "recent":
+                                seen[key]["episodes"] = 1
                             merged.append(seen[key])
                     rows = merged[:lim]
                 counts = c.execute(

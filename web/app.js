@@ -537,7 +537,7 @@ async function search(){
  if(colCtx){let j;try{j=await api("/api/collections/"+colCtx.id)}catch(e){j={items:[],missing:[]}}const q=$("#q").value.trim().toLowerCase();
   colCtx.data=j;items=(j.items||[]).filter(x=>!q||(x.story_title+" "+x.title).toLowerCase().includes(q)).map(x=>Object.assign({},x,{title:`${x.n}. ${x.story_title}`}));li=Math.max(0,items.findIndex(x=>x.id===j.next));allHits=0;return drawList()}
  let u="/api/library?view="+view+"&q="+encodeURIComponent($("#q").value);
- if(showCtx)u+="&show=1&series="+encodeURIComponent(showCtx.series)+"&franchise="+encodeURIComponent(showCtx.franchise)+"&limit=1000";else if(view==="all")u+="&group=1&limit=1000";
+ if(showCtx)u+="&show=1&series="+encodeURIComponent(showCtx.series)+"&franchise="+encodeURIComponent(showCtx.franchise)+"&limit=1000";else if(view==="all"||view==="recent")u+="&group=1&limit=1000";   /* shows are one tile on New too */
  const j=await api(u);items=j.items;counts=j.counts||counts;li=0;allHits=0;
  const q=$("#q").value.trim();if(q&&!items.length&&view!=="all"&&!showCtx){try{allHits=(await api("/api/library?view=all&group=1&limit=1000&q="+encodeURIComponent(q))).items.length}catch(e){}}   /* the film may simply not be on this tab */
  drawList()}

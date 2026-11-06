@@ -7,9 +7,22 @@ MAX_RATIO = 1.5          # copies whose lengths differ more than this are differ
 
 
 def _key(d):
-    if d.get("show") or d.get("series") or not d.get("year"):
-        return None                      # episodes and films with no year are never merged (too easy to mistake two films)
-    return (_n(d.get("title")), d["year"])
+    if d.get("show") or d.get("series") or d.get("episode"):
+        return None                      # episodes are never merged
+    return (_n(d.get("title")), d.get("franchise") or "")
+
+
+def _by_year(grp):
+    """Copies of one title in one folder, split by year. A copy with no year joins the others only when they all have
+    the same year (so 'Spider-man Homecoming' joins 'Spider-Man Homecoming (2017)', but never picks between two films)."""
+    years = {}
+    for g in grp:
+        if g.get("year"):
+            years.setdefault(g["year"], []).append(g)
+    loose = [g for g in grp if not g.get("year")]
+    if len(years) == 1:
+        return [next(iter(years.values())) + loose]
+    return list(years.values()) + ([loose] if loose and not years else [[g] for g in loose])
 
 
 def _version(d):
@@ -39,12 +52,12 @@ def merge(items):
             groups.setdefault(k, []).append(d)
     stand = {}                           # id of the first copy of a cluster -> the whole cluster
     skip = set()
-    for grp in groups.values():
-        for cl in _clusters(grp):
-            if len(cl) > 1:
-                first = min(cl, key=lambda g: items.index(g))
-                stand[first["id"]] = cl
-                skip.update(g["id"] for g in cl if g is not first)
+    clusters = [cl for grp0 in groups.values() for grp in _by_year(grp0) for cl in _clusters(grp)]
+    for cl in clusters:
+        if len(cl) > 1:
+            first = min(cl, key=lambda g: items.index(g))
+            stand[first["id"]] = cl
+            skip.update(g["id"] for g in cl if g is not first)
     out = []
     for d in items:
         if d["id"] in skip:

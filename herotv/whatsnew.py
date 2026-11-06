@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.38.78": [
+        "Library: the New tab now shows each show as one tile too (with how many of its episodes are new), instead of a tile per episode.",
+        "Two copies of a film where one has no year in its name (Spider-man Homecoming / Spider-Man Homecoming 2017) are now one tile with a version picker.",
+    ],
     "1.38.77": [
         "Library: a show spelled two ways (Your Friendly Neighborhood Spider Man / Spider-Man) is now one tile, and South Park episodes that carry the show name join the South Park tile instead of making a second one.",
         "Move to another channel no longer files a film in a sub-folder named after a channel (Spider-Man: Brand New Day had ended up in MCU\\Spider-Verse and was taken for a TV show). Moving it again tidies it up.",

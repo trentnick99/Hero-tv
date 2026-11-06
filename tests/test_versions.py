@@ -19,11 +19,20 @@ def test_resumed_copy_stands_for_the_film():
     assert out[0]["id"] == 2
 
 
-def test_different_lengths_series_and_no_year_stay_apart():
+def test_different_lengths_and_series_stay_apart():
     out = versions.merge([row(1, "Dune", 1984, 1080, 4, rt=7000), row(2, "Dune", 1984, 1080, 5, rt=14000),
-                          row(3, "Show", 2020, 1080, 1, series="Show"), row(4, "Show", 2020, 1080, 1, series="Show"),
-                          row(5, "Clip", None, 480, 1), row(6, "Clip", None, 480, 1)])
-    assert len(out) == 6 and not any("versions" in d for d in out)
+                          row(3, "Show", 2020, 1080, 1, series="Show"), row(4, "Show", 2020, 1080, 1, series="Show")])
+    assert len(out) == 4 and not any("versions" in d for d in out)
+
+
+def test_copy_without_a_year_joins_the_one_with_a_year():
+    out = versions.merge([row(1, "Spider-Man Homecoming", 2017, 1080, 4), row(2, "Spider-man Homecoming", None, 1080, 3)])
+    assert len(out) == 1 and len(out[0]["versions"]) == 2
+
+
+def test_no_year_copy_never_picks_between_two_films():
+    out = versions.merge([row(1, "Halloween", 1978, 1080, 4), row(2, "Halloween", 2007, 1080, 4), row(3, "Halloween", None, 1080, 4)])
+    assert len(out) == 3
 
 
 def test_watched_only_when_every_copy_is():

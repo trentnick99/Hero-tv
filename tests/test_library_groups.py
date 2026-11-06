@@ -176,3 +176,16 @@ class SameShowSpelledTwoWays(Groups):
         self.assertEqual(shows[0]["episodes"], 6)
         self.assertEqual(len(self.get("view=all&show=1&franchise=Toons%20Park&series=toons%20park")), 6)
         self.assertEqual(len(self.get("view=all&show=1&franchise=Toons%20Park&series=")), 6)
+
+
+class NewTabGroups(Groups):
+    def test_new_tab_has_one_tile_per_show_with_its_new_episodes(self):
+        for e in (1, 2, 3):
+            self.add("Toons", "Spidey Show", 1, e, f"Ep {e}")
+        self.c.execute("UPDATE media SET added=strftime('%s','now')")
+        self.c.commit()
+        items = self.get("view=recent&group=1&limit=1000")
+        spidey = [i for i in items if i.get("show") and i.get("series") == "Spidey Show"]
+        self.assertEqual(len(spidey), 1)
+        self.assertEqual(spidey[0]["episodes"], 3)
+        self.assertFalse([i for i in items if i.get("series") == "Spidey Show" and not i.get("show")])
