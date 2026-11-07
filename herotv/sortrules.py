@@ -112,6 +112,8 @@ def fits(rule, facts):
         return False
     if rule.get("year_max") and not (facts.get("year") and facts["year"] <= rule["year_max"]):
         return False
+    if rule.get("year_min") and not (facts.get("year") and facts["year"] >= rule["year_min"]):
+        return False
     return True
 
 

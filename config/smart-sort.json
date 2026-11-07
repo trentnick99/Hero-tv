@@ -43,7 +43,9 @@
    "type": "movie",
    "companies": [
     "marvel studios"
-   ]
+   ],
+   "year_min": 2008,
+   "_why": "the MCU began in 2008; older films (Ghost Rider, Fantastic Four 2005...) also credit Marvel Studios"
   },
   {
    "label": "Spider-Man films",

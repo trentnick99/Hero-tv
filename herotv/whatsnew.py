@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.38.81": [
+        "Sorting: older Marvel films that TMDB credits to Marvel Studios (Ghost Rider 2007, Fantastic Four 2005...) no longer land on the MCU channel - only 2008 and later.",
+    ],
     "1.38.80": [
         "Library: a show whose episodes were all moved elsewhere takes you back to the list instead of saying \"No videos yet\".",
     ],
