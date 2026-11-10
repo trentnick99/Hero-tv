@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.39.2": [
+        "Home: an episode with no numbers in its file name now says which show it is from (South Park - Mecha-Streisand), and such a show takes one tile in a row, not several.",
+        "Home: the small shortcut tiles no longer cut their description off mid-word.",
+    ],
     "1.39.1": [
         "Movie Roulette: multiple choice. Pick it under Answers and each round shows four titles (keys A to D).",
         "Movie Roulette: players can join on their phones. The TV shows a 4-letter code and a square to scan; each phone gets the picture and its own answer buttons.",

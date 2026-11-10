@@ -62,7 +62,7 @@ def valid_id(x):
 
 def _rows(conn):
     """Every playable video with its progress, favorite flag and TMDB genres/rating (when known)."""
-    meta = {}
+    meta, in_folder = {}, {}
     for a in conn.execute("SELECT key,genres,rating FROM art WHERE miss=0"):
         try:
             g = json.loads(a["genres"] or "[]")
@@ -84,6 +84,16 @@ def _rows(conn):
         d["_genres"], d["_rating"] = g, rating
         sh = art.show_of(d)
         d["_show"] = art.norm(sh[0]) if sh else ""
+        if not sh and not d.get("series"):             # an episode with no numbers in its name, sitting in a show's folder
+            fr = d.get("franchise") or ""
+            if fr and fr not in in_folder:
+                try:
+                    in_folder[fr] = bool(art.folder_show(conn, d))
+                except Exception:
+                    in_folder[fr] = False
+            if fr and in_folder[fr]:
+                d["_show"] = art.norm(fr)              # one tile per show in the rows, like its numbered episodes
+                d["in_show"] = art.clean_show(fr)[0]   # and Home says which show it is from
         out.append(d)
     return out
 

@@ -9,7 +9,7 @@ const nowS=()=>Date.now()/1e3+off,api=async(p,o)=>{const r=await fetch(p,o);if(!
 const post=(p,b)=>fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b),keepalive:true}).catch(()=>{});
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
 const T=s=>new Intl.DateTimeFormat([],{hour:"numeric",minute:"2-digit",timeZone:cfg.tz||undefined}).format(s*1e3);
-const label=s=>{if(!s)return"";if(!s.series)return s.title;const ep=`${s.series} ${s.season?"S"+s.season:""}E${s.episode}`,t=/^Episode \d+$/.test(s.title)?"":s.title;return t?ep+" · "+t:ep};
+const label=s=>{if(!s)return"";if(!s.series)return s.in_show&&s.in_show!==s.title?s.in_show+" · "+s.title:s.title;const ep=`${s.series} ${s.season?"S"+s.season:""}E${s.episode}`,t=/^Episode \d+$/.test(s.title)?"":s.title;return t?ep+" · "+t:ep};
 const mins=s=>Math.max(0,Math.round(s/60));
 const hms=s=>{s=Math.max(0,Math.floor(s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(x).padStart(2,"0")};
 function show(id,on){$(id).classList.toggle("on",on)}
@@ -295,7 +295,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
      pv:(comfortOf().preview||"on")==="on"&&c&&c.kind!=="weather"&&!vod&&slot?{start:slot.start,end:slot.end}:null,go:()=>closeAll()},
    {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
    {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",img:lImg,go:()=>{closeAll();openLib()}}];
-  if(!REMOTE&&window.Roulette)st.push({k:"big",t:"Movie Roulette",s:"Guess the film from one moment. A game for everyone",ic:"star",img:lImg,go:()=>window.Roulette.open()});
+  if(!REMOTE&&window.Roulette)st.push({k:"big",t:"Movie Roulette",s:"Guess the film from one moment",ic:"star",img:lImg,go:()=>window.Roulette.open()});
   if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
   else if(!REMOTE)st.push({k:"big",t:"Settings",s:"Look, channels, phone, backup",ic:"gear",go:()=>openSettings()});
   R.start={title:"Start here",items:st} }
