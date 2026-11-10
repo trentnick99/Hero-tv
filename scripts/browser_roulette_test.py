@@ -49,9 +49,15 @@ def main(engine, shots=None):
         d = cfg.media_dir / folder
         d.mkdir(parents=True, exist_ok=True)
         f = d / f"{t.replace(':', ' -')} ({y}).{ext}"
-        r = subprocess.run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", f"{src}=s=320x180:r=1:d=1500", "-f", "lavfi", "-i", "anullsrc=r=22050:cl=mono",
-                            "-shortest", *vc, "-g", "30", "-c:a", "libopus" if ext == "webm" else "aac", "-b:a", "12k", str(f)], capture_output=True, text=True)
-        assert r.returncode == 0, r.stderr[-400:]
+        tries = [vc + ["-c:a", "libopus", "-b:a", "24k"], ["-c:v", "libvpx-vp9", "-b:v", "100k", "-c:a", "libopus"],
+                 ["-c:v", "libvpx", "-b:v", "100k", "-c:a", "libvorbis"]] if ext == "webm" else [vc + ["-c:a", "aac"]]
+        for enc in tries:                                       # ffmpeg builds differ in what their encoders accept
+            r = subprocess.run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", f"{src}=s=320x180:r=5:d=1500", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+                                "-shortest", "-pix_fmt", "yuv420p", *enc, "-g", "50", str(f)], capture_output=True, text=True)
+            if r.returncode == 0:
+                break
+            print("  (encoder try failed: " + " ".join(enc[:2]) + ": " + r.stderr[-300:].replace("\n", " | ") + ")", flush=True)
+        assert r.returncode == 0, r.stderr[-800:]
         c.execute("INSERT INTO media(id,path,title,year,franchise,verified,playable,available,runtime_s,vcodec,acodec,vfmt,ord,added,height) "
                   "VALUES(?,?,?,?,?,1,1,1,1500,?,?,'yuv420p|Main',?,?,1080)", (i, str(f), t.replace(":", " -"), y, folder, *codecs, i, now - i))
         k = art.key_for(c.execute("SELECT * FROM media WHERE id=?", (i,)).fetchone())[0]
