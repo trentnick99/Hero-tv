@@ -674,6 +674,21 @@ def _rescue_sound(ffmpeg, src, tmp, vopt, mk, rt):
     return False, r
 
 
+def _drop(path):
+    """Remove a half-made copy. Windows can still be holding it for a moment (ffmpeg just ended, antivirus): try a few
+    times, and never let a leftover file stop the work - it is overwritten by the next try."""
+    for wait in (0, 0.5, 2):
+        if wait:
+            time.sleep(wait)
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def _convert_one_locked(src, ffmpeg, phone=False):
     if not os.path.isfile(src):
         say("  [skip] the file is no longer there")
@@ -746,14 +761,12 @@ def _convert_one_locked(src, ffmpeg, phone=False):
     if not ok and v_ok and not (r.returncode and _sound_trouble(r.errors)):   # copying the picture failed: make a fresh one
         _ffmpeg_failed(r, "copy the picture as it is" if r.returncode else "make a complete copy")
         say("  trying again, re-encoding the picture (slower)")
-        if os.path.isfile(tmp):
-            os.remove(tmp)
+        _drop(tmp)
         r = _encode_checked(ffmpeg, src, tmp, tools.h264_encoder(ffmpeg), mk, rt)
         ok = r.returncode == 0 and os.path.isfile(tmp) and _same_length(ffmpeg, tmp, rt)
     if not ok:
         _ffmpeg_failed(r) if r.returncode else say("  [FAIL] the new copy came out shorter than the original - kept the original")
-        if os.path.isfile(tmp):
-            os.remove(tmp)
+        _drop(tmp)
         return "failed", src
     kept = subtitles.save_embedded(src, folder, stem)
     _keep_original(src)

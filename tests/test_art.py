@@ -229,6 +229,39 @@ class UpdateInboxTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             _zip(z + "2", {"a.txt": "x"}); updater.plan(z + "2", root)
 
+    def test_inbox_stops_retrying_a_video_that_cannot_be_converted(self):
+        """A damaged download used to be converted again every 30 seconds for days. Two failed tries and it is left alone
+        (remembered across restarts) until the file itself changes."""
+        from herotv import inbox
+        d = tempfile.mkdtemp()
+        cfg = Config(media_dir=Path(d), db_path=os.path.join(d, "t.sqlite3"),
+                     channels_file=str(Path(config.ROOT) / "config" / "channels.json"))
+        ib = Path(d, "Inbox"); ib.mkdir()
+        f = ib / "Iron Man (2008).mp4"
+        f.write_bytes(b"x" * 10)
+        old = time.time() - 600
+        os.utime(f, (old, old))
+        calls = []
+        from herotv import work
+
+        def place(src, picked, media, force_move=False, **kw):                  # the conversion ran and failed
+            work.stage("converting")
+            calls.append(src)
+            return False
+        seen = {}
+        for _ in range(6):
+            inbox.run_once(cfg, seen, place=place)
+        self.assertEqual(len(calls), 2)
+        for _ in range(3):
+            inbox.run_once(cfg, {str(f): 10}, place=place)                      # after a restart: still not tried again
+        self.assertEqual(len(calls), 2)
+        f.write_bytes(b"x" * 25)                                                # the file was replaced: it gets its tries again
+        os.utime(f, (old, old))
+        seen = {}
+        for _ in range(4):
+            inbox.run_once(cfg, seen, place=place)
+        self.assertEqual(len(calls), 4)
+
     def test_inbox_waits_for_stable_files_and_files_by_title(self):
         from herotv import inbox
         d = tempfile.mkdtemp()

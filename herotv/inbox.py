@@ -158,7 +158,11 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
     follow = series_lookup(cfg, channels)
     media = os.path.abspath(str(cfg.media_dir))
     work.batch(len(ready), 0)
+    tried = _failed_load(cfg)
     for src in ready:
+        if _given_up(tried, src):                     # could not be made playable twice already: not a third hour of trying
+            out["left"] += 1
+            continue
         if launcher.is_busy(src):                     # already being converted by something else: not a second try, not a log line
             out["left"] += 1
             continue
@@ -169,6 +173,11 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
             _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, place)
             if os.path.basename(src) in out["filed"]:
                 result = "filed"
+            elif src in out.get("failed", ()) and os.path.isfile(src) and not work.waiting_stage():
+                n = _failed_note(cfg, tried, src)
+                if n >= GIVE_UP_AFTER:
+                    print(f"\n{os.path.basename(src)}\n  could not be made playable after {n} tries, so HERO TV has stopped trying. "
+                          "It stays in the Inbox. The file is probably damaged or incomplete: get it again, or delete it.", flush=True)
         finally:
             work.end(result, quiet=(result != "filed" and work.waiting_stage()))
             work.batch_step()
@@ -191,9 +200,65 @@ def _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, plac
     try:
         if place(src, picked, media, force_move=True, db=cfg.db_path):
             out["filed"].append(os.path.basename(src))
+        else:
+            out.setdefault("failed", []).append(src)
     except Exception:
         traceback.print_exc()
         out["left"] += 1
+        out.setdefault("failed", []).append(src)
+
+
+GIVE_UP_AFTER = 2          # a video that fails to convert this many times is left alone until the file itself changes
+
+
+def _failed_load(cfg):
+    """{path: [size, tries]} of videos whose filing failed (kept in the database, so a restart does not start over)."""
+    import json
+    from .db import connect
+    try:
+        c = connect(cfg.db_path)
+        try:
+            r = c.execute("SELECT value FROM prefs WHERE key='inbox_failed'").fetchone()
+        finally:
+            c.close()
+        d = json.loads(r[0]) if r else {}
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _given_up(tried, src):
+    t = tried.get(os.path.normcase(src))
+    try:
+        return bool(t) and t[1] >= GIVE_UP_AFTER and t[0] == os.path.getsize(src)
+    except (OSError, TypeError, IndexError):
+        return False
+
+
+def _failed_note(cfg, tried, src):
+    """Count one more failed try for this file (a changed file starts again). Returns the count."""
+    import json
+    from .db import connect
+    try:
+        size = os.path.getsize(src)
+    except OSError:
+        return 0
+    k = os.path.normcase(src)
+    old = tried.get(k)
+    n = (old[1] if old and old[0] == size else 0) + 1
+    tried[k] = [size, n]
+    for p in [p for p in tried if p != k and not os.path.isfile(p)]:
+        del tried[p]                                  # files that are gone need no memory
+    try:
+        c = connect(cfg.db_path)
+        try:
+            c.execute("INSERT OR REPLACE INTO prefs(key,value) VALUES('inbox_failed',?)", (json.dumps(tried),))
+            c.commit()
+        finally:
+            c.close()
+    except Exception:
+        pass
+    return n
 
 
 SIDECARS = (".hero.json", ".srt", ".vtt", ".ass", ".ssa", ".nfo", ".jpg", ".png")
