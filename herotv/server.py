@@ -979,6 +979,18 @@ def make_handler(app, remote=False):
                 return self.sub(p[5:])
             if p.startswith("/poster/"):
                 return self.poster(p[8:])
+            if p.startswith("/roulette/frame/"):                     # Movie Roulette's picture for a round (this PC only)
+                from .roulette import api as RL
+                f = None if self.is_remote else RL.frame_path(app.cfg, p[16:])
+                if not f:
+                    return self.send_json({"error": "not found"}, 404)
+                b = open(f, "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Content-Length", str(len(b)))
+                self.send_header("Cache-Control", "private, max-age=3600")    # the name is random and belongs to one round
+                self.end_headers()
+                return self.wfile.write(b)
             if p.startswith("/api/"):
                 c = app.db()
                 try:
@@ -1440,6 +1452,10 @@ def make_handler(app, remote=False):
                 if not col:
                     return self.send_json({"error": "no such collection"}, 404)
                 return self.send_json(COL.build(c, col))
+            if p == "roulette" or p.startswith("roulette/"):      # Movie Roulette, the guessing game (herotv/roulette)
+                from .roulette import api as RL
+                out, code = RL.handle(c, app.cfg, p[9:], q, method, self.body() if method == "POST" else None)
+                return self.send_json(out, code)
             if p == "stats":                  # Your watching (Home > More)
                 from . import stats
                 return self.send_json(stats.build(c))

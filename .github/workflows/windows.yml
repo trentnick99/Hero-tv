@@ -248,6 +248,7 @@ jobs:
           python -m playwright install chromium
           python scripts/browser_phone_test.py chromium
           python scripts/browser_pc_test.py chromium
+          python scripts/browser_roulette_test.py chromium
 
       - name: Upload the finished app
         uses: actions/upload-artifact@v5

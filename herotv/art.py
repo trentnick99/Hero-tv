@@ -244,6 +244,7 @@ def lookup(kind, title, year, key, fj=None):
                       "genres": [g["name"] for g in d.get("genres", [])],
                       "keywords": [k["name"] for k in kw if isinstance(k, dict) and k.get("name")],
                       "collection": (d.get("belongs_to_collection") or {}).get("name") or "",
+                      "directors": [c["name"] for c in (d.get("credits") or {}).get("crew", []) if c.get("job") == "Director" and c.get("name")][:3],
                       "year": int((d.get("release_date") or d.get("first_air_date") or "0")[:4] or 0) or None,
                       "released": d.get("release_date") or d.get("first_air_date") or ""}}
 
@@ -400,7 +401,35 @@ def run_pass(conn, cfg, key, fj=None, fb=None, delay=0.25, stop=None):
         episodes_pass(conn, key, fj, delay, stop)
     except Exception:
         pass
+    try:
+        directors_pass(conn, key, fj, delay, stop)
+    except Exception:
+        pass
     return done, hit
+
+
+def directors_pass(conn, key, fj=None, delay=0.25, stop=None):
+    """Films looked up before HERO TV kept directors (used by Movie Roulette's director categories and hints): ask TMDB
+    for each one's credits once. Returns how many were filled in. A network failure ends the pass; it carries on next time."""
+    fj = fj or fetch_json
+    n = 0
+    for r in conn.execute("SELECT key,tmdb_id,facts FROM art WHERE miss=0 AND kind='movie' AND tmdb_id>0").fetchall():
+        try:
+            facts = json.loads(r["facts"] or "{}")
+        except ValueError:
+            facts = {}
+        if not isinstance(facts, dict) or "directors" in facts:
+            continue
+        if stop and stop():
+            break
+        d = fj(f"/movie/{r['tmdb_id']}/credits", {"language": "en-US"}, key)
+        facts["directors"] = [c["name"] for c in d.get("crew", []) if c.get("job") == "Director" and c.get("name")][:3]
+        conn.execute("UPDATE art SET facts=? WHERE key=?", (json.dumps(facts), r["key"]))
+        conn.commit()
+        n += 1
+        if delay:
+            time.sleep(delay)
+    return n
 
 
 def start_background(cfg, connect):

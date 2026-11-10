@@ -69,11 +69,11 @@ const seekBy=d=>seekTo(v.currentTime+d);
  wb.addEventListener("pointerdown",e=>{if(!vod||!isFinite(v.duration))return;scrub=true;wb.setPointerCapture(e.pointerId);seekTo(frac(e)*v.duration)});
  wb.addEventListener("pointermove",e=>{if(!vod||!isFinite(v.duration))return;const f=frac(e);hv.textContent=hms(f*v.duration);hv.style.left=f*100+"%";hv.style.display="block";if(scrub)seekTo(f*v.duration)});
  wb.addEventListener("pointerup",()=>{scrub=false});wb.addEventListener("pointerleave",()=>{if(!scrub)hv.style.display="none"})}
-v.addEventListener("pause",()=>{if(vod)osd(true)});v.addEventListener("play",()=>{if(vod)osd()});
+v.addEventListener("pause",()=>{if(vod&&layer!=="roulette")osd(true)});v.addEventListener("play",()=>{if(vod)osd()});
 function startOver(){if(!slot||vod||slot.card)return;startVod({id:slot.media_id,title:slot.title,series:slot.series,season:slot.season,episode:slot.episode,
  franchise:slot.franchise,year:slot.year,runtime_s:slot.runtime_s,position:0,completed:0,startOver:true})}
 async function sync(){const a=Date.now(),j=await api("/api/now");off=j.now-(a+Date.now())/2e3;cfg=j}
-async function tune(i){if(sleeping)return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;const first=!started,changed=started&&ni!==ci;if(started&&ni!==ci)prevCi=ci;started=true;tunedAt=nowS();ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
+async function tune(i){if(sleeping||layer==="roulette")return;if(!chans.length){msg("No channels have anything to show yet","Put videos in your media folder, or open Settings (O) and check the library.");return}const my=++seq;vod=null;const ni=(i+chans.length)%chans.length;const first=!started,changed=started&&ni!==ci;if(started&&ni!==ci)prevCi=ci;started=true;tunedAt=nowS();ci=ni;localStorage.setItem("ch",chans[ci].id);savePrefs();msg("");paint(root,chans[ci].color);
  const wx=chans[ci].kind==="weather";show("#wx",wx);show("#upcard",false);clearTimeout(cardT);clearTimeout(cutT);document.body.classList.toggle("novideo",wx);
  if(wx){slot=nextSlot=null;v.pause();v.removeAttribute("src");v.load();loadWx();if(changed)ident("b",{num:chans[ci].number,name:chans[ci].name,sub:"Local weather",color:chans[ci].color});return osd()}
  let j;try{j=await api(`/api/channel/${chans[ci].id}/now`)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open. Trying again."),setTimeout(()=>tune(ci),3e3)}
@@ -139,7 +139,7 @@ async function saverOn(){const box=$("#saver");if(box.classList.contains("on"))r
   const old=[...box.querySelectorAll("img")].slice(0,-1);setTimeout(()=>old.forEach(o=>o.remove()),2500)};box.insertBefore(img,clock);clock.textContent=T(nowS())};
  next();clearInterval(saverT);saverT=setInterval(next,9000)}
 setInterval(()=>{if(!comfortOf().screensaver||sleeping)return;const idle=(Date.now()-lastInput)/1e3;
- const paused=vod&&v.paused&&idle>=180,menu=layer!==""&&layer!=="rename"&&idle>=300,blank=!vod&&!slot&&chans.length&&chans[ci]&&chans[ci].kind!=="weather"&&idle>=300;
+ const paused=vod&&v.paused&&idle>=180,menu=layer!==""&&layer!=="rename"&&layer!=="roulette"&&idle>=300,blank=!vod&&!slot&&chans.length&&chans[ci]&&chans[ci].kind!=="weather"&&idle>=300;
  if(paused||menu||blank)saverOn()},5000);
 /* subtitles: files next to the video, or text subtitles inside it (C cycles off / each track) */
 let subs=[],subI=-1,subPref="",subMid=0,subPics=0;
@@ -189,7 +189,7 @@ v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(
  if(errs.length>=5){msg("Playback keeps failing","This video may be in a format the TV cannot play. Settings > Tools > Videos that are skipped can fix it. Trying again in 10 seconds.");errs=[];return setTimeout(()=>tune(ci),1e4)}
  setTimeout(()=>tune(ci),1500)});
 setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall watchdog, progress
- sleepCheck();if(sleeping)return;
+ sleepCheck();if(sleeping||layer==="roulette")return;   /* during a game of Movie Roulette the TV waits, paused */
  if(vod&&vod.skip&&vod.skip.outro>0&&!vod.credDone&&v.duration&&v.currentTime>30&&v.duration-v.currentTime<=vod.skip.outro){vod.credDone=true;toast("Skipped the credits");v.dispatchEvent(new Event("ended"))}
  /* found by HERO TV itself (when you have not set the show's points with J / E): this episode's own intro and credits */
  const fd=vod&&vod.skip&&vod.skip.found;
@@ -295,6 +295,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
      pv:(comfortOf().preview||"on")==="on"&&c&&c.kind!=="weather"&&!vod&&slot?{start:slot.start,end:slot.end}:null,go:()=>closeAll()},
    {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
    {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",img:lImg,go:()=>{closeAll();openLib()}}];
+  if(!REMOTE&&window.Roulette)st.push({k:"big",t:"Movie Roulette",s:"Guess the film from one moment. A game for everyone",ic:"star",img:lImg,go:()=>window.Roulette.open()});
   if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
   else if(!REMOTE)st.push({k:"big",t:"Settings",s:"Look, channels, phone, backup",ic:"gear",go:()=>openSettings()});
   R.start={title:"Start here",items:st} }
@@ -311,6 +312,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(free){const n=d.help?d.help.free:null;ch.push({k:"chip",ic:"gift",t:"Free movies",s:n===0?"None yet: Settings > Tools":n?`${n} free ${n===1?"title":"titles"} to watch`:"Free public-domain movies",go:()=>{const i=chans.indexOf(free);if(i<0){toast("No free movies yet. Settings > Tools > Free movies.");return}tuneTo(i)}})}
  if(wxc)ch.push({k:"chip",ic:"weather",t:"Weather",s:"Forecast and alerts",go:()=>tuneTo(chans.indexOf(wxc))});
  ch.push({k:"chip",ic:"star",t:"Surprise me",s:"Play something you have not watched",go:async()=>{try{const j=await api("/api/smart?surprise=1");if(j.item){closeAll();startVod(j.item)}else toast("Nothing to pick yet.")}catch(e){toast("Could not pick one right now.")}}});
+ if(!REMOTE&&window.Roulette)ch.push({k:"chip",ic:"star",t:"Movie Roulette",s:"The movie-guessing game, from your own films",go:()=>window.Roulette.open()});
  ch.push({k:"chip",ic:"list",t:"Pick for me",s:"Swipe through films and shows you have not seen",go:()=>openPick()});
 for(const cl of d.cols||[])ch.push({k:"chip",ic:"list",t:cl.name,s:cl.next_title?`Next up: ${cl.next_n}. ${cl.next_title}`:`All ${cl.have} watched`,go:()=>openCollection(cl.id)});
  ch.push({k:"chip",ic:"star",t:"Your watching",s:"Hours watched, top shows, favourite genres",go:()=>openStats()});
@@ -698,6 +700,7 @@ async function remPoll(){try{const r=await api("/api/reminders");for(const d of 
 setInterval(remPoll,20000);setTimeout(remPoll,6000);
 /* ---- keys (keyboard / HDMI-CEC remote) ---- */
 addEventListener("keydown",e=>{const k=e.key;
+ if(layer==="roulette")return;                                    /* Movie Roulette has its own keys (roulette.js) */
  if(layer==="rename"||e.ctrlKey||e.metaKey||e.altKey)return;
  if(remOpen()&&(k==="Enter"||k==="Escape")&&!(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName))){e.preventDefault();e.stopPropagation();return k==="Enter"?remWatch():remClose()}
  if(sleeping){e.preventDefault();return wake()}
@@ -1474,6 +1477,12 @@ addEventListener("drop",async e=>{if(!hasFiles(e))return;e.preventDefault();drag
  upBusy=false;toast(done?`${done} video${done===1?"":"s"} added to your Inbox. HERO TV will file ${done===1?"it":"them"} in about a minute.${bad?` (${bad} failed)`:""}`:"Nothing could be added.")});
 /* the mouse pointer only shows while it is being used */
 let curT;addEventListener("mousemove",e=>{if(!COARSE&&e.clientX<=8&&(layer===""||layer==="home")&&!lmIsOpen())lmShow("mouse");mbarShow();if(vod&&layer==="")osd();document.body.classList.remove("hide-cursor");clearTimeout(curT);curT=setTimeout(()=>document.body.classList.add("hide-cursor"),3e3)});
+/* ---- Movie Roulette (roulette.js): the game takes the whole screen; the TV pauses underneath and carries on afterwards ---- */
+let rlWas=null;
+window.HEROTV={get name(){return theme.name},toast,remote:()=>REMOTE,
+ enter(){closeAll();rlWas={vod,paused:v.paused};layer="roulette";try{v.pause()}catch(e){}msg("");show("#osd",false);show("#upnext",false);document.body.classList.add("rl-on")},
+ leave(it){if(layer==="roulette")layer="";document.body.classList.remove("rl-on");const w=rlWas;rlWas=null;if(it)return startVod(it);
+  if(w&&w.vod&&vod===w.vod){if(!w.paused)v.play().catch(()=>{})}else tune(ci);openHome()}};
 (async()=>{try{const dv=await api("/api/device");REMOTE=!!dv.remote;MK=dv.mk||"";document.body.classList.toggle("remote",REMOTE)}catch(e){}
  try{await sync();setChans((await api("/api/channels")).channels)}catch(e){return msg("Can't reach HERO TV","Make sure the HERO TV window is still open, then press F5.")}
  try{const h=await api("/api/health");if(h.api!==NEED_API)toast(h.frozen?"This HERO TV program is older than its files. Settings > Backup and about > Check now, then Install now, puts the matching version in place (or run the latest HERO TV Setup).":"HERO TV is an older version than this page. Close it completely and start it again to get the newest features.")}catch(e){}

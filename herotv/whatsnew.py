@@ -2,6 +2,12 @@
 from . import __version__
 
 NOTES = {
+    "1.39.0": [
+        "New: Movie Roulette, a movie-guessing game from your own films. Home > Movie Roulette. A moment from a film appears; name it before the clock runs out.",
+        "Play alone, take turns, in teams, or as a party where the host says who got it. Type the answer or say it out loud.",
+        "Pick what it draws from: your channels, genres, decades, film series, directors, actors, or categories you make yourself.",
+        "The TV pauses while you play and carries on afterwards. A game you leave can be continued later.",
+    ],
     "1.38.81": [
         "Sorting: older Marvel films that TMDB credits to Marvel Studios (Ghost Rider 2007, Fantastic Four 2005...) no longer land on the MCU channel - only 2008 and later.",
     ],

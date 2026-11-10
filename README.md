@@ -88,3 +88,20 @@ skipped until the next scan.
 
 Fonts: Atkinson Hyperlegible (Braille Institute) and Barlow Condensed, both under the SIL Open Font License 1.1
 (licence texts in `web/fonts/`).
+
+## Movie Roulette (the guessing game)
+
+Home > **Movie Roulette**. A moment from one of your films appears; name the film before the clock runs out.
+
+- **Play now** starts straight away with your usual settings. **Quick game** asks who is playing. **Create game** has every choice.
+- **Four ways to play:** solo, taking turns, teams, or a party where everyone shouts and the host says who got it.
+- **Answering:** type the name and press Enter (small spelling mistakes are fine), or say it out loud and let the host mark it.
+- **Keys:** Space clock, H hint, R reveal, N next round, C / X correct / wrong, 1-9 who is answering, S skip, Esc pause menu.
+  All of them can be changed in Game settings. A game controller works too.
+- **Points:** 100 with no hints, then 75, 50, 25. Optional speed bonus and wrong-answer penalty.
+- **Categories:** your channels, genres, decades, film series, studios, directors and actors, plus categories you make yourself.
+
+It uses the same library, posters and details as the rest of HERO TV; nothing is scanned or stored twice. The code is in
+`herotv/roulette/` (engine), `web/roulette.js` and `web/roulette.css` (screens); tests are `tests/test_roulette.py` and
+`scripts/browser_roulette_test.py`. Its tables (`rl_games`, `rl_rounds`, `rl_guesses`, `rl_events`, `rl_categories`) live in
+HERO TV's own database and are created the first time the game is opened.
