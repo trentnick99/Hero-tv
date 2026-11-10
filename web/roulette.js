@@ -65,7 +65,7 @@ async landing(){let err="";try{await loadHome()}catch(e){err=String(e.message||e
  b.append(hero,foot([["↑ ↓ ← →","move"],["Enter","choose"],["Esc","back to "+(HT().name||"HERO TV")]]));back=[];focusFirst()},
 
 /* ---------------------------------------------------------------- quick game / create game */
-async setup(full){if(!S)await loadHome();const D=draft=draft||{full:!!full,mode:S.mode,rounds:S.rounds,difficulty:S.difficulty,timer:S.timer,hints:S.hints,scene:S.scene,show:S.show,answers:S.answers,
+async setup(full){if(!S)await loadHome();const D=draft=draft||{full:!!full,mode:S.mode,rounds:S.rounds,difficulty:S.difficulty,timer:S.timer,hints:S.hints,scene:S.scene,show:S.show,answers:S.answers,phones:S.phones,
   categories:S.categories.slice(),logic:S.logic,players:(S.players.length?S.players:[{name:"Player 1"}]).map(p=>({...p})),teams:(S.teams.length?S.teams:[{name:"Team 1"},{name:"Team 2"}]).map(t=>({...t}))};
  if(full!==undefined&&full!==null)D.full=!!full;
  const b=clear("form");b.append(head(D.full?"Create game":"Quick game",D.full?"Set it up the way you like. Everything here is remembered for next time.":"Who is playing, how many rounds, and go."));
@@ -91,10 +91,11 @@ async setup(full){if(!S)await loadHome();const D=draft=draft||{full:!!full,mode:
  cg.append(cn,btn("Choose categories",()=>{catCtx={keys:D.categories.slice(),logic:D.logic,done:(k,l)=>{D.categories=k;D.logic=l}};go("cats")},"opt"));
  if(D.categories.length)cg.append(btn("All films",()=>{D.categories=[];go("setup",null,true)},"opt"));cr.append(cg);f.append(cr);
  call("count?logic="+D.logic+"&keys="+encodeURIComponent(D.categories.join("|"))).then(j=>{cn.textContent=D.categories.length?`${j.count} of ${plural(j.total,"film")}`:`All ${plural(j.total,"film")}`;if(!j.count)startB.disabled=true}).catch(()=>{cn.textContent=""});
+ f.append(choice("Answers",[["both","Typed or said out loud"],["choice","Multiple choice"],["typed","Typed only"],["host","Said out loud, host decides"]],D.answers,v=>{D.answers=v},"Multiple choice shows four titles to pick from."));
+ if(D.mode!=="solo")f.append(choice("Phones",[[1,"Players can join on their phones"],[0,"TV only"]],D.phones?1:0,v=>{D.phones=!!+v},H.lan?"The TV shows a code. Phones on your WiFi open the address and type it.":"To use phones, first switch on Settings > Other devices in HERO TV, then come back."));
  if(D.full){
   f.append(choice("Time to guess",[["auto","From difficulty"],[15,"15 s"],[30,"30 s"],[45,"45 s"],[60,"60 s"],[0,"No limit"]],D.timer,v=>{D.timer=v==="auto"?v:+v}));
   f.append(choice("Hints",[[1,"On"],[0,"Off"]],D.hints?1:0,v=>{D.hints=!!+v}));
-  f.append(choice("Answers",[["both","Typed or said out loud"],["typed","Typed only"],["host","Said out loud, host decides"]],D.answers,v=>{D.answers=v}));
   f.append(choice("The moment",[["random","Chosen at random"],["choose","The guesser picks where"]],D.scene,v=>{D.scene=v}));
   f.append(choice("Show",[["still","A still picture"],["clip","A short clip, then the picture"]],D.show,v=>{D.show=v}))}
  b.append(f);const bar=el("div","rl-bar");const startB=btn("Start the game",()=>start(payload(D)),"big go");
@@ -138,7 +139,8 @@ async settings(){if(!S)await loadHome();const b=clear("form");b.append(head("Gam
  f.append(stepper("Clip length",S.clip_seconds,5,60,5,v=>set({clip_seconds:v}),v=>v+" s"));
  f.append(choice("Picture effect",[["auto","From difficulty"],["none","None"],["blur","Blurred, clears slowly"],["zoom","Close-up, pulls back"]],S.effect,v=>set({effect:v})));
  sec("Answers and hints");
- f.append(choice("Answers",[["both","Typed or said out loud"],["typed","Typed only"],["host","Said out loud, host decides"]],S.answers,v=>set({answers:v})));
+ f.append(choice("Answers",[["both","Typed or said out loud"],["choice","Multiple choice"],["typed","Typed only"],["host","Said out loud, host decides"]],S.answers,v=>set({answers:v})));
+ f.append(choice("Phones",[[1,"Players can join on their phones"],[0,"TV only"]],S.phones?1:0,v=>set({phones:!!+v}),H.lan?"":"Needs Settings > Other devices switched on in HERO TV."));
  f.append(choice("Small spelling mistakes",[[1,"Still count"],[0,"Must be exact"]],S.spelling?1:0,v=>set({spelling:!!+v})));
  f.append(choice("Hints",[[1,"On"],[0,"Off"]],S.hints?1:0,v=>set({hints:!!+v})));
  { const row=el("div","rl-row");row.append(el("label",0,"Kinds of hint"));const g=el("div","seg");const names={decade:"Decade",genre:"Genre",frame:"Another picture",actor:"An actor",words:"Words in the title",director:"Director",letter:"First letter",franchise:"Film series"};
@@ -179,8 +181,8 @@ async history(id){const b=clear("form");let d;
  const bar=el("div","rl-bar");bar.append(btn("Back",()=>goBack(),"big go"));b.append(bar,foot([["↑ ↓","move"],["Enter","open"],["Esc","back"]]));focusFirst(id?"":".rl-table button")},
 game(){drawGame(true)}};
 function diffNote(k){const d=H.difficulties[k];return `${d.timer} seconds, ${d.hints===1?"1 hint":d.hints+" hints"}`+({easy:" · clearer moments",normal:"",hard:" · any moment, plainer pictures",expert:" · a close-up that slowly pulls back"}[k]||"")}
-function payload(D){const p={mode:D.mode,rounds:D.rounds,difficulty:D.difficulty,categories:D.categories,logic:D.logic,players:D.players.filter(x=>x.name.trim()).map(x=>D.mode==="teams"?{name:x.name,team:x.team}:{name:x.name}),teams:D.teams.filter(x=>x.name.trim())};
- if(D.full)Object.assign(p,{timer:D.timer,hints:D.hints,answers:D.answers,scene:D.scene,show:D.show});return p}
+function payload(D){const p={mode:D.mode,rounds:D.rounds,difficulty:D.difficulty,answers:D.answers,phones:!!D.phones,lobby:true,categories:D.categories,logic:D.logic,players:D.players.filter(x=>x.name.trim()).map(x=>D.mode==="teams"?{name:x.name,team:x.team}:{name:x.name}),teams:D.teams.filter(x=>x.name.trim())};
+ if(D.full)Object.assign(p,{timer:D.timer,hints:D.hints,scene:D.scene,show:D.show});return p}
 function nameBox(title,val,done){const m=el("div","rl-modal");const c=el("div","card");const inp=el("input");inp.value=val||"";inp.maxLength=40;c.append(el("h3",0,title),inp);const bar=el("div","rl-bar");
  const ok=btn("Save",async()=>{const n=inp.value.trim();if(!n)return say("Type a name first.");m.remove();menu=null;await done(n)},"go");{const x=btn("Cancel",()=>{m.remove();menu=null;focusFirst()});x.dataset.esc=1;bar.append(ok,x)}c.append(bar);m.append(c);box.append(m);menu=m;
  setTimeout(()=>{inp.focus();inp.select()},0)}
@@ -188,16 +190,17 @@ function scoreList(board,winners){const s=el("div","rl-final");board.forEach(x=>
   r.append(el("i",0,(x.tied?"=":"")+x.rank),el("b",0,x.name),el("span",0,x.players&&x.players.length?x.players.join(", "):plural(x.correct,"film")),el("em",0,String(x.points)));s.append(r)});return s}
 
 /* ---------------------------------------------------------------- starting, resuming, leaving */
-async function start(body){if(busy)return;busy=true;spin("Shuffling your films...");try{const j=await call("new",body);G=j.game;sideSel=null;sig="";if(S.fullscreen&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});scr="game";drawGame(true)}
+async function start(body){if(busy)return;busy=true;spin("Shuffling your films...");try{const j=await call("new",body);G=j.game;sideSel=null;sig="";inLobby=!G.round;if(S.fullscreen&&!document.fullscreenElement&&document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{});scr="game";drawGame(true)}
  catch(e){say(String(e.message||e));go(scr==="setup"?"setup":"landing",null,true)}finally{busy=false}}
-async function resume(){try{const j=await call("game");if(!j.game)return go("landing",null,true);G=j.game;sig="";sideSel=null;scr="game";if(!G.round&&G.status==="active")return act("next");drawGame(true)}catch(e){say(String(e.message||e))}}
+async function resume(){try{const j=await call("game");if(!j.game)return go("landing",null,true);G=j.game;sig="";sideSel=null;scr="game";inLobby=!G.round&&!G.played&&!!G.join;if(!G.round&&G.status==="active"&&!inLobby)return act("next");drawGame(true)}catch(e){say(String(e.message||e))}}
 function spin(text){const b=clear("spin");const w=el("div","rl-spin");w.append(el("div","rl-wheel big"),el("h2",0,text));b.append(w);sfx.spin()}
 async function act(op,extra,quiet){if(busy||!G)return;busy=true;const slow=op==="next"||op==="time";let spinT=0;
  if(slow)spinT=setTimeout(()=>{if(op==="next")spin(G.played>=G.rounds?"Counting the points...":"Picking a film...")},op==="next"?0:400);
  try{const j=await call("act",Object.assign({game:G.id,op},extra||{}));const was=G;G=j.game;clearTimeout(spinT);
-  if(op==="guess"){const v=j.verdict;if(v==="correct")sfx.right();else if(v==="close"){sfx.hint();flash("Close! Be more exact.","warn")}else{sfx.wrong();flash("Not that one.","bad")}}
+  if(op==="guess"||op==="choose"){const v=j.verdict;if(v==="correct")sfx.right();else if(v==="close"){sfx.hint();flash("Close! Be more exact.","warn")}else{sfx.wrong();flash("Not that one.","bad")}}
   else if(op==="correct")sfx.right();else if(op==="wrong"){sfx.wrong();flash("Not that one.","bad")}else if(op==="hint")sfx.hint();else if(op==="reveal"||op==="skip")sfx.reveal();
   if(G.status!=="active"&&was.status==="active"&&G.winners)sfx.win();
+  seenGuesses=G.round?G.round.guesses.length:0;
   drawGame(slow||G.status!=="active");return j}
  catch(e){clearTimeout(spinT);if(!quiet)say(String(e.message||e));if(slow){try{G=(await call("game?id="+G.id)).game||G}catch(x){}drawGame(true)}}
  finally{busy=false;if(queued){const k=queued;queued="";setTimeout(()=>onKey({key:k,preventDefault(){},stopPropagation(){}}),0)}}}
@@ -220,14 +223,16 @@ function playClip(stage,r,after){stopClip();if(!r.clip)return after&&after();con
  v.src=r.clip.src;stage.classList.add("clip");stage.append(v)}
 function drawGame(force){if(!open||scr!=="game"||!G)return;
  if(G.status!=="active")return drawFinal();
- const r=G.round;if(!r){busy=false;return act("next")}
- const s=[r.token,r.status,r.hints.length,r.frames.length,r.win.side||0,G.sides.length].join("|");
+ const r=G.round;if(!r&&inLobby&&G.join)return drawLobby();
+ if(!r){busy=false;return act("next")}
+ const s=[r.token,r.status,r.hints.length,r.frames.length,r.win.side||0,G.sides.map(x=>x.name).join(","),(r.out||[]).join(",")].join("|");
  if(!force&&(s===sig||menu)){setClock(r);paintBoard();paintTimer();return}   /* nothing new to draw (and never pull a menu out from under you) */
  const fa=document.activeElement,keepK=fa&&fa.tagName==="BUTTON"&&box.contains(fa)&&fa.dataset.k||"";
  sig=s;menu=null;stopClip();const b=clear("game "+r.status+(r.effect!=="none"?" fx-"+r.effect:""));const shown=r.status==="revealed"||r.status==="skipped";
  /* top: title, round, category, clock */
  const top=el("div","g-top");const tl=el("div","g-id");tl.append(el("small",0,"MOVIE ROULETTE"),el("b",0,`Round ${r.number} of ${G.rounds}`));
  const nc=G.config.categories.length,mid=el("div","g-cat",!nc?"All films":nc===1?"1 category":nc+" categories");
+ if(G.join&&G.join.on){const jc=el("i","code","Join: "+G.join.code);mid.append(jc)}
  mid.append(el("i",0,G.difficulty.name));
  const tm=el("div","g-timer");tm.append(el("b"),el("span"));top.append(tl,mid,tm);b.append(top);
  /* centre: the picture */
@@ -256,8 +261,10 @@ function drawGame(force){if(!open||scr!=="game"||!G)return;
   else line.append(el("b",0,ws.name+", what film is this?"));
   line.append(el("span",0,r.would_score?`Worth ${r.would_score} points`:""));ctl.append(line);
   const row=el("div","g-row");
-  if(typed){const inp=el("input","g-in");inp.placeholder="Type the film's name";inp.autocomplete="off";inp.spellcheck=false;inp.maxLength=120;inp.value=draftGuess;inp.oninput=()=>{draftGuess=inp.value};row.append(inp,btn("Guess",()=>sendGuess(),"go"))}
-  if(host&&G.sides.length>1){row.append(kb("correct",btn("Correct",()=>mark(true),"ok",K.correct)),kb("wrong",btn("Wrong",()=>mark(false),"no",K.wrong)))}
+  if(r.choices){row.className="g-row g-choices";const outMe=who&&(r.out||[]).includes(who);
+   r.choices.forEach((t,i)=>{const cb=btn(t,()=>pickChoice(i),"pick",["a","b","c","d"][i]);cb.disabled=!!outMe;row.append(cb)})}
+  else if(typed){const inp=el("input","g-in");inp.placeholder="Type the film's name";inp.autocomplete="off";inp.spellcheck=false;inp.maxLength=120;inp.value=draftGuess;inp.oninput=()=>{draftGuess=inp.value};row.append(inp,btn("Guess",()=>sendGuess(),"go"))}
+  if(host&&G.sides.length>1&&!r.choices){row.append(kb("correct",btn("Correct",()=>mark(true),"ok",K.correct)),kb("wrong",btn("Wrong",()=>mark(false),"no",K.wrong)))}
   ctl.append(row);const row2=el("div","g-row small");
   if(r.timer.limit&&r.status==="guess"){const cb=btn(r.timer.running?"Pause":"Start clock",()=>act("timer",{do:clock.running?"pause":"resume"}),"",K.timer);cb.dataset.act="clock";row2.append(kb("timer",cb))}
   if(G.difficulty.hints>0){const hb=btn(r.hints_left?`Hint (${r.hints_left} left)`:"No hints left",()=>act("hint"),"",K.hint);hb.disabled=!r.hints_left;row2.append(kb("hint",hb))}
@@ -276,16 +283,16 @@ function drawGame(force){if(!open||scr!=="game"||!G)return;
  bot.append(ctl);b.append(bot,foot(gameHints(r)));setClock(r);paintBoard();paintTimer();
  const live=r.status==="guess"||r.status==="timeup",kept=live&&keepK&&$(`.g-ctl [data-k="${keepK}"]:not(:disabled)`,box)||live&&keepK&&$(".g-ctl .small button:not(:disabled)",box);
  if(kept)kept.focus({preventScroll:true});   /* you had moved to the buttons: stay there, so the letter keys keep working */
- else focusFirst(live&&typed&&(G.sides.length===1||answering())?".g-in":r.status==="pick"?".g-pick .go":".g-ctl .go, .g-ctl .ok, .g-ctl button");
+ else focusFirst(live&&r.choices?".g-choices button:not(:disabled), .g-ctl .small button":live&&typed&&(G.sides.length===1||answering())?".g-in":r.status==="pick"?".g-pick .go":".g-ctl .go, .g-ctl .ok, .g-ctl button");
  if(shown&&force)box.classList.add("justshown")}
 let queued="",draftGuess="",frameSel=0;const clipSeen=new Set(),kb=(k,b)=>{b.dataset.k=k;return b};
 const shownFrame=r=>Math.min(frameSel,r.frames.length-1);
 function gameHints(r){const K=S.keys,k=a=>keyName(K[a]);if(r.status==="pick")return[["← →","move"],["Enter","choose"],["Esc","pause"]];
- if(r.status==="guess"||r.status==="timeup"){const h=[];if(G.config.answers!=="host")h.push(["Enter","send your answer"],["Tab","buttons"]);if(G.sides.length>1)h.push(["1 - "+Math.min(9,G.sides.length),"who is answering"]);h.push([k("hint"),"hint"],[k("reveal"),"reveal"],["Esc","pause"]);return h}
+ if(r.status==="guess"||r.status==="timeup"){const h=[];if(r.choices)h.push(["A - D","pick a title"]);else if(G.config.answers!=="host")h.push(["Enter","send your answer"],["Tab","buttons"]);if(G.sides.length>1)h.push(["1 - "+Math.min(9,G.sides.length),"who is answering"]);h.push([k("hint"),"hint"],[k("reveal"),"reveal"],["Esc","pause"]);return h}
  const h=[[k("next"),"next round"]];if(G.sides.length>1&&r.status==="revealed")h.push(["1 - "+Math.min(9,G.sides.length),"who got it"]);h.push(["Esc","pause"]);return h}
 function paintBoard(){const bd=$(".g-board",box);if(!bd)return;bd.textContent="";const r=G.round,cur=r&&(r.status==="guess"||r.status==="timeup"||r.status==="pick")?answering():null;
  const order=G.sides.map(s=>G.board.find(x=>x.id===s.id));
- order.forEach((x,i)=>{const c=btn("",()=>{if(!G.round)return;if(G.round.status==="revealed"&&!G.round.win.side)return act("correct",{side:x.id});sideSel=x.id;sig="";drawGame(true)},"side"+(cur===x.id?" cur":"")+(r&&r.win.side===x.id?" got":"")+(x.rank===1&&x.points>0?" lead":""));
+ order.forEach((x,i)=>{const c=btn("",()=>{if(!G.round)return;if(G.round.status==="revealed"&&!G.round.win.side)return act("correct",{side:x.id});sideSel=x.id;sig="";drawGame(true)},"side"+(cur===x.id?" cur":"")+(r&&(r.out||[]).includes(x.id)&&r.status!=="revealed"?" out":"")+(r&&r.win.side===x.id?" got":"")+(x.rank===1&&x.points>0?" lead":""));
   c.textContent="";c.style.setProperty("--c",x.color);c.append(el("i",0,String(i+1)),el("b",0,x.name),el("em",0,String(x.points)));if(x.players&&x.players.length)c.title=x.players.join(", ");c.tabIndex=-1;bd.append(c)})}
 function paintTimer(){const tm=$(".g-timer",box);if(!tm||!G||!G.round)return;const r=G.round,left=clockLeft(),b=tm.firstChild,sp=tm.lastChild;
  if(r.status==="revealed"||r.status==="skipped"||r.status==="pick"||left==null){tm.className="g-timer off";const open2=left==null&&(r.status==="guess"||r.status==="timeup");b.textContent=open2?"∞":"";sp.textContent=open2?"no time limit":"";fx(open2?Math.min(1,(performance.now()-fxAt)/3e4):1);return}
@@ -310,6 +317,7 @@ function answerCard(r){const a=r.answer,c=el("div","g-answer");const p=el("div",
  t.append(el("div","at","This moment is "+hms(a.at)+" into the film."));c.append(p,t);return c}
 function sendGuess(){const inp=$(".g-in",box);const text=(inp?inp.value:draftGuess).trim();if(!text)return say("Type the film's name first.");
  const who=answering();if(!who)return say("Press a player's number first, so the points go to the right person.");draftGuess="";if(inp)inp.value="";return act("guess",{text,side:who})}
+function pickChoice(i){const who=answering();if(!who)return say("Press a player's number first, so the points go to the right person.");if((G.round.out||[]).includes(who))return say(sideOf(who).name+" is out until the next film.");return act("choose",{choice:i,side:who})}
 function mark(ok){const who=answering();if(!who)return say("Press a player's number first.");return act(ok?"correct":"wrong",{side:who})}
 function drawFinal(){stopClip();sig="";const b=clear("final");const w=G.winners||[],tie=w.length>1;
  const hero=el("div","rl-hero");hero.append(el("small",0,w.length?(tie?"IT'S A TIE":"THE WINNER IS"):"GAME OVER"));
@@ -317,9 +325,30 @@ function drawFinal(){stopClip();sig="";const b=clear("final");const w=G.winners|
  if(w.length)hero.append(el("p",0,`${w[0].points} points · ${plural(w[0].correct,"film")} named`+(G.sides.length===1?` out of ${G.played}`:"")));
  if(G.note)hero.append(el("p","rl-note",G.note));
  hero.append(scoreList(G.board,true));const bar=el("div","rl-bar");
- bar.append(btn("Play again",()=>{const c=Object.assign({},G.config);delete c.note;return start(c)},"big go"),btn("New game",()=>{draft=null;back=[];go("setup",true)},"big"),btn("See the rounds",()=>{back=["landing"];scr="";go("history",G.id)}),btn("Back to "+(HT().name||"HERO TV"),()=>close()));
+ bar.append(btn("Play again",()=>{const c=Object.assign({},G.config);delete c.note;delete c.code;c.lobby=true;return start(c)},"big go"),btn("New game",()=>{draft=null;back=[];go("setup",true)},"big"),btn("See the rounds",()=>{back=["landing"];scr="";go("history",G.id)}),btn("Back to "+(HT().name||"HERO TV"),()=>close()));
  hero.append(bar);b.append(hero);if(w.length&&S.animations)confetti(b);focusFirst()}
 function confetti(b){const c=el("div","rl-confetti");const cols=["#ffcf1f","#ff5d73","#4cc9f0","#7bd389","#c77dff","#ff9f1c"];for(let i=0;i<70;i++){const p=el("i");p.style.cssText=`left:${Math.random()*100}%;background:${cols[i%cols.length]};animation-delay:${(Math.random()*2.5).toFixed(2)}s;animation-duration:${(3+Math.random()*3).toFixed(2)}s;transform:rotate(${Math.random()*360}deg)`;c.append(p)}b.append(c)}
+
+/* ---------------------------------------------------------------- phones: the lobby, the join card, and keeping up with them */
+let inLobby=false,pollT=0,seenGuesses=0;
+function joinCard(j){const w=el("div","rl-join");
+ if(!j.on||!j.url){w.append(el("p",0,"Phones cannot join yet. In HERO TV, open Settings > Other devices and switch it on, then start a new game."));return w}
+ const q=el("div","qr");q.innerHTML=j.qr||"";const t=el("div","how");
+ t.append(el("small",0,"ON YOUR PHONE"),el("p",0,"Point the camera at the square. Or open"),el("b","url",j.url.replace(/^http:\/\//,"")),el("p",0,"and type this code:"),el("b","code",j.code),el("small",0,"The phone must be on the same WiFi as this PC."));
+ w.append(q,t);return w}
+function drawLobby(){sig="lobby";stopClip();const b=clear("form lobby");b.append(head("Who is playing?","Players can join on their phones now, or later from the pause menu. Players without a phone can still shout their answers."));
+ const wrap=el("div","rl-lobby");wrap.append(joinCard(G.join));const list=el("div","who");list.append(el("h3",0,"Players"));
+ const phones=new Set(G.join.players.map(p=>p.side));for(const s of G.sides){const r=el("div","sc");r.style.setProperty("--c",s.color);r.append(el("b",0,s.name),el("span",0,(s.players&&s.players.length?s.players.join(", ")+" · ":"")+(phones.has(s.id)?"phone joined":"on the TV")));list.append(r)}
+ wrap.append(list);b.append(wrap);const bar=el("div","rl-bar");bar.append(btn("Start the game",()=>{inLobby=false;return act("next")},"big go"),btn("Leave",()=>close()));b.append(bar,foot([["Enter","start"],["Esc","leave (the game is kept)"]]));focusFirst()}
+function joinBox(){const m=el("div","rl-modal"),c=el("div","card wide");c.append(el("h3",0,"Add a phone"),joinCard(G.join));const bar=el("div","rl-bar");const ok=btn("Done",()=>{m.remove();menu=null;sig="";drawGame(true)},"go");ok.dataset.esc=1;bar.append(ok);c.append(bar);m.append(c);box.append(m);menu=m;ok.focus()}
+async function pollGame(){if(!open||scr!=="game"||!G||G.status!=="active"||!G.join||busy)return;let j;try{j=await call("game?id="+G.id)}catch(e){return}
+ if(busy||!j.game||!open||scr!=="game")return;const was=G;G=j.game;const r=G.round,n=r?r.guesses.length:0,same=r&&was.round&&was.round.token===r.token;
+ if(same&&n>seenGuesses){const g=r.guesses[n-1],s=sideOf(g.side);if(g.verdict==="wrong"){sfx.wrong();flash((s?s.name+": ":"")+"not that one","bad")}else if(g.verdict==="close")flash((s?s.name+": ":"")+"close!","warn")}
+ if(same&&r.win.side&&!was.round.win.side)sfx.right();
+ if(same&&r.status==="revealed"&&was.round.status!=="revealed"&&!r.win.side)sfx.reveal();
+ seenGuesses=n;if(G.status!=="active"&&G.winners)sfx.win();
+ if(inLobby&&!G.round){if(JSON.stringify(G.sides)+G.join.players.length!==JSON.stringify(was.sides)+(was.join?was.join.players.length:0))drawLobby();return}
+ drawGame(false)}
 
 /* ---------------------------------------------------------------- pause menu and small dialogs */
 let wasRunning=false;
@@ -328,7 +357,7 @@ function pauseMenu(){if(menu)return;const r0=G.round;wasRunning=clock.running||!
  const done=()=>{m.remove();menu=null};
  const co=btn("Carry on",async()=>{done();sig="";drawGame(true);if(wasRunning&&G.round&&G.round.status==="guess")await act("timer",{do:"resume"})},"go");co.dataset.esc=1;
  col.append(co,
-  btn("Change the scores",()=>{done();scoreMenu()}),btn("How to play",()=>{done();back=["__game"];go("how",null,true)}),
+  btn("Change the scores",()=>{done();scoreMenu()}),...(G.join?[btn("Add a phone",()=>{done();joinBox()})]:[]),btn("How to play",()=>{done();back=["__game"];go("how",null,true)}),
   btn("End the game now",()=>{done();confirmBox("End the game now?","The scores so far decide the winner.","End the game",()=>act("finish"))}),
   btn("Leave and come back later",()=>{done();close()}));c.append(col);m.append(c);box.append(m);menu=m;$("button",col).focus()}
 function scoreMenu(){const m=el("div","rl-modal"),c=el("div","card wide");c.append(el("h3",0,"Change the scores"),el("p",0,"For a mistake, or a bonus you want to give."));const col=el("div","col");
@@ -357,7 +386,7 @@ function onKey(e){if(!open)return;if(e.ctrlKey||e.metaKey||e.altKey)return;const
  if(k==="Escape"||(k==="Backspace"&&!inField)){e.preventDefault();
   if(menu){const c=$("[data-esc]",menu);if(c)c.click();return}
   if(inField&&k==="Escape"&&scr==="game"){a.blur();return pauseMenu()}
-  if(scr==="game")return G&&G.status==="active"?pauseMenu():close();
+  if(scr==="game")return G&&G.status==="active"&&!(inLobby&&!G.round)?pauseMenu():close();
   if(scr==="landing")return close();
   if(scr==="setup")draft=null;return goBack()}
  if(busy){if(k!=="Tab"){e.preventDefault();if(!inField&&scr==="game")queued=k}return}   /* a key pressed while HERO TV is answering is done right after */
@@ -368,6 +397,7 @@ function onKey(e){if(!open)return;if(e.ctrlKey||e.metaKey||e.altKey)return;const
  if(inField)return;                                             /* typing an answer: letters are letters */
  const r=G.round,K=S.keys,key=k.length===1?k.toLowerCase():k,live=r.status==="guess"||r.status==="timeup";
  if(/^[1-9]$/.test(k)&&G.sides.length>1){const s=G.sides[+k-1];if(!s)return;e.preventDefault();if(r.status==="revealed"&&!r.win.side)return act("correct",{side:s.id});if(live){sideSel=s.id;sig="";drawGame(true)}return}
+ if(live&&r.choices&&"abcd".includes(key)&&key.length===1){const i="abcd".indexOf(key);if(i<r.choices.length){e.preventDefault();return pickChoice(i)}}
  const hit=Object.keys(K).find(a2=>K[a2]===key);if(!hit)return;e.preventDefault();
  if(hit==="timer"&&r.status==="guess"&&r.timer.limit)return act("timer",{do:clock.running?"pause":"resume"});
  if(hit==="hint"&&live&&r.hints_left)return act("hint");
@@ -385,7 +415,7 @@ function pad(){if(!open)return;padT=requestAnimationFrame(pad);const gp=(navigat
  for(const k in now){if(now[k]&&!padPrev[k]){const a=document.activeElement;if(a&&a.tagName==="INPUT"&&a.type!=="range"&&["x","y","start","rb"].includes(k))a.blur();fire(map[k])}}padPrev=now}
 
 /* ---------------------------------------------------------------- open */
-async function openGame(){const h=HT();if(h.remote&&h.remote())return say("Movie Roulette is played on the TV itself.");ensure();if(open)return;open=true;if(h.enter)h.enter();back=[];clearInterval(tickT);tickT=setInterval(()=>{if(open&&scr==="game"&&!menu)paintTimer()},100);padT=requestAnimationFrame(pad);
+async function openGame(){const h=HT();if(h.remote&&h.remote())return say("Movie Roulette is played on the TV itself.");ensure();if(open)return;open=true;if(h.enter)h.enter();back=[];clearInterval(tickT);tickT=setInterval(()=>{if(open&&scr==="game"&&!menu)paintTimer()},100);clearInterval(pollT);pollT=setInterval(pollGame,1000);padT=requestAnimationFrame(pad);
  clear("landing");await SCREENS.landing();scr="landing"}
 window.Roulette={open:openGame,close,isOpen:()=>open};
 })();

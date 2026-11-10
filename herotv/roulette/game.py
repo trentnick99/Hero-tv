@@ -21,7 +21,8 @@ from .store import Bad
 OPEN = ("pick", "guess", "timeup", "revealed")
 CONFIG_KEYS = ("mode", "rounds", "difficulty", "timer", "hints", "hint_kinds", "points", "speed_bonus", "speed_max", "wrong_penalty",
                "answers", "spelling", "scene", "show", "clip_seconds", "effect", "after_time", "repeat", "categories", "logic",
-               "skip_open", "skip_end")
+               "skip_open", "skip_end", "phones")
+CODE_LETTERS = "ABCDEFGHJKMNPQRSTUVWXYZ"          # no I, L or O: easy to read off the TV and type on a phone
 SIDE_COLORS = ["#ffcf1f", "#4cc9f0", "#ff5d73", "#7bd389", "#c77dff", "#ff9f1c", "#2ec4b6", "#f15bb5", "#9be564", "#5e8bff", "#e9c46a", "#ef476f"]
 
 
@@ -77,9 +78,14 @@ def create(conn, cfg_app, body, now=None):
     if cfg["repeat"] != "none" and len(fit) < cfg["rounds"]:
         cfg["rounds"] = len(fit)
         note = f"Only {len(fit)} film{'s' if len(fit) != 1 else ''} fit, so this game has {len(fit)} round{'s' if len(fit) != 1 else ''}."
+    if cfg["answers"] == "choice" and len(films) < 2:
+        raise Bad("Multiple choice needs at least two films in your library.")
+    cfg["phones"] = bool(cfg["phones"]) and cfg["mode"] != "solo"
+    code = "".join(secrets.choice(CODE_LETTERS) for _ in range(4)) if cfg["phones"] else ""
     conn.execute("UPDATE rl_games SET status='abandoned', updated=? WHERE status='active'", (now,))
+    conn.execute("DELETE FROM rl_players")
     gid = conn.execute("INSERT INTO rl_games(status,config,sides,created,updated) VALUES('active',?,?,?,?)",
-                       (json.dumps(dict(cfg, note=note)), json.dumps(sides), now, now)).lastrowid
+                       (json.dumps(dict(cfg, note=note, code=code)), json.dumps(sides), now, now)).lastrowid
     remember = {"players": [{"name": n, "team": s["id"]} for s in sides for n in s["players"]] if cfg["mode"] == "teams"
                 else [{"name": s["name"]} for s in sides]}
     if cfg["mode"] == "teams":
@@ -171,6 +177,11 @@ def next_round(conn, cfg_app, g, now=None, rng=None, measure_fn=None, grab_fn=No
             continue
         win = frames.window(f["runtime"], cfg, preset, _credits(conn, f["id"]))
         extra = {"win": list(win), "runtime": f["runtime"], "path_id": f["id"], "playable": f["playable"]}
+        if cfg["answers"] == "choice":
+            fit = pool.members(films, cfg["categories"], cfg["logic"], pool.custom(conn))
+            opts = pool.decoys(films, m, fit, preset["choose"], rng) + [m["title"]]
+            (rng or secrets.SystemRandom()).shuffle(opts)
+            extra["choices"] = opts
         if cfg["scene"] == "choose":
             rid = _put(conn, base, 0, "pick", turn, preset["timer"], extra, now)
             conn.commit()
@@ -316,19 +327,67 @@ def _others(conn):
     return [m["title"] for m in pool.movies(conn).values()]
 
 
-def guess(conn, g, text, side=None, now=None):
+def _answering(g, r, side, strict):
+    """Who this answer belongs to. On the TV, a turn game's answers are the turn side's; a phone (strict) may only
+    answer on its own turn."""
+    cfg, sides = _cfg(g), _j(g["sides"], [])
+    if cfg["mode"] in ("turns", "teams"):
+        turn = sides[r["turn"] % len(sides)]
+        if strict and str(side) != str(turn["id"]):
+            raise Bad(f"It is {turn['name']}'s turn.")
+        side = turn["id"]
+    elif cfg["mode"] == "solo":
+        side = sides[0]["id"]
+    return _side(g, side)
+
+
+def out_sides(conn, g, r):
+    """Multiple choice: the sides that picked wrong this round. They are out until the next one."""
+    if _cfg(g)["answers"] != "choice":
+        return []
+    return sorted({q["side"] for q in conn.execute("SELECT side FROM rl_guesses WHERE round_id=? AND verdict='wrong'", (r["id"],))})
+
+
+def choose(conn, g, index, side=None, now=None, strict=False):
+    """Multiple choice: a side picks one of the titles. Right gives the round; wrong puts that side out of this round,
+    and when nobody is left the answer is shown."""
+    now = now or time.time()
+    r = _need_round(conn, g, ("guess", "timeup"))
+    if _cfg(g)["answers"] != "choice":
+        raise Bad("This is not a multiple-choice game.")
+    opts = _j(r["extra"], {}).get("choices") or []
+    try:
+        pick = opts[int(index)]
+    except (TypeError, ValueError, IndexError):
+        raise Bad("Choose one of the titles on the screen.") from None
+    side = _answering(g, r, side, strict)
+    if side in out_sides(conn, g, r):
+        raise Bad("You are out of this round. Wait for the next film.")
+    ok = pick == r["title"]
+    conn.execute("INSERT INTO rl_guesses(round_id,side,text,verdict,at) VALUES(?,?,?,?,?)", (r["id"], side, pick, "correct" if ok else "wrong", int(now)))
+    conn.commit()
+    if ok:
+        award(conn, g, side, now)
+        return "correct"
+    _penalty(conn, g, r, side, now)
+    sides = _j(g["sides"], [])
+    turn_game = _cfg(g)["mode"] in ("turns", "teams")
+    if r["status"] == "timeup" or (len(out_sides(conn, g, r)) >= len(sides)) or turn_game:        # in a turn game a wrong pick ends the turn
+        _reveal(conn, r, now)
+    conn.commit()
+    return "wrong"
+
+
+def guess(conn, g, text, side=None, now=None, strict=False):
     """A typed answer. Returns 'correct', 'close' or 'wrong'."""
     now = now or time.time()
     r = _need_round(conn, g, ("guess", "timeup"))
     cfg = _cfg(g)
     if cfg["answers"] == "host":
         raise Bad("This game is set to answers said out loud. The host marks them.")
-    sides = _j(g["sides"], [])
-    if cfg["mode"] in ("turns", "teams"):
-        side = sides[r["turn"] % len(sides)]["id"]
-    elif cfg["mode"] == "solo":
-        side = sides[0]["id"]
-    side = _side(g, side)
+    if cfg["answers"] == "choice":
+        raise Bad("This is a multiple-choice game. Pick one of the titles.")
+    side = _answering(g, r, side, strict)
     text = " ".join(str(text or "").split())[:120]
     if not text:
         raise Bad("Type the film's name first.")
@@ -553,6 +612,9 @@ def view(conn, cfg_app, g, now=None):
               "guesses": [{"side": q["side"], "text": q["text"], "verdict": q["verdict"]}
                           for q in conn.execute("SELECT side,text,verdict FROM rl_guesses WHERE round_id=? ORDER BY id", (r["id"],))],
               "win": _j(r["win"], {}), "would_score": _points(cfg, r, rem or 0)[0] if r["status"] in ("guess", "timeup") else 0}
+        if r["status"] in ("guess", "timeup") and x.get("choices"):
+            rv["choices"] = x["choices"]
+        rv["out"] = out_sides(conn, g, r)
         if r["status"] == "pick":
             rv["pick"] = {"min": (x.get("win") or [0, 0])[0], "max": (x.get("win") or [0, 0])[1], "runtime": x.get("runtime", 0)}
         if cfg["show"] == "clip" and x.get("playable") and r["status"] != "pick":

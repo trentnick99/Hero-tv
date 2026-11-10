@@ -443,3 +443,137 @@ def test_phones_cannot_reach_the_game():
     from herotv import remote
     assert not any(n.startswith("roulette") for n in remote.REMOTE_GET_API | remote.REMOTE_POST_API)
     assert not any(n.startswith("roulette") for n in remote.REMOTE_GET_API_PREFIX)
+
+
+# ---------------------------------------------------------------- multiple choice
+
+def test_multiple_choice(fake_ffmpeg):
+    c, cfg = _setup()
+    gid = _play(c, cfg, mode="party", rounds=3, answers="choice", players=["Ann", "Bo"])
+    g = game.get(c, gid)
+    v = game.view(c, cfg, g)
+    title = c.execute("SELECT title FROM rl_rounds WHERE game_id=?", (gid,)).fetchone()[0]
+    opts = v["round"]["choices"]
+    assert len(opts) == 4 and len(set(opts)) == 4 and title in opts          # the film and three others, no title twice
+    with pytest.raises(Bad):
+        game.guess(c, g, title, 1)                                           # no typing in a multiple-choice game
+    wrong = next(i for i, t in enumerate(opts) if t != title)
+    assert game.choose(c, g, wrong, 1) == "wrong"
+    v = game.view(c, cfg, game.get(c, gid))
+    assert v["round"]["out"] == [1] and v["round"]["status"] == "guess"      # Ann is out, Bo can still pick
+    with pytest.raises(Bad, match="out of this round"):
+        game.choose(c, g, opts.index(title), 1)
+    assert game.choose(c, g, opts.index(title), 2) == "correct"
+    v = game.view(c, cfg, game.get(c, gid))
+    assert v["round"]["win"]["side"] == 2 and "choices" not in v["round"]
+    _next(c, cfg, gid)
+    g = game.get(c, gid)
+    opts = game.view(c, cfg, g)["round"]["choices"]
+    title = c.execute("SELECT title FROM rl_rounds WHERE game_id=? ORDER BY id DESC", (gid,)).fetchone()[0]
+    wrong = next(i for i, t in enumerate(opts) if t != title)
+    game.choose(c, g, wrong, 1)
+    game.choose(c, g, wrong, 2)
+    assert game.view(c, cfg, game.get(c, gid))["round"]["status"] == "revealed"   # everyone is out: the answer shows
+    with pytest.raises(Bad):
+        game.choose(c, game.get(c, gid), 9, 1)
+
+    gid = _play(c, cfg, mode="turns", rounds=2, answers="choice", players=["Ann", "Bo"])
+    g = game.get(c, gid)
+    opts = game.view(c, cfg, g)["round"]["choices"]
+    title = c.execute("SELECT title FROM rl_rounds WHERE game_id=?", (gid,)).fetchone()[0]
+    game.choose(c, g, next(i for i, t in enumerate(opts) if t != title))
+    assert game.view(c, cfg, game.get(c, gid))["round"]["status"] == "revealed"   # a wrong pick ends the turn
+
+
+def test_decoys_follow_the_difficulty():
+    c, cfg = _setup()
+    films = pool.movies(c)
+    im = next(m for m in films.values() if m["title"] == "Iron Man")
+    hard = pool.decoys(films, im, set(films), "plain", random.Random(1))
+    assert hard[0] == "Iron Man 2" and "Iron Man" not in hard               # the most alike first; never the answer itself
+    assert len(pool.decoys(films, im, {im["key"]}, "any", random.Random(1))) == 3     # a small category borrows from the library
+    one = {im["key"]: im}
+    assert pool.decoys(one, im, set(one)) == []
+
+
+# ---------------------------------------------------------------- phones
+
+def test_phones_join_with_the_code_and_play(fake_ffmpeg, monkeypatch):
+    from herotv.roulette import phone
+    c, cfg = _setup()
+    monkeypatch.setattr(frames, "grab", _grab)
+    monkeypatch.setattr(frames, "measure", lambda p, t, run=None: (120.0, 40.0))
+    gid = game.create(c, cfg, {"mode": "party", "rounds": 2, "players": []})
+    code = game._cfg(game.get(c, gid))["code"]
+    assert len(code) == 4 and code.isalpha()
+    with pytest.raises(Bad, match="does not match"):
+        phone.join(c, {"code": "ZZZZ" if code != "ZZZZ" else "YYYY", "name": "Ann"}, "10.0.0.5")
+    with pytest.raises(Bad, match="name"):
+        phone.join(c, {"code": code, "name": "  "}, "10.0.0.5")
+    a = phone.join(c, {"code": code.lower(), "name": "Ann"}, "10.0.0.5")       # takes the first unnamed seat
+    b = phone.join(c, {"code": code, "name": "Bo"}, "10.0.0.6")
+    d = phone.join(c, {"code": code, "name": "Cy"}, "10.0.0.7")                # a third player is added
+    assert [s["name"] for s in game._j(game.get(c, gid)["sides"], [])] == ["Ann", "Bo", "Cy"]
+    with pytest.raises(Bad, match="already playing"):
+        phone.join(c, {"code": code, "name": "ann"}, "10.0.0.8")
+    st = phone.state(c, cfg, a["token"])
+    assert st["round"] is None and st["name"] == "Ann" and st["status"] == "active"       # waiting in the lobby
+    game.next_round(c, cfg, game.get(c, gid))
+    title = c.execute("SELECT title FROM rl_rounds WHERE game_id=?", (gid,)).fetchone()[0]
+    st = phone.state(c, cfg, b["token"])
+    assert st["round"]["can"] and title not in json.dumps(st) and "media" not in json.dumps(st)
+    name = st["round"]["frames"][0].rsplit("/", 1)[1]
+    assert phone.frame_path(c, cfg, name, b["token"]) and not phone.frame_path(c, cfg, name, "nope")
+    assert not phone.frame_path(c, cfg, "other-0.jpg", b["token"])
+    assert phone.answer(c, cfg, {"token": b["token"], "text": "wrong film"})["verdict"] == "wrong"
+    out = phone.answer(c, cfg, {"token": d["token"], "text": title})
+    assert out["verdict"] == "correct" and out["state"]["round"]["answer"]["title"] == title
+    assert phone.state(c, cfg, a["token"])["round"]["won_by"] == "Cy"
+    v, _ = api.handle(c, cfg, "game", {}, "GET")
+    assert v["game"]["join"]["code"] == code and len(v["game"]["join"]["players"]) == 3
+    with pytest.raises(Bad):
+        phone.state(c, cfg, "made-up-key")
+    game.create(c, cfg, {"mode": "party"})                                      # a new game: old phone keys stop working
+    with pytest.raises(Bad, match="over"):
+        phone.state(c, cfg, a["token"])
+
+
+def test_phones_turns_teams_and_limits(fake_ffmpeg, monkeypatch):
+    from herotv.roulette import phone
+    c, cfg = _setup()
+    monkeypatch.setattr(frames, "grab", _grab)
+    monkeypatch.setattr(frames, "measure", lambda p, t, run=None: (120.0, 40.0))
+    gid = game.create(c, cfg, {"mode": "turns", "rounds": 2, "answers": "choice", "players": ["Ann", "Bo"]})
+    code = game._cfg(game.get(c, gid))["code"]
+    a = phone.join(c, {"code": code, "name": "Ann"})
+    b = phone.join(c, {"code": code, "name": "Bo"})
+    game.next_round(c, cfg, game.get(c, gid))
+    sb = phone.state(c, cfg, b["token"])
+    assert not sb["round"]["can"] and sb["round"]["turn"] == "Ann" and len(sb["round"]["choices"]) == 4
+    with pytest.raises(Bad, match="Ann's turn"):
+        phone.answer(c, cfg, {"token": b["token"], "choice": 0})
+    title = c.execute("SELECT title FROM rl_rounds WHERE game_id=?", (gid,)).fetchone()[0]
+    opts = phone.state(c, cfg, a["token"])["round"]["choices"]
+    assert phone.answer(c, cfg, {"token": a["token"], "choice": opts.index(title)})["verdict"] == "correct"
+
+    gid = game.create(c, cfg, {"mode": "teams", "teams": ["Reds", "Blues"], "players": []})
+    code = game._cfg(game.get(c, gid))["code"]
+    ask = phone.join(c, {"code": code, "name": "Dee"})
+    assert [t["name"] for t in ask["teams"]] == ["Reds", "Blues"]              # a team game asks which team
+    j = phone.join(c, {"code": code, "name": "Dee", "team": 2})
+    assert j["side"] == 2 and game._j(game.get(c, gid)["sides"], [])[1]["players"] == ["Dee"]
+
+    gid = game.create(c, cfg, {"mode": "solo"})
+    assert not game._cfg(game.get(c, gid))["code"] and api._join(c, cfg, game.get(c, gid)) is None     # one player: no phones
+    gid = game.create(c, cfg, {"mode": "party", "phones": False})
+    assert phone.find(c, "ABCD") is None
+    for _ in range(10):
+        with pytest.raises(Bad):
+            phone.join(c, {"code": "QQQQ", "name": "x"}, "10.9.9.9")
+    with pytest.raises(Bad, match="Too many"):
+        phone.join(c, {"code": "QQQQ", "name": "x"}, "10.9.9.9")
+
+
+def test_a_paired_tv_device_still_cannot_reach_the_host_controls():
+    from herotv import remote
+    assert not any(n.startswith(("roulette", "party")) for n in remote.REMOTE_GET_API | remote.REMOTE_POST_API)

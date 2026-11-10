@@ -232,6 +232,37 @@ class RemoteTests(unittest.TestCase):
         self.assertFalse(json.load(urllib.request.urlopen(base + "/api/device"))["remote"])
 
 
+    def test_movie_roulette_phones_need_only_the_games_code(self):
+        """An unpaired phone may open /play and use /api/play with the game's code - and nothing else."""
+        from unittest import mock as _m
+        from herotv import tools
+        from herotv.roulette import game, store
+        self.enable()
+        st, body, _ = self.req("/play")
+        self.assertEqual(st, 200)
+        self.assertIn(b"Join the game", body)
+        st, body, _ = self.req("/api/party/join", {"code": "ABCD", "name": "Ann"})
+        self.assertEqual(st, 400)                                   # no game yet
+        c = connect(self.cfg.db_path)
+        store.ensure(c)
+        c.execute("UPDATE media SET runtime_s=7200")
+        c.commit()
+        with _m.patch.object(tools, "find_tool", return_value="/bin/true"):
+            gid = game.create(c, self.cfg, {"mode": "party"})
+        code = game._cfg(game.get(c, gid))["code"]
+        c.close()
+        st, body, _ = self.req("/api/party/join", {"code": code, "name": "Ann"})
+        self.assertEqual(st, 200)
+        tok = json.loads(body)["token"]
+        st, body, _ = self.req("/api/party/state?t=" + tok)
+        self.assertEqual((st, json.loads(body)["name"]), (200, "Ann"))
+        self.assertEqual(self.req("/api/party/state?t=wrong")[0], 400)
+        self.assertEqual(self.req("/play/frame/x-0.jpg?t=" + tok)[0], 404)
+        for path in ("/api/roulette/home", "/api/roulette/game", "/api/library", "/roulette/frame/x-0.jpg", "/media/1"):
+            self.assertIn(self.req(path)[0], (401, 403), path)     # the player's key opens nothing else
+        self.assertEqual(self.req("/api/roulette/act", {"game": gid, "op": "reveal"})[0], 401)
+        self.assertEqual(self.req("/play", host="evil.example")[0], 403)
+
 if __name__ == "__main__":
     unittest.main()
 

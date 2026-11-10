@@ -456,6 +456,12 @@ def make_handler(app, remote=False):
             if p in ("/pair", "/pair.html"):
                 self.static("pair.html")
                 return False
+            if p == "/play":                                      # Movie Roulette on a phone: open to the home network, needs the game's code
+                self.drain(n)
+                self.static("play.html")
+                return False
+            if p.startswith(("/api/party/", "/play/frame/")):      # ...and its requests: each needs the code or a player's key
+                return True
             if p == "/api/pair":
                 if method != "POST" or self.headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
                     self.drain(n)
@@ -979,6 +985,24 @@ def make_handler(app, remote=False):
                 return self.sub(p[5:])
             if p.startswith("/poster/"):
                 return self.poster(p[8:])
+            if p == "/play":
+                return self.static("play.html")
+            if p.startswith("/play/frame/"):                         # a round's picture for a phone that joined that game
+                from .roulette import phone as PH
+                c = app.db()
+                try:
+                    f = PH.frame_path(c, app.cfg, p[12:], q.get("t"))
+                finally:
+                    c.close()
+                if not f:
+                    return self.send_json({"error": "not found"}, 404)
+                b = open(f, "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Content-Length", str(len(b)))
+                self.send_header("Cache-Control", "private, max-age=3600")
+                self.end_headers()
+                return self.wfile.write(b)
             if p.startswith("/roulette/frame/"):                     # Movie Roulette's picture for a round (this PC only)
                 from .roulette import api as RL
                 f = None if self.is_remote else RL.frame_path(app.cfg, p[16:])
@@ -1452,6 +1476,10 @@ def make_handler(app, remote=False):
                 if not col:
                     return self.send_json({"error": "no such collection"}, 404)
                 return self.send_json(COL.build(c, col))
+            if p.startswith("party/"):                            # Movie Roulette from a phone (herotv/roulette/phone.py)
+                from .roulette import phone as PH
+                out, code = PH.handle(c, app.cfg, p[6:], q, method, self.body() if method == "POST" else None, self.client_address[0])
+                return self.send_json(out, code)
             if p == "roulette" or p.startswith("roulette/"):      # Movie Roulette, the guessing game (herotv/roulette)
                 from .roulette import api as RL
                 out, code = RL.handle(c, app.cfg, p[9:], q, method, self.body() if method == "POST" else None)

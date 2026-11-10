@@ -183,6 +183,35 @@ def category_op(conn, body):
     return cid
 
 
+def decoys(films, m, fit, how="any", rng=None, n=3):
+    """Wrong titles to sit beside the right one in a multiple-choice round. Taken from the films this game draws from
+    (then the rest of the library); easy = any film, hard = the films most like it (same series, channel, genre, decade)."""
+    rng = rng or _rng
+    mine = set(keys_of(m))
+
+    def like(o):
+        ks = set(keys_of(o))
+        return (3 * len([k for k in mine & ks if k.startswith(("collection:", "channel:"))])
+                + len([k for k in mine & ks if k.startswith(("genre:", "decade:", "director:"))]))
+    seen, out = {m["title"].casefold()}, []
+    for group in ([films[k] for k in sorted(fit) if k in films], [films[k] for k in sorted(films)]):
+        cand = [o for o in group if o["title"].casefold() not in seen]
+        rng.shuffle(cand)
+        if how in ("plain", "clear"):                 # the difficulty's word for the picture doubles here: clear = easy
+            cand.sort(key=like, reverse=(how == "plain"))
+        elif how == "any":
+            cand.sort(key=lambda o: -like(o) + rng.random() * 4)
+        for o in cand:
+            if len(out) >= n:
+                break
+            if o["title"].casefold() not in seen:
+                seen.add(o["title"].casefold())
+                out.append(o["title"])
+        if len(out) >= n:
+            break
+    return out
+
+
 def blocked(conn, game_id, policy, now=None):
     """Film keys the repeat rule keeps out. A film never comes up twice in one game, whatever the wider rule."""
     out = {r[0] for r in conn.execute("SELECT mkey FROM rl_rounds WHERE game_id=?", (game_id,))}

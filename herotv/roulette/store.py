@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS rl_guesses(id INTEGER PRIMARY KEY, round_id INTEGER N
  verdict TEXT DEFAULT '', at INTEGER);
 CREATE TABLE IF NOT EXISTS rl_events(id INTEGER PRIMARY KEY, game_id INTEGER NOT NULL, round_id INTEGER, side INTEGER NOT NULL,
  points REAL NOT NULL, reason TEXT DEFAULT '', note TEXT DEFAULT '', key TEXT UNIQUE NOT NULL, at INTEGER);
+CREATE TABLE IF NOT EXISTS rl_players(token TEXT PRIMARY KEY, game_id INTEGER NOT NULL, side INTEGER NOT NULL, name TEXT DEFAULT '', joined INTEGER);
 CREATE TABLE IF NOT EXISTS rl_categories(id INTEGER PRIMARY KEY, name TEXT UNIQUE NOT NULL, rules TEXT DEFAULT '{}', created INTEGER);
 """
 
@@ -35,7 +36,8 @@ DEFAULTS = {
     "hints": True, "hint_kinds": list(HINT_KINDS),
     "points": [100, 75, 50, 25],     # correct with 0, 1, 2, 3 (or more) hints
     "speed_bonus": False, "speed_max": 50, "wrong_penalty": 0,
-    "answers": "both",               # both | typed | host
+    "answers": "both",               # both | typed | host | choice (pick one of four titles)
+    "phones": True,                  # players may join on their phones with the game's code (needs Settings > Other devices on)
     "spelling": True,                # small spelling mistakes still count
     "scene": "random",               # random | choose (pick the moment yourself, without seeing it)
     "show": "still", "clip_seconds": 15,
@@ -90,7 +92,7 @@ def clean(patch, base=None):
             out[k] = _one(v, DIFFICULTIES, "difficulty")
         elif k == "timer":
             out[k] = "auto" if v == "auto" else _int(v, 0, 600, "timer")
-        elif k in ("hints", "speed_bonus", "spelling", "sounds", "animations", "fullscreen"):
+        elif k in ("hints", "speed_bonus", "spelling", "sounds", "animations", "fullscreen", "phones"):
             out[k] = bool(v)
         elif k == "hint_kinds":
             if not isinstance(v, list):
@@ -105,7 +107,7 @@ def clean(patch, base=None):
         elif k == "wrong_penalty":
             out[k] = _int(v, 0, 10000, "wrong-answer penalty")
         elif k == "answers":
-            out[k] = _one(v, ("both", "typed", "host"), "answers")
+            out[k] = _one(v, ("both", "typed", "host", "choice"), "answers")
         elif k == "scene":
             out[k] = _one(v, ("random", "choose"), "scene")
         elif k == "show":

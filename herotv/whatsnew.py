@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.39.1": [
+        "Movie Roulette: multiple choice. Pick it under Answers and each round shows four titles (keys A to D).",
+        "Movie Roulette: players can join on their phones. The TV shows a 4-letter code and a square to scan; each phone gets the picture and its own answer buttons.",
+        "Phones need Settings > Other devices switched on, and the same WiFi as this PC. A phone that joins a game can only play that game.",
+    ],
     "1.39.0": [
         "New: Movie Roulette, a movie-guessing game from your own films. Home > Movie Roulette. A moment from a film appears; name it before the clock runs out.",
         "Play alone, take turns, in teams, or as a party where the host says who got it. Type the answer or say it out loud.",

@@ -100,6 +100,10 @@ Home > **Movie Roulette**. A moment from one of your films appears; name the fil
   All of them can be changed in Game settings. A game controller works too.
 - **Points:** 100 with no hints, then 75, 50, 25. Optional speed bonus and wrong-answer penalty.
 - **Categories:** your channels, genres, decades, film series, studios, directors and actors, plus categories you make yourself.
+- **Multiple choice:** under Answers. Four titles each round; a wrong pick puts that player out until the next film.
+- **Phones:** with Settings > Other devices on, the TV shows a 4-letter code and a QR square. Phones on the same WiFi open
+  `http://<this PC>:8788/play`, type the code and a name, and get the picture and their own answer buttons. A phone that
+  joins can only play that game (`herotv/roulette/phone.py`, `web/play.html`).
 
 It uses the same library, posters and details as the rest of HERO TV; nothing is scanned or stored twice. The code is in
 `herotv/roulette/` (engine), `web/roulette.js` and `web/roulette.css` (screens); tests are `tests/test_roulette.py` and

@@ -16,7 +16,32 @@ def home(conn, cfg_app):
             "tools": bool(tools.find_tool("ffmpeg")), "active": game.summary(conn, g) if g else None,
             "history": len(game.history(conn, 200)), "modes": store.MODES,
             "difficulties": {k: {"name": v["name"], "timer": v["timer"], "hints": v["hints"]} for k, v in store.DIFFICULTIES.items()},
-            "hint_kinds": store.HINT_KINDS, "actions": store.ACTIONS}
+            "hint_kinds": store.HINT_KINDS, "actions": store.ACTIONS, "lan": __import__("herotv.remote", fromlist=["x"]).enabled()}
+
+
+def _join(conn, cfg_app, g):
+    """How phones get into this game: the code, the address to open and its QR picture."""
+    from .. import qr, remote as R
+    from . import phone
+    cfg = game._cfg(g)
+    if not cfg.get("phones") or not cfg.get("code"):
+        return None
+    on = R.enabled()
+    addrs = R.lan_addresses() if on else []
+    url = f"http://{addrs[0]}:{R.lan_port(cfg_app)}/play" if addrs else ""
+    pic = ""
+    if url:
+        try:
+            pic = qr.svg(url + "?c=" + cfg["code"], scale=6)
+        except ValueError:
+            pic = ""
+    return {"code": cfg["code"], "on": on, "url": url, "qr": pic, "players": phone.count(conn, g["id"])}
+
+
+def _view(conn, cfg_app, g):
+    v = game.view(conn, cfg_app, g)
+    v["join"] = _join(conn, cfg_app, g) if g["status"] == "active" else None
+    return v
 
 
 def handle(conn, cfg_app, p, q, method, body=None):
@@ -33,7 +58,7 @@ def handle(conn, cfg_app, p, q, method, body=None):
             return {"count": len(pool.members(films, keys, q.get("logic", "any"), pool.custom(conn))), "total": len(films)}, 200
         if p == "game":
             g = game.get(conn, q.get("id"))
-            return ({"game": game.view(conn, cfg_app, g)} if g else {"game": None}), 200
+            return ({"game": _view(conn, cfg_app, g)} if g else {"game": None}), 200
         if p == "history":
             return {"games": game.history(conn)}, 200
         if p.startswith("history/"):
@@ -49,8 +74,10 @@ def handle(conn, cfg_app, p, q, method, body=None):
         if p == "new":
             gid = game.create(conn, cfg_app, body)
             g = game.get(conn, gid)
-            game.next_round(conn, cfg_app, g)
-            return {"game": game.view(conn, cfg_app, game.get(conn, gid))}, 200
+            from .. import remote as R
+            if not (body.get("lobby") and game._cfg(g).get("phones") and R.enabled()):       # with phones, the TV waits in the lobby for players first
+                game.next_round(conn, cfg_app, g)
+            return {"game": _view(conn, cfg_app, game.get(conn, gid))}, 200
         if p == "act":
             g = game.need(conn, body.get("game"))
             op = body.get("op")
@@ -63,6 +90,8 @@ def handle(conn, cfg_app, p, q, method, body=None):
                 game.timer(conn, g, body.get("do"))
             elif op == "guess":
                 out["verdict"] = game.guess(conn, g, body.get("text"), body.get("side"))
+            elif op == "choose":
+                out["verdict"] = game.choose(conn, g, body.get("choice"), body.get("side"))
             elif op == "correct":
                 game.award(conn, g, body.get("side"))
             elif op == "wrong":
@@ -81,7 +110,7 @@ def handle(conn, cfg_app, p, q, method, body=None):
                 game.finish(conn, cfg_app, g, abandon=not game.played(conn, g))
             else:
                 raise Bad("unknown game action")
-            return dict(out, game=game.view(conn, cfg_app, game.get(conn, g["id"]))), 200
+            return dict(out, game=_view(conn, cfg_app, game.get(conn, g["id"]))), 200
     return {"error": "not found"}, 404
 
 

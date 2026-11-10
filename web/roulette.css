@@ -186,3 +186,27 @@
 #rl .adj{display:grid;grid-template-columns:1fr 6ch repeat(4,auto);gap:.5vw;align-items:center}
 #rl .adj em{font-style:normal;font-family:var(--fd);font-size:1.6em;text-align:right;padding-right:.6vw}
 @media (prefers-reduced-motion:reduce){#rl *{animation:none!important;transition:none!important}}
+
+/* multiple choice */
+#rl .g-choices{display:grid;grid-template-columns:1fr 1fr;gap:.8vh .7vw}
+#rl .rb.pick{justify-content:space-between;text-align:left;white-space:normal;font-size:1.1em;padding:1.2vh 1.1vw;background:var(--panel);border-color:var(--line);min-height:6.4vh;line-height:1.15}
+#rl .rb.pick kbd{order:-1;background:var(--accent);color:var(--on);border-color:transparent;font-size:.9em}
+#rl .rb.pick span{flex:1}
+#rl .rb.side.out{opacity:.4;text-decoration:line-through}
+/* phones */
+#rl .g-cat i.code{border-color:var(--accent);color:var(--accent);letter-spacing:.14em}
+#rl .rl-lobby{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1.2fr 1fr;gap:4vw;align-items:center}
+#rl .rl-join{display:flex;gap:2.4vw;align-items:center}
+#rl .rl-join .qr{flex:0 0 auto;background:#fff;border-radius:1.6vh;padding:1.2vh;line-height:0}
+#rl .rl-join .qr svg{width:30vh;height:30vh;display:block}
+#rl .rl-modal .rl-join .qr svg{width:24vh;height:24vh}
+#rl .rl-join .how{display:grid;gap:.6vh}
+#rl .rl-join .how small{letter-spacing:.2em;font-weight:700;color:var(--accent)}
+#rl .rl-join .how small:last-child{letter-spacing:0;font-weight:400;color:var(--mute);margin-top:1vh}
+#rl .rl-join .how p{margin:0;color:var(--mute)}
+#rl .rl-join .url{font-size:1.5em;overflow-wrap:anywhere}
+#rl .rl-join .code{font-family:var(--fd);font-size:10vh;letter-spacing:.14em;line-height:1;color:var(--accent)}
+#rl .rl-lobby .who{display:flex;flex-direction:column;gap:.8vh;max-height:100%;overflow-y:auto}
+#rl .rl-lobby .who h3{font-size:2.6vh;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:.6vh}
+#rl .rl-lobby .sc{display:flex;justify-content:space-between;gap:1vw;padding:1.1vh 1.2vw;border-radius:1.2vh;background:#fff1;border-left:.8vh solid var(--c)}
+#rl .rl-lobby .sc span{color:var(--mute)}
