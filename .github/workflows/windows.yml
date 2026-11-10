@@ -32,6 +32,11 @@ jobs:
       - name: Run all tests on real Windows
         run: python scripts/ci_tests.py
 
+      - name: Movie Roulette tests (real ffmpeg on Windows)
+        run: |
+          python -m pip install pytest
+          python -m pytest -q tests/test_roulette.py
+
       - name: Build HERO-TV.exe
         run: |
           python -m pip install --upgrade pyinstaller certifi pywebview

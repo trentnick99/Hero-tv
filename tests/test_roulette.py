@@ -5,7 +5,11 @@ import random
 import tempfile
 from pathlib import Path
 
-import pytest
+try:
+    import pytest
+except ImportError:                      # the plain unittest run skips this file; CI runs it with pytest in its own step
+    import unittest
+    raise unittest.SkipTest("needs pytest")
 
 from herotv import tools
 from herotv.config import Config
