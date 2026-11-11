@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import zlib
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS media(
@@ -37,6 +38,18 @@ def connect(path: str) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")  # safe with WAL; kind to SD cards
+    # Every web request opens its own connection. The tables only need making or changing once per version of this
+    # file, so a database that already carries this version's stamp is handed back as it is.
+    if conn.execute("PRAGMA application_id").fetchone()[0] == _STAMP:
+        return conn
+    _setup(conn)
+    conn.execute(f"PRAGMA application_id={_STAMP}")
+    conn.commit()
+    return conn
+
+
+def _setup(conn):
+    """Make the tables and bring an older database up to date. Safe to run again at any time."""
     conn.executescript(SCHEMA)
     if "color" not in [r[1] for r in conn.execute("PRAGMA table_info(channels)")]:
         conn.execute("ALTER TABLE channels ADD COLUMN color TEXT DEFAULT ''")
@@ -78,4 +91,12 @@ def connect(path: str) -> sqlite3.Connection:
         conn.execute("UPDATE media SET mtime=0")
         conn.execute("PRAGMA user_version=4")
         conn.commit()
-    return conn
+
+
+def _stamp():
+    """A number that changes whenever the tables or the steps in _setup change, so nobody has to remember to raise it."""
+    text = SCHEMA + "\x00".join(k for k in _setup.__code__.co_consts if isinstance(k, str))
+    return (zlib.crc32(text.encode()) & 0x7FFFFFFF) or 1
+
+
+_STAMP = _stamp()
