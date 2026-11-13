@@ -404,7 +404,7 @@ def update(cfg, body):
             else:
                 c.pop("off", None)
         n = sum(1 for c in chans if c.get("off"))
-        note = (f"{n} channel(s) switched off - nothing was deleted; switch them back on in Settings > Channels any time." if n
+        note = (f"{n} channel{'' if n == 1 else 's'} switched off - nothing was deleted; switch them back on in Settings > Channels any time." if n
                 else "Every channel is on.")
     elif op in ("add_block", "remove_block"):            # time slots: "cartoons on Saturday mornings"
         c = next((x for x in chans if x["id"] == body.get("id")), None)

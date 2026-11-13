@@ -7,6 +7,7 @@ let theme={name:"HERO TV",color:"#ffcf1f",tagline:"What do you want to watch?"};
 const setChans=list=>{allChans=list;emptyIds=new Set(list.filter(c=>c.empty).map(c=>c.id));const shown=list.filter(c=>!c.empty);chans=shown.length?shown:list};
 const nowS=()=>Date.now()/1e3+off,api=async(p,o)=>{const r=await fetch(p,o);if(!r.ok)throw new Error(p+" "+r.status);return r.json()};
 const post=(p,b)=>fetch(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b),keepalive:true}).catch(()=>{});
+const nOf=(n,w,many)=>n+" "+(n===1?w:many||w+"s");   /* "1 video", "3 videos" */
 const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
 const T=s=>new Intl.DateTimeFormat([],{hour:"numeric",minute:"2-digit",timeZone:cfg.tz||undefined}).format(s*1e3);
 const label=s=>{if(!s)return"";if(!s.series)return s.in_show&&s.in_show!==s.title?s.in_show+" · "+s.title:s.title;const ep=`${s.series} ${s.season?"S"+s.season:""}E${s.episode}`,t=/^Episode \d+$/.test(s.title)?"":s.title;return t?ep+" · "+t:ep};
@@ -321,7 +322,7 @@ for(const cl of d.cols||[])ch.push({k:"chip",ic:"list",t:cl.name,s:cl.next_title
  const big=document.body.classList.contains("big");ch.push({k:"chip",ic:"text",t:"Bigger text",s:big?"On. Select to turn off":"Off. Select to make text bigger",stay:1,go:()=>setBig(!big,true)});
  if(d.check){const miss=d.check.filter(l=>!l.ideas).reduce((a,l)=>a+l.missing,0);ch.push({k:"chip",ic:"list",t:"Checklist",s:miss?`${miss} titles still to find`:"Everything on your lists is here",go:()=>openCheck()})}
  if(!REMOTE)ch.push({k:"chip",ic:"gear",t:"Settings",s:"Look, channels, phone, backup",go:()=>openSettings()});
- ch.push({k:"chip",ic:"help",t:"Help",s:d.help&&d.help.problem_count?`${d.help.problem_count} video(s) need attention`:"Keys, and fixes for common problems",go:()=>openHelp("home")});
+ ch.push({k:"chip",ic:"help",t:"Help",s:d.help&&d.help.problem_count?`${nOf(d.help.problem_count,"video")} ${d.help.problem_count===1?"needs":"need"} attention`:"Keys, and fixes for common problems",go:()=>openHelp("home")});
  rows.push({title:"More",items:ch});
  return rows}
 function featNow(t){const it=t.feat[t.fi];t.t=label(it);t.img=it.id;
@@ -465,10 +466,10 @@ function drawHelp(h){const L=$("#hp-l"),R=$("#hp-r");L.textContent=R.textContent
  if(!h)row(false,"HERO TV is not running on this PC right now.","Click the HERO TV icon to start it again, then press F5 here.");
  else{row(h.playable>0,h.playable?`${h.playable} videos are ready to play.`:"No videos are ready to play yet.",h.playable?"":"Drag videos onto this window, or get free ones in Settings > Tools.");
   row(h.ffmpeg,h.ffmpeg?"Video tools (ffmpeg) are installed.":"Video tools (ffmpeg) were not found.",h.ffmpeg?"":"Settings > Tools > Install video tools.");
-  if(h.problem_count){row(false,`${h.problem_count} video(s) are being skipped:`,"");for(const p of h.problems)row(false,p.title,p.why+" "+p.fix);if(h.problem_count>h.problems.length)row(false,"...and more.","Settings > Tools lists them all, with a Fix button.")}
+  if(h.problem_count){row(false,`${nOf(h.problem_count,"video")} ${h.problem_count===1?"is":"are"} being skipped:`,"");for(const p of h.problems)row(false,p.title,p.why+" "+p.fix);if(h.problem_count>h.problems.length)row(false,"...and more.","Settings > Tools lists them all, with a Fix button.")}
   else row(true,"Every video in your library can play.","");
-  if(h.hidden_channels&&h.hidden_channels.length)row(true,`${h.hidden_channels.length} channel(s) are hidden until they have something to show: ${h.hidden_channels.join(", ")}`,"Put a video in that channel's folder, or drop it in the Inbox, and the channel appears by itself.");
-  if(h.inbox_waiting)row(false,`${h.inbox_waiting} video(s) are waiting in the Inbox folder.`,"HERO TV files them by itself once they have finished copying. Ones it cannot place wait for you in Settings > Tools > Inbox - pick a channel (or make a new one) there.");
+  if(h.hidden_channels&&h.hidden_channels.length)row(true,`${nOf(h.hidden_channels.length,"channel")} ${h.hidden_channels.length===1?"is":"are"} hidden until they have something to show: ${h.hidden_channels.join(", ")}`,"Put a video in that channel's folder, or drop it in the Inbox, and the channel appears by itself.");
+  if(h.inbox_waiting)row(false,`${nOf(h.inbox_waiting,"video")} ${h.inbox_waiting===1?"is":"are"} waiting in the Inbox folder.`,"HERO TV files them by itself once they have finished copying. Ones it cannot place wait for you in Settings > Tools > Inbox - pick a channel (or make a new one) there.");
   row(true,"Your videos are in: "+h.media_dir,"Settings > Media library > Open media folder.")}
  R.append(el("h3",0,"Keys"));const t=el("table");
  for(const[a,b]of[["↑ ↓","Change channel"],["0-9","Type a channel number"],["Backspace","Previous channel"],["Esc or H","Home menu"],["G","TV guide"],["L","Library and search"],["R","Start this show over"],["F2","Add or remove favorite"],["X (F6 in Library)","Take a video off Continue watching"],["D (F8 in Library)","Details: picture, plot, cast, rating"],["O","Settings"],["Right-click","Menu for the video under the pointer"],["F3 / F4","Rename video / show"],["C","Subtitles on / off"],["Shift+C","Pick the subtitle language"],["A","Pick the sound track (language)"],["J","Episodes: mark where the intro ends (Shift+J clears)"],["E","Episodes: mark where the credits start (Shift+E clears)"],["S","Sleep timer"],["T","Bigger text"],["← →","Volume (skip, when watching on demand)"],["M","Mute"],["F","Fullscreen"],["J / E","On demand: mark where the intro ends / credits start"],["R (in the guide)","Remind me when that show starts"],["M (in Details)","Move a video to another channel"],["? or F1","This help"]]){const r=el("tr");const k=el("td"),b1=el("b",0,a);k.append(b1);r.append(k,el("td",0,b));t.append(r)}
@@ -522,7 +523,8 @@ async function openGuide(){show("#settings",false);show("#info",false);const n=n
  const nt=el("span",0,"Showtimes are generated on this PC from your own videos. They are not real TV listings.");$("#g-hints").append(nt);nt.style.marginLeft="auto";
  show("#guide",true);show("#osd",false);drawGuide();placePreview(true)}
 setInterval(()=>{if(layer==="guide"){const d=$(".hdr .day");if(d)d.textContent=dayStr()}},15e3);
-async function guideKey(k){const c=g.data[g.row],s=inSlot(c,g.t);
+async function guideKey(k){const c=g.data[g.row];if(!c)return;   /* the guide is still loading: a key pressed now does nothing (it used to raise an error) */
+ const s=inSlot(c,g.t);
  if((k==="r"||k==="R")&&s&&c&&c.kind!=="weather"){const key=c.id+":"+s.start,had=remSet.has(key);
   if(!had&&s.start<=nowS())return toast("That is on now - press Enter to watch it.");
   try{await pj("/api/reminders",{op:had?"remove":"add",channel:c.id,start:s.start});had?remSet.delete(key):remSet.add(key);toast(had?"Reminder removed.":`Reminder set: ${label(s)} at ${T(s.start)} on ${c.number} ${c.name}.`)}
@@ -788,6 +790,8 @@ async function openSettings(cat){if(REMOTE)return toast("Settings are on the PC.
  hints($("#st-hints"),[["↑ ↓ ← →","move"],["Enter","choose"],["Esc","back"]]);
  try{sData=await api("/api/settings")}catch(e){sData=null}drawSettings()}
 function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
+ /* only the pages with a Save button say so; the others change as you go */
+ $("#st-sub").textContent=({look:1,lib:1,art:1})[sCat]?"Press Save to keep changes":sCat==="weather"?"Save keeps the location; the banner choice is saved straight away":"Changes here are saved straight away";
  {const a=document.activeElement;if(a&&main.contains(a)){const all=[...main.querySelectorAll(FOCUSABLE)];sKeep={cat:sCat,i:all.indexOf(a),text:a.textContent,type:a.type,top:main.scrollTop}}
   else if(sKeep&&(sKeep.cat!==sCat||(a&&a!==document.body)))sKeep=null}       /* a "Loading..." redraw in between keeps your place */
  nav.textContent=main.textContent="";
@@ -1082,7 +1086,7 @@ function drawToolsRaw(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div
  { const c=tCard("Bring in a folder or USB drive","Copies every video from it into your Inbox (your originals stay where they are) and files them onto channels.");
    const p=sInput("","text","For example  E:\\  or  D:\\Movies");p.style.width="34vw";const b=sBtn("Bring them in",()=>runJob({name:"import",path:p.value},b),"pri");
    const row=el("div","sbar");row.append(p,b);c.append(row);main.append(c)}
- { const c=tCard("Inbox",t.inbox_waiting?`${t.inbox_waiting} video(s) waiting in the Inbox. HERO TV could not tell where these belong - pick a channel for each and it is filed right away.`:"The Inbox is empty.");const b=sBtn("Sort the Inbox now",()=>runJob({name:"sort"},b));
+ { const c=tCard("Inbox",t.inbox_waiting?`${nOf(t.inbox_waiting,"video")} waiting in the Inbox. HERO TV could not tell where these belong - pick a channel for each and it is filed right away.`:"The Inbox is empty.");const b=sBtn("Sort the Inbox now",()=>runJob({name:"sort"},b));
    const row=el("div","sbar");row.append(b);c.append(row);
    for(const f of (t.inbox_files||[])){const r=el("div","ibx"),txt=el("div","ibt");txt.append(el("b",0,f.group>1?`${f.pack} (${f.group} videos)`:f.title));if(f.about)txt.append(el("small",0,f.about));
     const sel=el("select");sel.append(el("option",0,"Choose a channel..."));sel.options[0].value="";for(const ch of t.move_channels||[]){const o=el("option",0,ch.name+((f.suggest||[]).includes(ch.id)?"  (suggested)":""));o.value=ch.id;if((f.suggest||[]).includes(ch.id))o.selected=true;sel.append(o)}
@@ -1097,7 +1101,7 @@ function drawToolsRaw(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div
     const ctl=el("div","sbar");ctl.append(sel,nm,rl,go);r.append(txt,ctl);c.append(r)}
    {const listed=(t.inbox_files||[]).reduce((a,f)=>a+(f.group||1),0);if(listed&&t.inbox_waiting>listed)c.append(el("small",0,`...and ${t.inbox_waiting-listed} more - they appear here as these are filed.`))}
    const first=main.querySelector(".tcard");if((t.inbox_files||[]).length&&first)main.insertBefore(c,first);else main.append(c)}
- { const u=t.unsorted||[];if(u.length){const c=tCard("Videos not on any channel",`${u.length}${u.length>=200?"+":""} video(s) are in your library but no channel shows them - usually because they are loose in the media folder or in a folder no channel uses. Sort them puts them through the Inbox: each is filed by its title, and any HERO TV cannot place shows up in the Inbox list above with a channel picker.`);
+ { const u=t.unsorted||[];if(u.length){const c=tCard("Videos not on any channel",`${u.length}${u.length>=200?"+":""} video${u.length===1?" is":"s are"} in your library but no channel shows them - usually because they are loose in the media folder or in a folder no channel uses. Sort them puts them through the Inbox: each is filed by its title, and any HERO TV cannot place shows up in the Inbox list above with a channel picker.`);
    const byF={};for(const v of u)byF[v.folder]=(byF[v.folder]||0)+1;
    c.append(el("small",0,Object.entries(byF).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([f,n])=>`${f}: ${n}`).join("   ")));
    const b=sBtn("Sort them",()=>runJob({name:"unsorted"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row);
@@ -1113,16 +1117,16 @@ function drawToolsRaw(main,msg){main.append(el("h3",0,"Tools"));const jb=el("div
      const a=await api("/api/audio/"+it.id);res.textContent="";if(a.tracks.length<2){res.append(el("small",0,"This video has only one sound track - nothing to choose."));return}
      for(const tr of a.tracks){const tb=sBtn((tr.language||tr.lang||"Unknown")+(tr.title?" - "+tr.title:"")+(tr.n===a.playing?"  (plays now)":""),()=>runJob({name:"audio",media_id:it.id,track:tr.n},tb));if(tr.n===a.playing)tb.disabled=true;res.append(tb)}});res.append(b)}},350)});
    c.append(q,res);main.append(c)}
- { const c=tCard("Missing episodes",t.shows?`Checks each of your ${t.shows} show(s) against TMDB's episode lists and tells you which aired episodes you do not have. A show's Details screen shows this too.`:"No shows in your library yet.");
+ { const c=tCard("Missing episodes",t.shows?`Checks each of your ${nOf(t.shows,"show")} against TMDB's episode lists and tells you which aired episodes you do not have. A show's Details screen shows this too.`:"No shows in your library yet.");
    if(t.shows){const b=sBtn("Check my shows",()=>runJob({name:"missing"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
- { const d=t.duplicates||[],c=tCard("The same video twice",d.length?`${d.length} film(s) or episode(s) are here more than once - ${gb(d.reduce((a,g)=>a+g.extra,0))} of extra copies. The best copy is marked keep; Set aside moves another one into the hidden .originals folder (Free space deletes it for good). If they are really different episodes, press Keep both.`:"No video is in your library twice.");
+ { const d=t.duplicates||[],c=tCard("The same video twice",d.length?`${nOf(d.length,"film or episode","films or episodes")} ${d.length===1?"is":"are"} here more than once - ${gb(d.reduce((a,g)=>a+g.extra,0))} of extra copies. The best copy is marked keep; Set aside moves another one into the hidden .originals folder (Free space deletes it for good). If they are really different episodes, press Keep both.`:"No video is in your library twice.");
    for(const g of d.slice(0,8)){const r=el("div","ibx");r.append(el("b",0,g.name));
     for(const cp of g.copies){const row=el("div","sbar"),txt=el("small",0,`${cp.folder} / ${cp.file}  -  ${gb(cp.size)}${cp.plays?"":"  -  does not play here"}`);
      if(cp.keep){row.append(el("span","keep","Keep"),txt)}else{const b=sBtn("Set aside",()=>runJob({name:"aside",media_id:cp.id},b));row.append(b,txt)}r.append(row)}
     { const kb=sBtn("Keep both - these are different",async()=>{try{await pj("/api/dupkeep",{ids:g.copies.map(x=>x.id)});tData=null;sMsg("Kept both. They are not listed here any more.","ok");drawSettings()}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err")}});const kr=el("div","sbar");kr.append(kb);r.append(kr) }
     c.append(r)}
    if(d.length>8)c.append(el("small",0,`...and ${d.length-8} more. Set these aside first, then come back.`));main.append(c)}
- { const c=tCard("iPhone-friendly copies",t.not_phone?`${t.not_phone} video(s) cannot play on an iPhone as they are (usually .mkv files). This makes .mp4 copies that play on phones, the PC and over AirPlay - normally quick, because the picture is copied, not re-encoded. Originals are kept, and so are resume points and favorites.`:"Every video can play on an iPhone.");
+ { const c=tCard("iPhone-friendly copies",t.not_phone?`${nOf(t.not_phone,"video")} cannot play on an iPhone as they are (usually .mkv files). This makes .mp4 copies that play on phones, the PC and over AirPlay - normally quick, because the picture is copied, not re-encoded. Originals are kept, and so are resume points and favorites.`:"Every video can play on an iPhone.");
    if(t.not_phone){const b=sBtn("Make iPhone-friendly copies",()=>runJob({name:"phone"},b),"pri");const row=el("div","sbar");row.append(b);c.append(row)}main.append(c)}
  main.append(tidyCard());
  { const c=tCard("Free up space",t.originals_bytes?`Original copies kept after fixing or shrinking videos use ${gb(t.originals_bytes)}. Delete them once you are happy with the new versions. This is permanent.`:"No original copies are being kept.");

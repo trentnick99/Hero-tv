@@ -191,3 +191,8 @@ def h264_encoder(ffmpeg, run=None):
             break
     _ENC[ffmpeg] = chosen
     return list(chosen)
+
+
+def count(n, word, plural=None):
+    """'1 video', '3 videos': a number with its word, so no message has to say "video(s)"."""
+    return f"{n} {word if n == 1 else (plural or word + 's')}"

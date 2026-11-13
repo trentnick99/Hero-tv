@@ -41,7 +41,7 @@ class LineupTests(unittest.TestCase):
     def test_lineup_switches_off_without_deleting(self):
         n = len(self.chans())
         r = channels_api.update(self.cfg, {"op": "lineup", "off": ["south-park", "dragon-ball"]})
-        self.assertIn("2 channel(s) switched off", r["note"])
+        self.assertIn("2 channels switched off", r["note"])
         self.assertEqual(len(self.chans()), n)
         self.assertEqual(sorted(c["id"] for c in self.chans() if c.get("off")), ["dragon-ball", "south-park"])
         self.assertTrue(next(c for c in r["channels"] if c["id"] == "south-park")["off"])

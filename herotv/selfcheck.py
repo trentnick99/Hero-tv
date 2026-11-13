@@ -141,9 +141,9 @@ def _log(c, cfg, now):
     pages = [x for x in lines if "[page-error]" in x]
     r = []
     if bad:
-        r.append(_chk("Errors in the log", WARN, f"{len(bad)} program error(s) since HERO TV started. Use Report a problem and send it to Claude."))
+        r.append(_chk("Errors in the log", WARN, f"{len(bad)} program error{'' if len(bad) == 1 else 's'} since HERO TV started. Use Report a problem and send it to Claude."))
     if pages or report.PAGE_ERRORS:
-        r.append(_chk("Screen errors", WARN, f"{max(len(pages), len(report.PAGE_ERRORS))} screen error(s) were noticed recently. Use Report a problem and send it to Claude."))
+        r.append(_chk("Screen errors", WARN, f"Screen errors were noticed recently ({max(len(pages), len(report.PAGE_ERRORS))}). Use Report a problem and send it to Claude."))
     if not r:
         r.append(_chk("Errors", OK, "No recent errors in the log."))
     return r

@@ -582,3 +582,9 @@ body:has(#ident.c) #osd,body:has(#ident.b) #osd{opacity:0!important}   /* the in
 .hints .kbd b,.hints .kbd span{white-space:nowrap}   /* a hint never breaks inside itself */
 #hp-l,#hp-r{overflow-y:auto;min-height:0;overscroll-behavior:contain;padding-right:.6vw}   /* Help: each column scrolls (keys, wheel, touch) */
 #help .cols{grid-template-rows:minmax(0,1fr)}
+/* Settings, tidied: a button alone in a card is its own width (not a bar across the card), every text box and list in a
+   card looks like the ones in the simple pages, and a pick-list is as wide as its longest choice */
+.tcard>.sbtn{align-self:flex-start}
+.tcard input[type=text],.tcard input[type=password],.tcard select{font:inherit;font-size:calc(2vh*var(--tx));color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:1vh;padding:.9vh .8vw}
+.tcard input::placeholder,.sf input::placeholder{color:var(--mute);opacity:.8}
+.sf select{align-self:flex-start;min-width:18vw;max-width:100%}

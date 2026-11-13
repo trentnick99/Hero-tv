@@ -13,6 +13,7 @@ from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from .tools import count as _count
 from . import library as L
 from . import scheduler as S
 from . import __version__
@@ -800,9 +801,9 @@ def make_handler(app, remote=False):
 
                 def run_unsorted():
                     n = inbox.move_in(paths, app.cfg, keep_folder_of=media)
-                    LA.say(f"Moved {n} video(s) into the Inbox to be sorted.")
+                    LA.say(f"Moved {_count(n, 'video')} into the Inbox to be sorted.")
                     return LA.sort_movies(assume_yes=True, cfg=app.cfg)
-                return {"job": jobs.start(name, f"Sorting {len(paths)} video(s) that are on no channel", run_unsorted)}
+                return {"job": jobs.start(name, f"Sorting {_count(len(paths), 'video')} that {'is' if len(paths) == 1 else 'are'} on no channel", run_unsorted)}
             if name == "fixall":                             # every skipped video, sound-only fixes first (quick)
                 ib = os.path.normcase(inbox.inbox_dir(app.cfg)) + os.sep
                 rows = [r for r in c.execute("SELECT path,vcodec,acodec,vfmt FROM media WHERE available=1 AND verified=1 "
@@ -812,7 +813,7 @@ def make_handler(app, remote=False):
                     raise ValueError("Every video can already play.")
                 rows.sort(key=lambda r: 0 if L.video_ok(r["vcodec"], r["vfmt"] or "", ".mp4") else 1)
                 paths = [r["path"] for r in rows]
-                return {"job": jobs.start(name, f"Fixing {len(paths)} video(s)", lambda: LA.convert(paths) or LA._after_change(app.cfg, 0))}
+                return {"job": jobs.start(name, f"Fixing {_count(len(paths), 'video')}", lambda: LA.convert(paths) or LA._after_change(app.cfg, 0))}
             if name == "fix":
                 path, title = media_path()
                 return {"job": jobs.start(name, "Fixing " + title, lambda: LA.convert([path]) or LA._after_change(app.cfg, 0))}
@@ -886,10 +887,10 @@ def make_handler(app, remote=False):
                 media = os.path.abspath(str(app.cfg.media_dir))
 
                 def run():
-                    LA.say(f"New channel {new['number']} {new['name']} - filing {len(group)} video(s) onto it.")
+                    LA.say(f"New channel {new['number']} {new['name']} - filing {_count(len(group), 'video')} onto it.")
                     bad = sum(0 if LA._place(g, [new], media, force_move=True, db=app.cfg.db_path) else 1 for g in group)
                     LA.rescan_running(app.cfg)
-                    LA.say(f"\n[ OK ] {len(group) - bad} video(s) now on {new['name']}" + (f" ({bad} could not be moved)" if bad else ""))
+                    LA.say(f"\n[ OK ] {_count(len(group) - bad, 'video')} now on {new['name']}" + (f" ({bad} could not be moved)" if bad else ""))
                     return 1 if bad == len(group) else 0
                 job = jobs.start(name, f"Making the {new['name']} channel", run)
                 return {"job": job, "note": res.get("note", "")}
@@ -929,7 +930,7 @@ def make_handler(app, remote=False):
                             LA.say("Complete: " + ", ".join(complete))
                         if unknown:
                             LA.say("Not found on TMDB (check the show's name with F4): " + ", ".join(unknown))
-                        LA.say(f"[ OK ] checked {len(shows)} show(s)")
+                        LA.say(f"[ OK ] checked {_count(len(shows), 'show')}")
                         return 0
                     finally:
                         cc.close()
@@ -1205,7 +1206,7 @@ def make_handler(app, remote=False):
                 n = sum(1 for r in c.execute("SELECT path FROM media WHERE available=1 AND (playable=0 OR verified=0) LIMIT 500")
                         if not os.path.normcase(r["path"]).startswith(inb))
                 if n:
-                    items.append({"text": f"{n}{'+' if n >= 500 else ''} video(s) cannot play yet.", "cat": "tools", "card": "Videos that are skipped"})
+                    items.append({"text": f"{n}{'+' if n >= 500 else ''} video{'' if n == 1 else 's'} cannot play yet.", "cat": "tools", "card": "Videos that are skipped"})
                 sc = getattr(app, "startup_sc", None)
                 if sc and sc.get("update"):
                     for x in sc.get("checks", []):
@@ -1213,7 +1214,7 @@ def make_handler(app, remote=False):
                             items.append({"text": f"After the update: {x['text']}", "cat": "about", "card": ""})
                 w = inbox.waiting(app.cfg)
                 if w:
-                    items.append({"text": f"{w} video(s) waiting in the Inbox.", "cat": "tools", "card": "Inbox"})
+                    items.append({"text": f"{_count(w, 'video')} waiting in the Inbox.", "cat": "tools", "card": "Inbox"})
                 ps = prepare.status(c)
                 if ps.get("blocked"):
                     items.append({"text": "The space limit for ready-to-play copies is reached, so no new copies are made.", "cat": "tools",

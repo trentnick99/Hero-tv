@@ -2,6 +2,11 @@
 from . import __version__
 
 NOTES = {
+    "1.39.6": [
+        "Tidied: messages say \"1 video\" or \"3 videos\" instead of \"video(s)\".",
+        "Settings: text boxes, lists and buttons look the same on every page, and the top line only says \"Press Save\" on pages that have a Save button.",
+        "Fixed: pressing a key in the TV guide while it was still loading could cause an error.",
+    ],
     "1.39.5": [
         "Weather: the red alert band across the top of every channel can be set to warnings only, or turned off, in Settings > Weather. "
         "Every alert still appears on the Weather channel.",
