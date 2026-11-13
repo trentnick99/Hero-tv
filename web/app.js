@@ -296,7 +296,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
      pv:(comfortOf().preview||"on")==="on"&&c&&c.kind!=="weather"&&!vod&&slot?{start:slot.start,end:slot.end}:null,go:()=>closeAll()},
    {k:"big",t:"TV guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
    {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",img:lImg,go:()=>{closeAll();openLib()}}];
-  if(!REMOTE&&window.Roulette)st.push({k:"big",t:"Movie Roulette",s:"Guess the film from one moment",ic:"dice",cls:"game",go:()=>window.Roulette.open()});
+  if(!REMOTE&&window.Roulette)st.push({k:"big",t:"Movie Roulette",s:"Guess the film",ic:"dice",cls:"game",go:()=>window.Roulette.open()});
   if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
   else if(!REMOTE)st.push({k:"big",t:"Settings",s:"Look, channels, phone, backup",ic:"gear",go:()=>openSettings()});
   R.start={title:"Start here",items:st} }

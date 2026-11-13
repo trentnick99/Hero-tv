@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.39.4": [
+        "Home: the Movie Roulette tile's words no longer run into its icon.",
+    ],
     "1.39.3": [
         "Fixed: a video that cannot be converted was tried again every 30 seconds for ever, keeping the PC busy. It is now tried twice and then left in the Inbox.",
         "Home: the shortcut tiles are darker behind their words so they read on any picture; Movie Roulette has its own tile and icon.",
