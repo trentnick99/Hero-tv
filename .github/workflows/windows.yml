@@ -254,7 +254,7 @@ jobs:
           python scripts/browser_phone_test.py chromium
           python scripts/browser_pc_test.py chromium
           python scripts/browser_roulette_test.py chromium
-          python scripts/browser_phone_test.py
+          python scripts/browser_phone_stream_test.py chromium
 
       - name: Upload the finished app
         uses: actions/upload-artifact@v5
@@ -280,6 +280,10 @@ jobs:
           python -m playwright install --with-deps webkit
       - name: Phone test (pair, watch, touch, watch-only) in Safari's engine
         run: python scripts/browser_phone_test.py webkit
+      - name: Phone streaming test (any video converted while it plays) in Safari's engine
+        run: |
+          sudo apt-get install -y --no-install-recommends ffmpeg || true
+          python scripts/browser_phone_stream_test.py webkit
       - name: Everyday features test (welcome, New, next episode, settings) in Safari's engine
         run: python scripts/browser_pc_test.py webkit
       - name: Keep the screenshots

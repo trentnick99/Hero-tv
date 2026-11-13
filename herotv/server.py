@@ -651,7 +651,7 @@ def make_handler(app, remote=False):
             if src is None:
                 return {"mode": "none", "url": "", "why": "This video is not there any more."}
             is_away = away.is_tailnet(self.client_address[0]) or q.get("away") == "1"
-            mode, why = stream.choose(src, q.get("q", "auto"), q.get("hls") == "1", is_away)
+            mode, why = stream.choose(src, q.get("q", "auto"), q.get("hls") == "1", is_away, q.get("ios", "1") != "0")
             mk = self.device["media_key"] if getattr(self, "device", None) else ""
             kq = f"?k={mk}" if mk else ""
             if mode == "direct" or not tools.find_tool("ffmpeg"):

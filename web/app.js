@@ -178,12 +178,12 @@ async function audioMenu(){const L=audList(),id=vod?vod.id:slot&&slot.media_id;
  ctxI=Math.max(0,L.findIndex(t=>t.enabled));ctxDraw()}
 /* phones and tablets: the file itself when it plays there and suits the connection, else a stream HERO TV converts
    while you watch (HLS: what iPhones play natively). The PC's own TV window always gets the file. */
-const HLS_OK=!!(document.createElement("video").canPlayType("application/vnd.apple.mpegurl"));
+const HLS_OK=(()=>{const t=document.createElement("video");return !!(t.canPlayType("application/vnd.apple.mpegurl")&&t.canPlayType('video/mp4; codecs="avc1.640028, mp4a.40.2"'))})();   /* converted streams are H.264 + AAC */
 const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 let quality="auto";try{quality=localStorage.getItem("quality")||"auto"}catch(e){}
 let streamInfo=null;
 async function srcFor(id){if(!REMOTE)return `/media/${id}`;
- try{const j=await api(`/api/watch/${id}?q=${encodeURIComponent(quality)}&hls=${HLS_OK?1:0}`);streamInfo=j;
+ try{const j=await api(`/api/watch/${id}?q=${encodeURIComponent(quality)}&hls=${HLS_OK?1:0}&ios=${IOS?1:0}`);streamInfo=j;
   if(j.mode==="hls"&&j.url)return j.url;if(j.url)return j.url}catch(e){streamInfo=null}
  return withK(`/media/${id}`)}
 async function playId(id,startFn,my){const url=await srcFor(id);if(my!==undefined&&my!==seq)return false;play(url,startFn);return true}

@@ -159,6 +159,13 @@ class Choosing(unittest.TestCase):
         self.assertEqual(stream.choose(ok, "high", True, True)[0], "direct")         # already smaller than High: no work
         self.assertEqual(stream.choose(ok, "saver", True, True)[0], "saver")
 
+    def test_chrome_and_android_open_more_files_than_an_iphone(self):
+        mkv = src(phone_ok=False, web_ok=True, ext=".mkv", kbps=2500, height=1080)
+        self.assertEqual(stream.choose(mkv, "auto", True, False, ios=True)[0], "high")       # an iPhone cannot open .mkv
+        self.assertEqual(stream.choose(mkv, "auto", True, False, ios=False)[0], "direct")    # Chrome / Android can
+        dolby = src(phone_ok=False, web_ok=False, ext=".mkv")
+        self.assertEqual(stream.choose(dolby, "auto", True, False, ios=False)[0], "high")    # but not Dolby sound
+
     def test_a_player_without_hls_gets_the_file_as_before(self):
         self.assertEqual(stream.choose(src(), "medium", False, True)[0], "direct")
 

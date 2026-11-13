@@ -145,9 +145,13 @@ def source(conn, mid):
     ext = os.path.splitext(path)[1].lower()
     vcodec = "h264" if copy else (r["vcodec"] or "")
     # H.265 plays on iPhones only when the file is tagged one particular way, which cannot be checked cheaply: convert it
-    ok = vcodec == "h264" and library.phone_ok(path, vcodec, "aac" if copy else r["acodec"], "" if copy else (r["vfmt"] or ""))
+    acodec, vfmt = ("aac" if copy else (r["acodec"] or "")), ("" if copy else (r["vfmt"] or ""))
+    ok = vcodec == "h264" and library.phone_ok(path, vcodec, acodec, vfmt)
+    # Chrome, Edge and Android phones also open .mkv / .webm, and VP9 / Opus - but not Dolby sound or H.265
+    web = (ext in (".mp4", ".m4v", ".mkv", ".webm", ".mov") and vcodec in ("h264", "vp8", "vp9", "av1")
+           and library.video_ok(vcodec, vfmt) and (not acodec or acodec in library.PLAY_A))
     return {"id": r["id"], "path": path, "runtime": run_s, "height": int(r["height"] or 0), "kbps": kbps, "audio": audio,
-            "phone_ok": ok, "ext": ext}
+            "phone_ok": ok, "web_ok": web, "ext": ext}
 
 
 def plan(src, quality):
@@ -161,14 +165,15 @@ def plan(src, quality):
     return {"h": max(144, h), "v": v, "a": q["a"]}
 
 
-def choose(src, want="auto", hls=True, away=False):
+def choose(src, want="auto", hls=True, away=False, ios=True):
     """('direct', why) to send the file as it is, or (quality, why) to convert it. hls=False: this player cannot take
-    HLS (a PC browser), so it always gets the file as before."""
+    HLS (an older PC browser), so it always gets the file as before. ios=False: Chrome / Edge / Android, which open
+    more kinds of file than an iPhone does."""
     if want not in CHOICES:
         want = "auto"
     if not hls:
         return "direct", "This player gets the file itself."
-    if not src["phone_ok"]:
+    if not (src["phone_ok"] if ios else src.get("web_ok", src["phone_ok"])):
         if want in QUALITIES:
             return want, "Converted: this file's format does not play on phones."
         return ("medium" if away else "high"), "Converted: this file's format does not play on phones."

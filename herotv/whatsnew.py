@@ -2,6 +2,9 @@
 from . import __version__
 
 NOTES = {
+    "1.40.1": [
+        "Phones: Chrome, Edge and Android phones get .mkv and .webm files as they are when they can play them, instead of a converted copy.",
+    ],
     "1.40.0": [
         "Phones: every video now plays on an iPhone, .mkv files and Dolby sound included. HERO TV converts what a phone cannot open while you watch - no more making copies first.",
         "Phones: Menu > Quality picks how much is sent, from High (1080p) down to Data saver (360p, about 0.3 GB an hour) for mobile data. Automatic sends the file itself whenever it plays and suits the connection.",
