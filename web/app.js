@@ -33,7 +33,8 @@ const ICONS={live:'<rect x="2.5" y="5.5" width="19" height="12.5" rx="2"/><path 
  ticket:'<path d="M3.5 7h17v3a2 2 0 0 0 0 4v3h-17v-3a2 2 0 0 0 0-4z"/><path d="M14 7.5v9" stroke-dasharray="1.6 1.8"/>',
  guide:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14.5h18M9 9v11"/>',
  search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20.5 20.5 15.3 15.3"/>',
- star:'<path d="M12 3.6l2.6 5.3 5.8.9-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.9z"/>',
+ dice:'<rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M8.2 8.2h.01M15.8 8.2h.01M12 12h.01M8.2 15.8h.01M15.8 15.8h.01" stroke-width="2.6"/>',
+star:'<path d="M12 3.6l2.6 5.3 5.8.9-4.2 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.2-4.1 5.8-.9z"/>',
  gift:'<rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8.5h14V12M12 8v12.5M12 8C10.5 4.5 6.5 4.5 7 7c.3 1.3 3 1 5 1 2 0 4.7.3 5-1 .5-2.5-3.5-2.5-5 1"/>',
  weather:'<path d="M7 19h10a4 4 0 0 0 .6-8 5.5 5.5 0 0 0-10.4 1.6A3.2 3.2 0 0 0 7 19z"/><path d="M5 3.5v1.6M1.8 7.6h1.6M2.6 4.6l1.1 1.1"/>',
  moon:'<path d="M20 14.6A8.2 8.2 0 0 1 9.4 4a8.2 8.2 0 1 0 10.6 10.6z"/>',
@@ -293,9 +294,9 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
    const st=[{k:"big",t:"Live TV",s:c?`Channel ${c.number}${slot?" · "+label(slot):""}${slot&&slot.end?" · ends "+T(slot.end):""}`:"Watch what is on now",img:slot&&slot.media_id,live:1,
      inf:slot?{id:slot.media_id,title:label(slot),sub:c?`Channel ${c.number} · ${c.name}`:"",badge:`On now · ends ${T(slot.end)}`}:null,
      pv:(comfortOf().preview||"on")==="on"&&c&&c.kind!=="weather"&&!vod&&slot?{start:slot.start,end:slot.end}:null,go:()=>closeAll()},
-   {k:"big",t:"TV Guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
+   {k:"big",t:"TV guide",s:"See what is on every channel",ic:"guide",img:gImg,go:()=>{closeAll();openGuide()}},
    {k:"big",t:"Library",s:"Find any movie or show",ic:"lib",img:lImg,go:()=>{closeAll();openLib()}}];
-  if(!REMOTE&&window.Roulette)st.push({k:"big",t:"Movie Roulette",s:"Guess the film from one moment",ic:"star",img:lImg,go:()=>window.Roulette.open()});
+  if(!REMOTE&&window.Roulette)st.push({k:"big",t:"Movie Roulette",s:"Guess the film from one moment",ic:"dice",cls:"game",go:()=>window.Roulette.open()});
   if(d.contList&&d.contList.length)st.push({k:"big",t:"Continue watching",s:(d.counts&&d.counts.continue?d.counts.continue+" in progress":"Pick up where you left off"),img:d.contList[0].id,go:()=>{closeAll();openLib("continue")}});
   else if(!REMOTE)st.push({k:"big",t:"Settings",s:"Look, channels, phone, backup",ic:"gear",go:()=>openSettings()});
   R.start={title:"Start here",items:st} }
@@ -312,7 +313,7 @@ function homeRows(){const d=homeData,c=chans[ci],free=allChans.find(x=>x.id==="f
  if(free){const n=d.help?d.help.free:null;ch.push({k:"chip",ic:"gift",t:"Free movies",s:n===0?"None yet: Settings > Tools":n?`${n} free ${n===1?"title":"titles"} to watch`:"Free public-domain movies",go:()=>{const i=chans.indexOf(free);if(i<0){toast("No free movies yet. Settings > Tools > Free movies.");return}tuneTo(i)}})}
  if(wxc)ch.push({k:"chip",ic:"weather",t:"Weather",s:"Forecast and alerts",go:()=>tuneTo(chans.indexOf(wxc))});
  ch.push({k:"chip",ic:"star",t:"Surprise me",s:"Play something you have not watched",go:async()=>{try{const j=await api("/api/smart?surprise=1");if(j.item){closeAll();startVod(j.item)}else toast("Nothing to pick yet.")}catch(e){toast("Could not pick one right now.")}}});
- if(!REMOTE&&window.Roulette)ch.push({k:"chip",ic:"star",t:"Movie Roulette",s:"The movie-guessing game, from your own films",go:()=>window.Roulette.open()});
+ if(!REMOTE&&window.Roulette)ch.push({k:"chip",ic:"dice",t:"Movie Roulette",s:"The movie-guessing game, from your own films",go:()=>window.Roulette.open()});
  ch.push({k:"chip",ic:"list",t:"Pick for me",s:"Swipe through films and shows you have not seen",go:()=>openPick()});
 for(const cl of d.cols||[])ch.push({k:"chip",ic:"list",t:cl.name,s:cl.next_title?`Next up: ${cl.next_n}. ${cl.next_title}`:`All ${cl.have} watched`,go:()=>openCollection(cl.id)});
  ch.push({k:"chip",ic:"star",t:"Your watching",s:"Hours watched, top shows, favourite genres",go:()=>openStats()});
@@ -335,7 +336,7 @@ function homeNode(t){const n=el("div","tl "+(t.k==="card"?"pcd":t.k)+(t.dim?" di
   if(t.pct>0){const g=el("div","pg");g.append(el("i"));g.firstChild.style.width=Math.round(t.pct*100)+"%";x.append(g)}
   const b=el("span","hbtn");b.append(iconEl(t.ic,"bi"),document.createTextNode(t.btn));x.append(b);n.append(x);if(t.feat){n.classList.add("feat");featRotate(n,t)}return n}
  if(t.k==="chip"){n.append(iconEl(t.ic),el("b",0,t.t),el("small",0,t.s));return n}
- if(t.k==="big"){if(t.img){n.append(thumb(t.img,0));n.lastChild.className="bpic"}n.append(el("div","bshade"));if(t.live){n.classList.add("live");n.append(el("i","blive","● LIVE"));if(t.pv)homePreview(n,t.pv)}else if(t.ic)n.append(iconEl(t.ic,"bic"));const x=el("div","bt");x.append(el("b",0,t.t),el("small",0,t.s||" "));n.append(x);return n}
+ if(t.k==="big"){if(t.cls)n.classList.add(t.cls);if(t.img){n.append(thumb(t.img,0));n.lastChild.className="bpic"}n.append(el("div","bshade"));if(t.live){n.classList.add("live");n.append(el("i","blive","● LIVE"));if(t.pv)homePreview(n,t.pv)}else if(t.ic)n.append(iconEl(t.ic,"bic"));const x=el("div","bt");x.append(el("b",0,t.t),el("small",0,t.s||" "));n.append(x);return n}
  if(t.more){n.append(el("b",0,t.t),iconEl("search","mi"));return n}
  const p=el("div","ppic");p.style.background=tile(t.t);if(t.img)p.append(thumb(t.img,1));
  if(t.q)p.append(el("span","qb",t.q));if(t.done)p.append(el("span","dn","Watched")); if(t.plate)p.append(el("i","pl",String(t.plate)));if(t.live)p.append(el("i","lv","On now"));else if(t.special)p.append(el("i","lv","Special"));

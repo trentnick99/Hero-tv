@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.39.3": [
+        "Fixed: a video that cannot be converted was tried again every 30 seconds for ever, keeping the PC busy. It is now tried twice and then left in the Inbox.",
+        "Home: the shortcut tiles are darker behind their words so they read on any picture; Movie Roulette has its own tile and icon.",
+    ],
     "1.39.2": [
         "Home: an episode with no numbers in its file name now says which show it is from (South Park - Mecha-Streisand), and such a show takes one tile in a row, not several.",
         "Home: the small shortcut tiles no longer cut their description off mid-word.",

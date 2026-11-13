@@ -341,7 +341,7 @@ function drawLobby(){sig="lobby";stopClip();const b=clear("form lobby");b.append
  const phones=new Set(G.join.players.map(p=>p.side));for(const s of G.sides){const r=el("div","sc");r.style.setProperty("--c",s.color);r.append(el("b",0,s.name),el("span",0,(s.players&&s.players.length?s.players.join(", ")+" · ":"")+(phones.has(s.id)?"phone joined":"on the TV")));list.append(r)}
  wrap.append(list);b.append(wrap);const bar=el("div","rl-bar");bar.append(btn("Start the game",()=>{inLobby=false;return act("next")},"big go"),btn("Leave",()=>close()));b.append(bar,foot([["Enter","start"],["Esc","leave (the game is kept)"]]));focusFirst()}
 function joinBox(){const m=el("div","rl-modal"),c=el("div","card wide");c.append(el("h3",0,"Add a phone"),joinCard(G.join));const bar=el("div","rl-bar");const ok=btn("Done",()=>{m.remove();menu=null;sig="";drawGame(true)},"go");ok.dataset.esc=1;bar.append(ok);c.append(bar);m.append(c);box.append(m);menu=m;ok.focus()}
-async function pollGame(){if(!open||scr!=="game"||!G||G.status!=="active"||!G.join||busy)return;let j;try{j=await call("game?id="+G.id)}catch(e){return}
+async function pollGame(){if(!open||scr!=="game"||!G||G.status!=="active"||!G.join||!G.join.on||busy)return;let j;try{j=await call("game?id="+G.id)}catch(e){return}
  if(busy||!j.game||!open||scr!=="game")return;const was=G;G=j.game;const r=G.round,n=r?r.guesses.length:0,same=r&&was.round&&was.round.token===r.token;
  if(same&&n>seenGuesses){const g=r.guesses[n-1],s=sideOf(g.side);if(g.verdict==="wrong"){sfx.wrong();flash((s?s.name+": ":"")+"not that one","bad")}else if(g.verdict==="close")flash((s?s.name+": ":"")+"close!","warn")}
  if(same&&r.win.side&&!was.round.win.side)sfx.right();

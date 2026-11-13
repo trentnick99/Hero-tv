@@ -146,10 +146,11 @@ def handle(conn, cfg_app, p, q, method, body=None, ip=""):
     store.ensure(conn)
     if method == "GET" and p == "state":
         return state(conn, cfg_app, q.get("t")), 200
+    from .api import _lock as L          # joins and answers take their turn with the TV's own changes
     if method == "POST" and p == "join":
-        return join(conn, body or {}, ip), 200
+        with L:
+            return join(conn, body or {}, ip), 200
     if method == "POST" and p == "answer":
-        from .api import _lock as L
         with L:
             return answer(conn, cfg_app, body or {}), 200
     return {"error": "not found"}, 404

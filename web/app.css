@@ -457,6 +457,13 @@ body:is([data-ink="soft"],[data-ink="warm"],[data-ink="cool"])[data-finish="sati
 .tl.big{flex:1 1 0;min-width:0;height:19vh;border-radius:1.6vh;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--panel2),var(--panel))}
 .tl.big .bpic{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.8}
 .tl.big .bshade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.78),transparent 62%)}
+/* shortcut tiles (guide, library...): the still is only a backdrop, so it is darkened enough for the words to read on any picture */
+.tl.big:not(.live) .bpic{opacity:.55}
+.tl.big:not(.live) .bshade{background:linear-gradient(0deg,rgba(0,0,0,.9),rgba(0,0,0,.5) 58%,rgba(0,0,0,.28))}
+.tl.big .bt{text-shadow:0 .2vh .8vh rgba(0,0,0,.8)}
+.tl.big.game{background:radial-gradient(120% 140% at 100% 0,color-mix(in srgb,#ff4d6d 55%,transparent),transparent 60%),linear-gradient(135deg,color-mix(in srgb,var(--accent) 55%,#0b0d18),#0b0d18)}
+.tl.big.game .bshade{background:linear-gradient(0deg,rgba(0,0,0,.55),transparent 70%)}
+.tl.big.game .bic{color:#ffcf1f}
 .tl.big .blive{position:absolute;left:1vw;top:1.2vh;background:#e5322d;color:#fff;font-style:normal;font-weight:800;font-size:calc(1.8vh*var(--tt));padding:.3vh .8vw;border-radius:.6vh}
 .tl.big .bic{position:absolute;left:1.2vw;top:1.4vh;width:3.6vh;height:3.6vh;color:var(--accent)}
 .tl.big .bt{position:absolute;left:1.2vw;right:1vw;bottom:1.6vh;display:flex;flex-direction:column}

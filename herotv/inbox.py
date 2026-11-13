@@ -139,6 +139,24 @@ def series_lookup(cfg, channels):
     return get
 
 
+_tries = {}          # path -> (size, mtime, failed attempts): a video that cannot be converted is not tried for ever
+MAX_TRIES = 2
+
+
+def _stamp(path):
+    try:
+        st = os.stat(path)
+        return st.st_size, int(st.st_mtime)
+    except OSError:
+        return None
+
+
+def gave_up(path):
+    """True when filing this exact file has already failed MAX_TRIES times (a new or changed file starts afresh)."""
+    t = _tries.get(os.path.normcase(os.path.abspath(path)))
+    return bool(t) and t[:2] == _stamp(path) and t[2] >= MAX_TRIES
+
+
 def run_once(cfg, seen, now=None, place=None, facts=None):
     """One pass. Files are filed one at a time (converting can be slow). Returns {"filed": [...], "left": n}."""
     from . import launcher
@@ -159,16 +177,24 @@ def run_once(cfg, seen, now=None, place=None, facts=None):
     media = os.path.abspath(str(cfg.media_dir))
     work.batch(len(ready), 0)
     for src in ready:
-        if launcher.is_busy(src):                     # already being converted by something else: not a second try, not a log line
+        if launcher.is_busy(src) or gave_up(src):     # being converted by something else, or it failed before: no new try, no log line
             out["left"] += 1
             continue
         work.begin("inbox", os.path.basename(src))
         work.stage(work.FIRST)
         result = "left in the Inbox"
         try:
-            _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, place)
+            tried = _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, place)
             if os.path.basename(src) in out["filed"]:
                 result = "filed"
+            elif tried and os.path.isfile(src):       # it had a channel but could not be filed (a conversion that fails)
+                key, st = os.path.normcase(os.path.abspath(src)), _stamp(src)
+                old = _tries.get(key)
+                n = (old[2] if old and old[:2] == st else 0) + 1
+                _tries[key] = (st[0], st[1], n) if st else (0, 0, n)
+                if n >= MAX_TRIES:
+                    print(f"  [stop] {os.path.basename(src)} could not be made ready after {n} tries. It stays in the Inbox and is not tried "
+                          "again until the file changes or HERO TV restarts. Settings > Inbox lets you file it as it is.", flush=True)
         finally:
             work.end(result, quiet=(result != "filed" and work.waiting_stage()))
             work.batch_step()
@@ -187,13 +213,14 @@ def _one(src, cfg, out, rules, channels, smart, facts, mine, follow, media, plac
         out["left"] += 1
         if os.path.normcase(os.path.dirname(os.path.abspath(src))) == os.path.normcase(media):
             move_in([src], cfg)                       # a loose video nothing matched: into the Inbox list
-        return
+        return False
     try:
         if place(src, picked, media, force_move=True, db=cfg.db_path):
             out["filed"].append(os.path.basename(src))
     except Exception:
         traceback.print_exc()
         out["left"] += 1
+    return True
 
 
 SIDECARS = (".hero.json", ".srt", ".vtt", ".ass", ".ssa", ".nfo", ".jpg", ".png")
