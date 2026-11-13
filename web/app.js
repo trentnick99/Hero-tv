@@ -113,7 +113,7 @@ addEventListener("keydown",()=>{if($("#ident"))identStop()},true);
 /* ---- comfort: even volume, night mode, screensaver, TV edge margin, look (Settings > Appearance) ---- */
 let actx=null,gainN=null,compN=null,gainFor="";
 const HOME_ROWS=["start","onnow","continue","new","favorites"];
-function comfortOf(){return theme.comfort||{level:true,night:{active:false},screensaver:true,intros:false,safe_margin:0,theme:"classic"}}
+function comfortOf(){return theme.comfort||{level:true,night:{active:false},screensaver:true,intros:false,safe_margin:0,theme:"classic",alert_banner:"all"}}
 function audioChain(){if(gainN)return true;try{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){return false}
  if(actx.state!=="running"){actx.resume().catch(()=>{});return false}   /* never route the sound through a stopped player */
  try{const src=actx.createMediaElementSource(v);gainN=actx.createGain();compN=actx.createDynamicsCompressor();src.connect(gainN);gainN.connect(compN);compN.connect(actx.destination);nightSound();return true}catch(e){return false}}
@@ -607,7 +607,8 @@ function drawWx(w){const box=$("#wx");box.textContent="";paint(box,chans[ci]&&ch
  const days=el("div","wdays");(w.daily||[]).forEach((d,k)=>{const x=el("div");x.append(el("small",0,k===0?"Today":fmt(d.t,{weekday:"short"})),el("div","i",wmo(d.code)[1]),el("b",0,`${d.hi??"–"}° / ${d.lo??"–"}°`),el("small",0,d.pop?d.pop+"% rain":" "));days.append(x)});box.append(days);
  box.append(el("div","wfoot",(w.stale?"Showing the last forecast received - the internet seems to be down.   ":"")+"Forecast: Open-Meteo"+(w.alerts_supported?"   ·   Alerts: US National Weather Service":"")+"   ·   updated "+T(w.updated)))}
 setInterval(()=>{const c=$("#wx .wclock");if(c)c.textContent=T(nowS())},15e3);
-let crawlKey="";function applyAlerts(list){const hot=(list||[]).filter(a=>a.crawl),c=$("#crawl");if(!hot.length){c.classList.remove("on");document.body.classList.remove("alerting");crawlKey="";if(layer==="guide")placePreview(true);return}
+let crawlKey="";function applyAlerts(list){const how=comfortOf().alert_banner||"all",
+  hot=how==="off"?[]:(list||[]).filter(a=>a.crawl&&(how!=="warnings"||a.warning)),c=$("#crawl");if(!hot.length){c.classList.remove("on");document.body.classList.remove("alerting");crawlKey="";if(layer==="guide")placePreview(true);return}
  const text=hot.map(a=>`${a.event.toUpperCase()}${a.ends?" until "+whenStr(a.ends):""}  -  ${a.area||a.headline}`).join("          ●          ");
  if(text!==crawlKey){crawlKey=text;const sp=$("#crawl span");sp.textContent=text;sp.style.setProperty("--dur",Math.max(20,text.length*.2)+"s")}const was=c.classList.contains("on");c.classList.add("on");document.body.classList.add("alerting");if(!was&&layer==="guide"){drawGuide();placePreview(true)}}
 async function pollAlerts(){try{const j=await api("/api/weather/alerts");if(j.configured)applyAlerts(j.alerts)}catch(e){}}
@@ -882,7 +883,11 @@ function drawSettings(){const nav=$("#st-nav"),main=$("#st-main");jumped=false;
  else if(sCat==="weather"){main.append(el("h3",0,"Weather"));
   const w=sInput("","text","City name or postcode");w.style.width="30vw";
   main.append(sField("Current location",d.weather||"Not set yet - the Weather channel needs one.",null),sField("New location","Looked up online once. Example: Chicago, or 60601.",w));
-  main.append(el("div","sbar"));main.lastChild.append(sBtn("Save",()=>sSave({weather:w.value},w.value.trim()?"Weather location saved.":"Weather location cleared.",()=>drawSettings()),"pri"));main.append(msg)}
+  main.append(el("div","sbar"));main.lastChild.append(sBtn("Save",()=>sSave({weather:w.value},w.value.trim()?"Weather location saved.":"Weather location cleared.",()=>drawSettings()),"pri"));
+  const ab=el("select");for(const[v,t]of[["all","Watches and warnings"],["warnings","Warnings only"],["off","Never"]]){const o=el("option",0,t);o.value=v;if((d.comfort&&d.comfort.alert_banner||"all")===v)o.selected=true;ab.append(o)}
+  ab.onchange=()=>sSave({alert_banner:ab.value},"Saved.",async()=>{await loadTheme();if(typeof pollAlerts==="function")pollAlerts()});
+  main.append(sField("Alert banner","The red band across the top of every channel. A watch means it could happen; a warning means it is happening or about to. Whatever you choose here, every alert is still on the Weather channel.",ab));
+  main.append(msg)}
  else if(sCat==="art"){main.append(el("h3",0,"Cover art and descriptions"));
   const k=sInput("","password","Paste your TMDB key");k.style.width="40vw";
   main.append(sField("Status",d.art.has_key?"A key is saved ("+d.art.key_hint+"). Press D on any video to see its poster, story, cast and rating.":"No key yet, so only your own pictures and the video screengrabs are shown.",null),

@@ -32,6 +32,18 @@ class Comfort(unittest.TestCase):
         SA.update({"intros": True})
         self.assertTrue(SA.comfort(SA._load())["intros"])
 
+    def test_alert_banner_setting(self):
+        """The red weather band across every channel: all alerts, warnings only, or never."""
+        self.assertEqual(SA.comfort({})["alert_banner"], "all")       # as it always was, until changed
+        SA.update({"alert_banner": "warnings"})
+        self.assertEqual(SA.comfort(SA._load())["alert_banner"], "warnings")
+        SA.update({"alert_banner": "off"})
+        self.assertEqual(SA.comfort(SA._load())["alert_banner"], "off")
+        with self.assertRaises(ValueError):
+            SA.update({"alert_banner": "sometimes"})
+        self.assertEqual(SA.comfort(SA._load())["alert_banner"], "off")
+        self.assertEqual(SA.comfort({"alert_banner": "nonsense from an older version"})["alert_banner"], "all")
+
     def test_settings_and_night_window(self):
         c = SA.comfort({})
         self.assertEqual((c["level"], c["screensaver"], c["safe_margin"], c["theme"], c["night"]["active"]),

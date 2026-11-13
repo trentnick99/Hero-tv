@@ -42,6 +42,22 @@ class WeatherTests(unittest.TestCase):
         self.assertEqual(events, ["Tornado Warning", "Wind Advisory"])           # worst first, duplicates and tests removed
         self.assertTrue(r["alerts"][0]["crawl"])
         self.assertFalse(r["alerts"][1]["crawl"])                                # advisories stay on the weather channel
+        self.assertTrue(r["alerts"][0]["warning"])                               # a Tornado Warning is happening now
+
+    def test_a_watch_is_not_a_warning(self):
+        """Settings > Weather can limit the banner to warnings, so each alert says which it is."""
+        kinds = {}
+        for ev, sev in [("Tornado Warning", "Extreme"), ("Freeze Watch", "Moderate"), ("Severe Thunderstorm Watch", "Severe"),
+                        ("Wind Advisory", "Minor"), ("Flash Flood Warning", "Severe"), ("Hurricane Force Wind Warning", "Extreme")]:
+            j = {"features": [{"properties": {"event": ev, "severity": sev, "headline": ev, "areaDesc": "Here"}}]}
+            a = weather.parse_alerts(j)[0]
+            kinds[ev] = (a["crawl"], a["warning"])
+        self.assertEqual(kinds["Tornado Warning"], (True, True))
+        self.assertEqual(kinds["Freeze Watch"], (True, False))                   # the banner only with "Watches and warnings"
+        self.assertEqual(kinds["Severe Thunderstorm Watch"], (True, False))      # severe, but still only a watch
+        self.assertEqual(kinds["Wind Advisory"], (False, False))                 # never on the banner
+        self.assertEqual(kinds["Flash Flood Warning"], (True, True))
+        self.assertEqual(kinds["Hurricane Force Wind Warning"], (True, True))
 
     def test_cache_and_offline_fallback(self):
         weather.save_location({"name": "X", "lat": 1, "lon": 2, "country_code": "US", "units": "us"})

@@ -78,6 +78,8 @@ def _home_rows(v):
     return out
 MENUS = ("smoked", "light", "solid")
 MARGINS = (0, 2.5, 5)
+# How much of a weather alert interrupts every channel with the red banner across the top.
+ALERT_BANNER = ("all", "warnings", "off")
 _HHMM = re.compile(r"([01]\d|2[0-3]):[0-5]\d")
 
 
@@ -97,6 +99,7 @@ def comfort(d=None, now=None, tz=None):
     margin = d.get("safe_margin", 0)
     return {"level": d.get("level_volume", True) is not False, "night": {"on": on, "from": a, "to": z, "active": active},
             "screensaver": d.get("screensaver", True) is not False, "intros": d.get("intros", False) is True, "safe_margin": margin if margin in MARGINS else 0,
+            "alert_banner": d.get("alert_banner") if d.get("alert_banner") in ALERT_BANNER else "all",
             "theme": d.get("theme") if d.get("theme") in THEMES else "classic",
             "font": d.get("font") if d.get("font") in FONTS else "broadcast",
             "finish": d.get("finish") if d.get("finish") in FINISHES else "flat",
@@ -225,6 +228,11 @@ def update(changes, geocode=None):
     if "intros" in changes:
         data["intros"] = bool(changes["intros"])
         saved.append("intros")
+    if "alert_banner" in changes:
+        if changes["alert_banner"] not in ALERT_BANNER:
+            raise ValueError("Choose one of: " + ", ".join(ALERT_BANNER))
+        data["alert_banner"] = changes["alert_banner"]
+        saved.append("alert_banner")
     if "screensaver" in changes:
         data["screensaver"] = bool(changes["screensaver"])
         saved.append("screensaver")

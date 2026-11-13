@@ -2,6 +2,10 @@
 from . import __version__
 
 NOTES = {
+    "1.39.5": [
+        "Weather: the red alert band across the top of every channel can be set to warnings only, or turned off, in Settings > Weather. "
+        "Every alert still appears on the Weather channel.",
+    ],
     "1.39.4": [
         "Home: the Movie Roulette tile's words no longer run into its icon.",
     ],

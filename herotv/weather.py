@@ -172,8 +172,12 @@ def parse_alerts(j):
                     "urgency": p.get("urgency") or "", "area": p.get("areaDesc") or "",
                     "ends": p.get("ends") or p.get("expires") or "", "description": (p.get("description") or "").strip(),
                     "instruction": (p.get("instruction") or "").strip(), "sender": p.get("senderName") or "",
-                    # what interrupts every channel with the red crawl: warnings, watches, and anything Severe/Extreme
-                    "crawl": p.get("severity") in ("Extreme", "Severe") or ev.endswith(("Warning", "Watch"))})
+                    # what may interrupt every channel with the red banner: warnings, watches, and anything Severe/Extreme
+                    "crawl": p.get("severity") in ("Extreme", "Severe") or ev.endswith(("Warning", "Watch")),
+                    # a warning means it is happening or about to; a watch only means it could. Settings > Weather can
+                    # limit the banner to warnings (a Freeze Watch then stays on the weather channel only).
+                    "warning": p.get("severity") == "Extreme" or ev.endswith("Warning")
+                    or (p.get("severity") == "Severe" and not ev.endswith("Watch"))})
     out.sort(key=lambda a: (ALERT_RANK.get(a["severity"], 9), a["event"]))
     seen, uniq = set(), []
     for a in out:                         # NWS often repeats one alert per zone
