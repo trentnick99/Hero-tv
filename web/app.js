@@ -82,7 +82,7 @@ async function tune(i){if(sleeping||layer==="roulette")return;if(!chans.length){
  if(my!==seq)return; /* a newer tune() superseded this one */
  slot=j.slot;nextSlot=j.next;if(!slot){v.removeAttribute("src");v.load();v.classList.remove("dim");osd();return chans[ci].id==="free"?msg("No free movies yet","Press O for Settings, then Tools > Free movies > Download."):msg("Nothing is scheduled on "+chans[ci].name,"Drag videos onto this window, or put them in this channel's folder. They appear by themselves.")}
  if(slot.card)return upCard(my);
- play(withK(`/media/${slot.media_id}`),()=>slot?Math.min(nowS()-slot.start+(slot.seek||0),(v.duration||1e9)-.5):0);loadSubs(slot.media_id);osd();if(first)ident("a");else if(changed){ident("b",{num:chans[ci].number,name:chans[ci].name,sub:label(slot)+" · ends "+T(slot.end),color:chans[ci].color});if($("#ident"))show("#osd",false)}   /* the tag stands in for the info bar */   /* slot can be cleared (weather, on demand) before the metadata arrives */
+ if(!(await playId(slot.media_id,()=>slot?Math.min(nowS()-slot.start+(slot.seek||0),(v.duration||1e9)-.5):0,my)))return;loadSubs(slot.media_id);osd();if(first)ident("a");else if(changed){ident("b",{num:chans[ci].number,name:chans[ci].name,sub:label(slot)+" · ends "+T(slot.end),color:chans[ci].color});if($("#ident"))show("#osd",false)}   /* the tag stands in for the info bar */   /* slot can be cleared (weather, on demand) before the metadata arrives */
  if(slot.cut)cutT=setTimeout(()=>{if(my===seq&&!vod)tune(ci)},Math.max(0,(slot.end-nowS())*1e3)+80)}   /* a break (or a time slot) starts before the video ends */
 /* the channel logo in the corner: always, now and then (when a show starts, after changing channel, and briefly
    every five minutes), or off - Settings > Appearance */
@@ -176,15 +176,27 @@ async function audioMenu(){const L=audList(),id=vod?vod.id:slot&&slot.media_id;
  const lab=(t,i)=>{const s=names[i];return s?[s.language||s.lang,s.title,s.channels>2?s.channels===6?"5.1":s.channels+" ch":""].filter(Boolean).join(" · "):(t.label||t.language||"Track "+(i+1))};
  ctxOpen(innerWidth*.62,innerHeight*.12,L.map((t,i)=>({t:(t.enabled?"● ":"")+lab(t,i),fn:()=>{audUse(i);audPref=(t.language||"").toLowerCase();try{localStorage.setItem("aud",audPref)}catch(e){}toast("Sound: "+lab(t,i))}})));
  ctxI=Math.max(0,L.findIndex(t=>t.enabled));ctxDraw()}
+/* phones and tablets: the file itself when it plays there and suits the connection, else a stream HERO TV converts
+   while you watch (HLS: what iPhones play natively). The PC's own TV window always gets the file. */
+const HLS_OK=!!(document.createElement("video").canPlayType("application/vnd.apple.mpegurl"));
+const IOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+let quality="auto";try{quality=localStorage.getItem("quality")||"auto"}catch(e){}
+let streamInfo=null;
+async function srcFor(id){if(!REMOTE)return `/media/${id}`;
+ try{const j=await api(`/api/watch/${id}?q=${encodeURIComponent(quality)}&hls=${HLS_OK?1:0}`);streamInfo=j;
+  if(j.mode==="hls"&&j.url)return j.url;if(j.url)return j.url}catch(e){streamInfo=null}
+ return withK(`/media/${id}`)}
+async function playId(id,startFn,my){const url=await srcFor(id);if(my!==undefined&&my!==seq)return false;play(url,startFn);return true}
 function play(url,startFn){clearSub();v.classList.add("dim");v.src=url;evenVolume(url);v.onloadedmetadata=()=>{v.currentTime=Math.max(0,startFn());audAuto();v.play().catch(e=>{if(e&&e.name==="NotAllowedError")show("#tapgo",true)})};v.onplaying=()=>v.classList.remove("dim")}
 async function startVod(it){vod=it;slot=null;closeAll();show("#wx",false);show("#upcard",false);clearTimeout(cardT);document.body.classList.remove("novideo");layer="";msg("");const p=it.completed?0:it.position;
  it.skip=null;if(it.series){try{it.skip=await api("/api/skip?series="+encodeURIComponent(it.series)+"&media_id="+it.id)}catch(e){}if(vod!==it)return}
- play(withK(`/media/${it.id}`),()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
-  const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0});loadSubs(it.id);osd();if(!(p>10)&&!it.startOver&&(it.runtime_s||0)>=600){ident("c",{title:it.series?label(it):it.title,meta:[it.year,it.runtime_s?Math.round(it.runtime_s/60)+" min":"",qual(it.height)].filter(Boolean).join(" · ")});if($("#ident"))show("#osd",false)}   /* not before short clips; the card stands in for the info bar */}
+ vod.my=++seq;if(!(await playId(it.id,()=>{const d=v.duration||0;if(p>10&&p<d-10)return p;
+  const sk=it.skip;if(sk&&sk.intro>0&&sk.intro<d*.5){toast("Skipped the intro. Press ← to go back.");return sk.intro}return 0},vod.my)))return;loadSubs(it.id);osd();if(!(p>10)&&!it.startOver&&(it.runtime_s||0)>=600){ident("c",{title:it.series?label(it):it.title,meta:[it.year,it.runtime_s?Math.round(it.runtime_s/60)+" min":"",qual(it.height)].filter(Boolean).join(" · ")});if($("#ident"))show("#osd",false)}   /* not before short clips; the card stands in for the info bar */}
 v.addEventListener("ended",()=>{if(vod){post("/api/progress",{media_id:vod.id,position:0,completed:true});if(sleepAfter)return goToSleep();if(vod.series)return nextEpisode(vod);return tune(ci)}
  setTimeout(()=>tune(ci),Math.max(0,(slot?slot.end-nowS():0)*1e3)+80)});
 v.addEventListener("error",async()=>{const id=vod?vod.id:slot&&slot.media_id;if(!id)return;
- if(REMOTE)return msg("This video can't play on this device yet","Usually a .mkv file. On the PC: Settings > Tools > Make iPhone-friendly copies. Change channel to keep watching.");
+ if(REMOTE){if(streamInfo&&streamInfo.mode==="hls")return msg("This video stopped","The PC could not keep up, or the connection dropped. Menu > Quality > a lower one usually helps. Change channel to keep watching.");
+  return msg("This video can't play on this device yet",HLS_OK?"Menu > Quality > Medium makes the PC convert it for this phone. Change channel to keep watching.":"Usually a .mkv file. On the PC: Settings > Tools > Make iPhone-friendly copies. Change channel to keep watching.")}
  errs=errs.filter(t=>Date.now()-t<3e4);errs.push(Date.now());
  const rj=await fetch("/api/report-error",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({media_id:id,reason:v.error?"player error "+v.error.code+(v.error.message?": "+v.error.message:""):""})}).then(r=>r.json()).catch(()=>null);
  if(rj&&rj.repair)toast("This video has a damaged sound track. HERO TV is making a repaired copy - try it again in a few minutes.");
@@ -199,8 +211,8 @@ setInterval(()=>{ // 1 Hz: sleep timer, slot rollover, drift correction, stall w
  if(fd&&!(vod.skip.outro>0)&&fd.credits>0&&!vod.credDone&&v.currentTime>=fd.credits&&v.duration&&v.duration-v.currentTime>5){vod.credDone=true;toast("Skipped the credits");v.dispatchEvent(new Event("ended"))}
  upNext();
  if(slot&&!vod&&nowS()>=slot.end)tune(ci);
- if(slot&&!vod&&!v.paused&&v.readyState>2){const e=nowS()-slot.start;if(Math.abs(v.currentTime-e)>4&&e<v.duration-1)v.currentTime=e}
- if(v.src&&!v.paused&&v.currentTime===lastPos){if(++stall>20){stall=0;tune(ci)}}else stall=0;lastPos=v.currentTime;
+ if(slot&&!vod&&!v.paused&&v.readyState>2){const e=nowS()-slot.start;if(Math.abs(v.currentTime-e)>(REMOTE?12:4)&&e<v.duration-1)v.currentTime=e}   /* a phone takes a few seconds to start a stream: no jump for that */
+ if(v.src&&!v.paused&&v.currentTime===lastPos){if(++stall>(REMOTE?30:20)){stall=0;if(vod){const it=vod;it.position=lastPos;it.completed=false;startVod(it)}else tune(ci)}}else stall=0;lastPos=v.currentTime;
  /* sound but no picture = a video format this browser cannot show: report it, say so, move on */
  if(v.src&&!v.paused&&v.readyState>=2&&v.currentTime>3&&v.videoWidth===0){if(++nopic>=3){nopic=0;const id=vod?vod.id:slot&&slot.media_id;
    if(id){post("/api/report-error",{media_id:id,reason:"no-picture"});msg("This video has sound but no picture","Its video format cannot be shown here, so it is skipped. Settings > Tools > Videos that are skipped can fix it.");setTimeout(()=>{msg("");tune(ci)},5e3)}}}else nopic=0;
@@ -1218,6 +1230,34 @@ function devPoll(){clearTimeout(devT);if(layer!=="settings"||sCat!=="devices")re
   if(paired)toast("Paired: "+j.devices[j.devices.length-1].name);if(paired||!before||!!before.pairing!==!!j.pairing||before.devices.length!==j.devices.length)drawSettings();
   else{const c=$("#pair-left");if(c&&j.pairing)c.textContent=Math.ceil(j.pairing.seconds_left/60)+" min left"}
   if(j.pairing)devT=setTimeout(devPoll,2000)}).catch(()=>{})}
+/* away from home: through Tailscale, a private network between your own devices (nothing opened to the internet) */
+let awayChecked=0;
+function awayCard(d){const a=d.away||{},c=tCard("Watch away from home","Your phone can watch HERO TV anywhere - on mobile data, at a friend's or in a hotel - through Tailscale, a free app that links your own devices privately. Nothing on your router changes and nothing is opened to the internet; only devices signed in to your own Tailscale account can reach this PC, and each still pairs once.");
+ if(!d.enabled){c.append(el("small",0,"First switch on 'Let other devices on my home WiFi watch' above."));return c}
+ const st=el("b",0,a.words||"");c.append(st);const row=el("div","sbar");
+ const again=sBtn("Check again",()=>devOp({op:"away-check"},again));
+ if(!a.installed){
+  const ol=el("ol");ol.style.cssText="margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:.6vh;font-size:calc(1.9vh*var(--tx))";
+  for(const t of["On this PC: download Tailscale, install it and sign in (a Google, Microsoft or Apple account works).",
+                 "On your iPhone: install Tailscale from the App Store, open it, sign in with the same account and allow the VPN when it asks.",
+                 "Back here: press Check again."])ol.append(el("li",0,t));
+  c.append(ol);row.append(sBtn("Get Tailscale for this PC",()=>window.open(a.download,"_blank"),"pri"),again);c.append(row);return c}
+ if(!a.running){row.append(again);c.append(row);return c}
+ { const x=el("div","ibx");x.append(el("b",0,"On the phone, with Tailscale on, HERO TV is at"));const u=el("code",0,a.url);u.style.userSelect="all";x.append(u);
+   if(a.url_name)x.append(el("small",0,"or "+a.url_name));c.append(x)}
+ const phones=(a.peers||[]).filter(p=>p.phone);
+ if(phones.length){const x=el("small",0,"Your phones on Tailscale: "+phones.map(p=>p.name+(p.online?" (on)":" (off right now)")).join(", "));c.append(x)}
+ if(a.firewall==="ok")c.append(el("small",0,"Windows Firewall lets your Tailscale devices in."));
+ else if(a.firewall==="blocked"||a.firewall==="missing"){const x=el("div","ibx");x.append(el("b",0,a.firewall==="blocked"?"Windows Firewall is blocking HERO TV on Tailscale":"Windows Firewall has no rule letting your Tailscale devices in"),
+   el("small",0,"Fixing it lets in only devices on your own Tailscale network (Windows asks for permission first)."));c.append(x);
+   const f=sBtn("Let my Tailscale devices in",async()=>{f.disabled=true;try{dData=await pj("/api/devices",{op:"away-fix"});sMsg("Windows will ask for permission - choose Yes. Checking again in a few seconds...","ok");setTimeout(()=>devOp({op:"away-check"}),7000)}catch(e){sMsg(String(e.message||e).replace(/^Error: /,""),"err");f.disabled=false}},"pri");row.append(f)}
+ else if(Date.now()-awayChecked>60000){awayChecked=Date.now();setTimeout(()=>{if(layer==="settings"&&sCat==="devices")devOp({op:"away-check"})},300)}
+ if(a.qr){const q=el("div");q.innerHTML=a.qr;q.style.cssText="display:inline-block;align-self:flex-start;line-height:0;background:#fff;padding:8px;border-radius:8px";
+   c.append(el("small",0,"Point the iPhone's Camera at this (Tailscale on, at home or anywhere) and tap the link: HERO TV opens and pairs by itself. It works once, for 15 minutes."),q)}
+ else row.prepend(sBtn("Show a code for my phone",()=>devOp({op:"away-qr"}),"pri"));
+ row.append(again);c.append(row);
+ c.append(el("small",0,"Away from home, Automatic quality sends 720p (about 1.4 GB an hour) unless the file is already small. On the phone, Menu > Quality > Data saver uses about 0.3 GB an hour. The PC must be on, with HERO TV open or running in the background (Always on, below)."));
+ return c}
 function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
  if(!dData){main.append(el("div","empty","Loading..."));api("/api/devices").then(j=>{dData=j;if(layer==="settings"&&sCat==="devices")drawSettings()}).catch(()=>{});return}
  const d=dData;
@@ -1226,6 +1266,7 @@ function drawDevices(main,msg){main.append(el("h3",0,"Other devices"));
    on.onchange=()=>devOp({op:on.checked?"enable":"disable"});c.append(l);
    if(d.enabled)c.append(el("small",0,"The first time, Windows may ask whether HERO TV may use the network: choose Allow (private networks only)."));
    main.append(c)}
+ main.append(awayCard(d));
  main.append(alwaysCard());
  main.append(rokuCard());
  main.append(iptvCard());
@@ -1366,8 +1407,24 @@ function settingsKey(e){const k=e.key;
  if(arrowOwnedByField(a,k))return;
  e.preventDefault();if(!spatialMove(k,$("#st-main"))&&k==="ArrowLeft"){const b=$("#st-nav .on");if(b)b.focus()}}
 /* ---- on-screen buttons for the mouse + right-click menus ---- */
+/* full screen: an iPhone only lets the video itself go full screen (its own player, with AirPlay and picture-in-picture) */
+function fullScreen(){if(IOS&&v.webkitEnterFullscreen){try{v.webkitEnterFullscreen()}catch(e){}return}
+ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})}
+/* phones: Quality picks how much is sent (the PC converts anything that will not play, or is too big for the connection) */
+function qualityMenu(){const L=[["auto","Automatic","the file when it suits, else converted"],["original","Original file","as it is"],["high","High (1080p)","about 6 Mbit/s"],
+  ["medium","Medium (720p)","about 3 Mbit/s"],["low","Low (480p)","about 1.2 Mbit/s"],["saver","Data saver (360p)","about 0.6 Mbit/s, for mobile data"]];
+ ctxOpen(innerWidth*.5,innerHeight*.15,L.map(([k,t,sub])=>({t:(quality===k?"● ":"")+t+" - "+sub,fn:()=>{quality=k;try{localStorage.setItem("quality",k)}catch(e){}
+  toast("Quality: "+t);const it=vod;if(it){it.position=v.currentTime;it.completed=false;startVod(it)}else tune(ci)}})));ctxI=Math.max(0,L.findIndex(x=>x[0]===quality));ctxDraw()}
+/* phones: pair this phone's Home Screen icon, or its away-from-home address, with no code (a one-time link from the PC) */
+async function phoneLink(kind){try{const j=await pj("/api/device/link",{for:kind});location.href=j.url}catch(e){toast(String(e.message||e).replace(/^Error: /,""))}}
+function phoneMenu(){const away=/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(location.hostname)||/\.ts\.net$/.test(location.hostname);
+ ctxOpen(innerWidth*.5,innerHeight*.15,[
+  {t:"Put HERO TV on the Home Screen",fn:()=>phoneLink("home")},
+  ...(away?[]:[{t:"Use away from home (Tailscale)",fn:()=>phoneLink("away")}]),
+  {t:streamInfo?("Now: "+(streamInfo.mode==="hls"?"converted, "+(streamInfo.quality_name||streamInfo.quality):"the file itself")+(streamInfo.away?" (away)":"")):"Now: nothing playing",fn:()=>{if(streamInfo)toast(streamInfo.why||"")}}]);ctxDraw()}
 let mbarT;function mbarInit(){const b=$("#mbar");if(b.dataset.ok)return;b.dataset.ok=1;
- for(const[t,fn]of[...(COARSE?[["Ch ▲",()=>tune(ci+1)],["Ch ▼",()=>tune(ci-1)]]:[]),["Home",()=>openHome()],["Guide",()=>openGuide()],["Library",()=>openLib()],["Details",()=>openInfo()],...(REMOTE?[]:[["Settings",()=>openSettings()]]),["Full screen",()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{})]]){const x=el("button",0,t);x.type="button";x.onclick=fn;b.append(x)}}
+ for(const[t,fn]of[...(COARSE?[["Ch ▲",()=>tune(ci+1)],["Ch ▼",()=>tune(ci-1)]]:[]),["Home",()=>openHome()],["Guide",()=>openGuide()],["Library",()=>openLib()],["Details",()=>openInfo()],...(REMOTE?[]:[["Settings",()=>openSettings()]]),
+   ...(REMOTE&&HLS_OK?[["Quality",qualityMenu]]:[]),...(REMOTE?[["Phone",phoneMenu]]:[]),["Full screen",fullScreen]]){const x=el("button",0,t);x.type="button";x.onclick=fn;b.append(x)}}
 function mbarShow(){if(layer!==""){show("#mbar",false);show("#lchip",false);return}if(!COARSE){lchipShow();return}mbarInit();paint($("#mbar"),theme.color);show("#mbar",true);clearTimeout(mbarT);mbarT=setTimeout(()=>show("#mbar",false),3000)}
 /* ---- the left-side menu: mouse (left edge or the Menu chip) and keyboard / remote (Left from the first tile on Home).
    Phones and tablets keep the button bar above. ---- */
@@ -1375,7 +1432,7 @@ let lmI=0,lmL=[],lmT,lcT;const lmIsOpen=()=>$("#lmenu").classList.contains("on")
 function lchipShow(){const c=$("#lchip");if(!c.dataset.ok){c.dataset.ok=1;c.onclick=()=>lmShow("mouse")}paint(c,theme.color);show("#lchip",true);clearTimeout(lcT);lcT=setTimeout(()=>show("#lchip",false),3000)}
 function lmShow(by){if(lmIsOpen())return;const fs=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{});
  const main=[{t:"Home",ic:"home",on:layer==="home",fn:()=>openHome()},{t:"Guide",ic:"guide",on:layer==="guide",fn:()=>openGuide()},{t:"Library",ic:"lib",on:layer==="lib",fn:()=>openLib()},{t:"Continue watching",ic:"resume",fn:()=>openLib("continue")},{t:"Details",ic:"info",on:layer==="info",fn:()=>openInfo()}];
- const low=[...(REMOTE?[]:[{t:"Settings",ic:"gear",on:layer==="settings",fn:()=>openSettings()}]),{t:"Full screen",ic:"live",fn:fs},{t:"Back to TV",ic:"back",fn:()=>closeAll()}];
+ const low=[...(REMOTE?[]:[{t:"Settings",ic:"gear",on:layer==="settings",fn:()=>openSettings()}]),...(REMOTE&&HLS_OK?[{t:"Quality",ic:"live",fn:qualityMenu}]:[]),...(REMOTE?[{t:"Phone setup",ic:"gear",fn:phoneMenu}]:[]),{t:"Full screen",ic:"live",fn:fs},{t:"Back to TV",ic:"back",fn:()=>closeAll()}];
  lmL=[...main,...low];const m=$("#lmenu"),nav=m.querySelector(".lm-panel");nav.textContent="";paint(m,theme.color);
  const who=el("div","lm-who");who.append(el("b",0,theme.name||"HERO TV"),el("small",0,theme.tagline||""));nav.append(who);
  lmL.forEach((it,i)=>{if(i===main.length)nav.append(el("div","lm-gap"));const b=el("button","lm-it"+(it.on?" cur":""));b.type="button";b.append(iconEl(it.ic,"lm-ic"),el("span",0,it.t));b.onmouseenter=()=>{lmI=i;lmDraw()};b.onclick=()=>{lmClose();it.fn()};nav.append(b)});

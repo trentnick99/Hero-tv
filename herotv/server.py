@@ -75,6 +75,8 @@ class App:
         self.lib_version = 0         # bumped whenever the library changes by itself; the TV page reloads its lists
         self.lib_note = ""
         prepare.set_folder(cfg.media_dir)   # where the ready-to-play copies live (<media folder>/.prepared)
+        from . import stream
+        stream.clear_leftovers(cfg)         # phone-stream pieces from a HERO TV that was closed mid-film
 
     def library_signature(self):
         """Cheap fingerprint of the media folder (names, sizes, dates of videos and .hero.json files), or None if unreachable."""
@@ -174,12 +176,16 @@ class App:
             srv.daemon_threads = True
             threading.Thread(target=srv.serve_forever, daemon=True, name="lan").start()
             self.lan_srv = srv
+            from . import stream
+            stream.warm(self.cfg)                         # pick the phone-stream encoder now, not when the first phone asks
             return srv.server_address[1]
 
     def stop_lan(self):
         with self.lan_lock:
             srv, self.lan_srv = self.lan_srv, None
         iptv.stop_all()                                   # live streams to other apps end with the listener
+        from . import stream
+        stream.stop_all()                                 # ...and so do conversions for phones
         if srv is not None:
             srv.shutdown()
             srv.server_close()
@@ -457,6 +463,10 @@ def make_handler(app, remote=False):
             if p in ("/pair", "/pair.html"):
                 self.static("pair.html")
                 return False
+            if p == "/icon.png":                                  # the Home Screen icon, needed before pairing
+                self.drain(n)
+                self.static("icon.png")
+                return False
             if p == "/play":                                      # Movie Roulette on a phone: open to the home network, needs the game's code
                 self.drain(n)
                 self.static("play.html")
@@ -470,7 +480,17 @@ def make_handler(app, remote=False):
                     return False
                 c = app.db()
                 try:
-                    tok, mk = R.pair(c, self.body().get("code"), R.device_name(self.headers.get("User-Agent")), self.client_address[0])
+                    b = self.body()
+                    name = R.device_name(self.headers.get("User-Agent"))
+                    if b.get("link"):                             # a one-time link (QR code on the PC, or from a paired phone)
+                        from . import away
+                        if away.is_tailnet(self.client_address[0]):
+                            name += " (away from home)"
+                        elif b.get("home"):
+                            name += " (Home Screen app)"
+                        tok, mk = R.pair_link(c, b.get("link"), name, self.client_address[0])
+                    else:
+                        tok, mk = R.pair(c, b.get("code"), name, self.client_address[0])
                 except ValueError as e:
                     return self.send_json({"error": str(e)}, 403) and False
                 finally:
@@ -486,7 +506,7 @@ def make_handler(app, remote=False):
             c = app.db()
             try:
                 dev = R.device_for(c, R.cookie_token(self.headers.get("Cookie")))
-                if dev is None and method == "GET" and p.startswith(("/media/", "/thumb/", "/hero/", "/poster/", "/sub/")):
+                if dev is None and method == "GET" and p.startswith(("/media/", "/thumb/", "/hero/", "/poster/", "/sub/", "/stream/")):
                     dev = R.device_for_media_key(c, (parse_qs(u.query).get("k") or [""])[0])   # e.g. a TV fetching over AirPlay
                 if dev is not None:
                     R.touch(c, dev, self.client_address[0])
@@ -577,7 +597,116 @@ def make_handler(app, remote=False):
                     "qr": self.qr_for(R.lan_addresses()),
                     "enabled": R.enabled(), "running": app.lan_srv is not None, "port": R.lan_port(app.cfg),
                     "addresses": [f"http://{a}:{R.lan_port(app.cfg)}" for a in R.lan_addresses()],
-                    "pairing": R.pairing_state(), "devices": R.devices(c)}
+                    "pairing": R.pairing_state(), "devices": R.devices(c), "away": self.away_info()}
+
+        # -- phones: watching away from home and converted streams
+        def away_info(self, with_link=False, check=False):
+            from . import away
+            s = away.status(fresh=check)
+            port = R.lan_port(app.cfg)
+            out = dict(s, url=f"http://{s['ip']}:{port}" if s["running"] and s["ip"] else "",
+                       url_name=f"http://{s['dns']}:{port}" if s["running"] and s["dns"] and s["magic_dns"] else "",
+                       download=away.DOWNLOAD, phone_app=away.PHONE_APP, listening=app.lan_srv is not None)
+            if with_link and out["url"]:
+                from . import qr
+                link = f"{out['url']}/pair?t={R.make_link()}"
+                try:
+                    out["qr"] = qr.svg(link, scale=5)
+                except ValueError:
+                    out["qr"] = None
+                out["link"] = link
+            if check and out["running"]:
+                from . import netcheck
+                out["firewall"] = netcheck.away_firewall(out["ip"], netcheck.snapshot())
+            return out
+
+        def device_link(self, b):
+            """A paired phone wants another of its 'apps' paired without a code: its Home Screen icon, or its away-from-home
+            address. Only a device that is already paired (or the PC) can ask, and each link works once, for 15 minutes."""
+            want = b.get("for")
+            if want == "away":
+                if not R.enabled():
+                    raise ValueError("Turn on 'Let other devices watch' on the PC first.")
+                a = self.away_info()
+                if not a["url"]:
+                    raise ValueError("Tailscale is not set up on the PC yet. On the PC: Settings > Other devices > Watch away from home.")
+                return {"url": f"{a['url']}/pair?t={R.make_link()}", "away": True}
+            if want == "home":
+                host = self.headers.get("Host") or ""
+                if not host or not R.host_ok(host):
+                    raise ValueError("Open HERO TV on the phone first.")
+                return {"url": f"http://{host}/pair?t={R.make_link()}&home=1", "away": False}
+            raise ValueError("unknown link")
+
+        def watch_info(self, c, mid, q):
+            """{"mode": "direct"|"hls", "url", "quality", "why"}: the file itself when this player can take it and it suits
+            the connection, else the converted stream. q: quality (auto, original, high...), hls=1 when the player can take
+            HLS (iPhone, iPad, Android), away=1 when the phone says it is away (a request through Tailscale always is)."""
+            from . import away, stream, tools
+            try:
+                mid = int(mid)
+            except ValueError:
+                raise ValueError("invalid media id")
+            src = stream.source(c, mid)
+            if src is None:
+                return {"mode": "none", "url": "", "why": "This video is not there any more."}
+            is_away = away.is_tailnet(self.client_address[0]) or q.get("away") == "1"
+            mode, why = stream.choose(src, q.get("q", "auto"), q.get("hls") == "1", is_away)
+            mk = self.device["media_key"] if getattr(self, "device", None) else ""
+            kq = f"?k={mk}" if mk else ""
+            if mode == "direct" or not tools.find_tool("ffmpeg"):
+                return {"mode": "direct", "url": f"/media/{mid}{kq}", "quality": "original", "why": why, "away": is_away}
+            return {"mode": "hls", "url": f"/stream/{mid}/{mode}/index.m3u8{kq}", "quality": mode,
+                    "quality_name": stream.QUALITIES[mode]["name"], "why": why, "away": is_away}
+
+        def stream_route(self, rest, q):
+            """/stream/<id>/<quality>/index.m3u8 and /stream/<id>/<quality>/<n>.ts"""
+            from . import awake, loudness, stream, tools
+            parts = rest.split("/")
+            if len(parts) != 3 or not parts[0].isdigit() or parts[1] not in stream.QUALITIES:
+                return self.send_json({"error": "not found"}, 404)
+            mid, quality, name = int(parts[0]), parts[1], parts[2]
+            exe = tools.find_tool("ffmpeg")
+            if not exe:
+                return self.send_json({"error": "The video tools (ffmpeg) are missing on the PC."}, 503)
+            key = f"{mid}-{quality}"
+            s = stream.find(key)
+            if s is None or name == "index.m3u8":
+                c = app.db()
+                try:
+                    src = stream.source(c, mid)
+                    cf = settings_api.comfort(tz=get_tz(app.tz))
+                    gain = loudness.gain_db(loudness.for_media(c, mid), cf["night"]["active"]) if (src and cf["level"]) else 0.0
+                finally:
+                    c.close()
+                if src is None:
+                    return self.send_json({"error": "not found"}, 404)
+                s = stream.session(app.cfg, src, quality, exe, gain)
+            if name == "index.m3u8":
+                kq = f"k={q['k']}" if q.get("k") else ""
+                b = stream.playlist(s.src["runtime"], kq).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/vnd.apple.mpegurl")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Content-Length", str(len(b)))
+                self.end_headers()
+                return self.wfile.write(b)
+            if not name.endswith(".ts") or not name[:-3].isdigit():
+                return self.send_json({"error": "not found"}, 404)
+            with awake.streaming():                       # the PC stays awake while a phone is watching
+                f = s.get(int(name[:-3]))
+                if f is None:
+                    return self.send_json({"error": "This part of the video could not be made. Try again, or pick a lower quality."}, 503)
+                try:
+                    b = open(f, "rb").read()
+                except OSError:
+                    return self.send_json({"error": "not found"}, 404)
+                self.send_response(200)
+                self.send_header("Content-Type", "video/mp2t")
+                self.send_header("Cache-Control", "private, max-age=600")
+                self.send_header("Content-Length", str(len(b)))
+                self.end_headers()
+                self.wfile.write(b)
 
         def qr_for(self, addrs):
             """QR code of the phone address, so the iPhone camera can open it (no typing)."""
@@ -610,6 +739,16 @@ def make_handler(app, remote=False):
             elif op == "dlna-off":
                 dlna.set_enabled(False)
                 app.dlna.stop()
+            elif op == "away-qr":                             # a QR code that pairs a phone on its away-from-home address
+                if not R.enabled():
+                    raise ValueError("Turn on 'Let other devices watch' first.")
+                return dict(self.devices_info(c), away=self.away_info(with_link=True, check=True))
+            elif op == "away-check":                          # is Tailscale on, is the phone there, does the firewall let it in
+                return dict(self.devices_info(c), away=self.away_info(check=True))
+            elif op == "away-fix":                            # Windows asks for permission, then lets Tailscale devices in
+                from . import netcheck
+                netcheck.fix_away()
+                return dict(self.devices_info(c), fixing=True)
             elif op == "remove":
                 R.remove(c, str(b.get("id") or ""))
             elif op == "remove-all":
@@ -978,6 +1117,8 @@ def make_handler(app, remote=False):
                 return self.static("index.html")
             if p.startswith("/media/"):
                 return self.media(p[7:], q)
+            if p.startswith("/stream/"):                             # a video converted for a phone (stream.py)
+                return self.stream_route(p[8:], q)
             if p.startswith("/thumb/"):
                 return self.thumb(p[7:])
             if p.startswith("/hero/"):
@@ -1422,6 +1563,10 @@ def make_handler(app, remote=False):
                 if q.get("series"):
                     return self.send_json(ondemand.episodes(c, q.get("franchise", ""), q["series"]))
                 return self.send_json(ondemand.rows(c, now, q.get("q", "")))
+            if p.startswith("watch/"):                        # how this player should get a video: the file, or converted (stream.py)
+                return self.send_json(self.watch_info(c, p[6:], q))
+            if p == "device/link" and method == "POST":       # a paired phone asks for a one-time pairing link
+                return self.send_json(self.device_link(self.body()))
             if p.startswith("gain/"):                         # even volume: how much to turn this video up or down
                 mid = int(p[5:]) if p[5:].isdigit() else -1
                 cf = settings_api.comfort(tz=get_tz(app.tz))

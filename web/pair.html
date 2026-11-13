@@ -3,7 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Pair with HERO TV</title>
+<title>HERO TV</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HERO TV">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0b0d16">
+<link rel="apple-touch-icon" href="/icon.png">
+<link rel="icon" href="/icon.png">
 <style>
 :root{--bg:#0b0d16;--panel:#151a2b;--text:#f2f0ea;--mute:#a7adbf;--accent:#ffcf1f;--bad:#ff6b6b}
 *{box-sizing:border-box}
@@ -17,10 +24,24 @@ button{font:inherit;font-weight:700;padding:14px;border-radius:12px;border:0;bac
 button:disabled{opacity:.6}
 #msg{min-height:1.5em}#msg.err{color:var(--bad)}
 small{color:var(--mute)}
+.steps{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px}
+.share{display:inline-block;width:1.1em;height:1.3em;vertical-align:-.2em;border:2px solid var(--accent);border-top:0;border-radius:0 0 3px 3px;position:relative;margin:0 2px}
+.share:after{content:"↑";position:absolute;left:50%;top:-.75em;transform:translateX(-50%);color:var(--accent);font-weight:700}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
-<main>
+<main id="link" hidden>
+  <h1>Watch <b>HERO TV</b> here</h1>
+  <p id="lt">Pairing this device...</p>
+  <ol class="steps" id="home-steps" hidden>
+    <li>Tap the Share button <span class="share"></span> at the bottom of Safari.</li>
+    <li>Choose <b>Add to Home Screen</b>, then <b>Add</b>.</li>
+    <li>Open <b>HERO TV</b> from your Home Screen. It pairs by itself (within 15 minutes) and opens straight away from then on.</li>
+  </ol>
+  <div id="lmsg" role="status"></div>
+</main>
+<main id="codebox">
   <h1>Watch <b>HERO TV</b> here</h1>
   <p>On the PC, open <b>Settings &gt; Other devices</b> and choose <b>Pair a device</b>. Type the 6-digit code it shows.</p>
   <form id="f" autocomplete="off">
@@ -32,6 +53,23 @@ small{color:var(--mute)}
 </main>
 <script>
 const code=document.getElementById("code"),go=document.getElementById("go"),msg=document.getElementById("msg");
+/* a one-time link (?t=...): from a QR code on the PC, or from a phone that is already paired. ?home=1 is a Home Screen
+   icon being set up: in Safari it only explains how to add it; opened from the Home Screen it pairs. */
+const qs=new URLSearchParams(location.search),link=qs.get("t"),home=qs.get("home")==="1";
+const standalone=navigator.standalone===true||matchMedia("(display-mode: standalone)").matches;
+(async()=>{
+ if(!(home&&!standalone))try{const r=await fetch("/api/device");if(r.ok){location.replace("/");return}}catch(e){}   /* paired already (every later launch of the icon) */
+ if(!link)return;
+ document.getElementById("codebox").hidden=true;document.getElementById("link").hidden=false;
+ const lt=document.getElementById("lt"),lm=document.getElementById("lmsg");
+ if(home&&!standalone){lt.textContent="Put HERO TV on your Home Screen, so it opens like an app.";document.getElementById("home-steps").hidden=false;return}
+ try{const r=await fetch("/api/pair",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({link,home:home?1:0})});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok){lt.textContent="Paired! Opening HERO TV...";location.replace("/");return}
+  lt.textContent="This link did not work.";lm.className="err";lm.textContent=j.error||"Ask for a new one.";
+  document.getElementById("codebox").hidden=false}
+ catch(e){lt.textContent="Cannot reach the PC.";lm.className="err";lm.textContent="Is HERO TV running on the PC? Away from home, Tailscale must be on, on this phone."}
+})();
 code.addEventListener("input",()=>{code.value=code.value.replace(/\D/g,"").slice(0,6);if(code.value.length===6)pair()});
 document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();pair()});
 go.addEventListener("click",pair);

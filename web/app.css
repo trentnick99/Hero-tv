@@ -588,3 +588,12 @@ body:has(#ident.c) #osd,body:has(#ident.b) #osd{opacity:0!important}   /* the in
 .tcard input[type=text],.tcard input[type=password],.tcard select{font:inherit;font-size:calc(2vh*var(--tx));color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:1vh;padding:.9vh .8vw}
 .tcard input::placeholder,.sf input::placeholder{color:var(--mute);opacity:.8}
 .sf select{align-self:flex-start;min-width:18vw;max-width:100%}
+/* phones: the button bar wraps onto a second row instead of running off the screen, buttons are big enough for a
+   thumb (44 px, Apple's guide), and keyboard hints - meaningless on a touch screen - are hidden */
+@media(pointer:coarse){
+ #mbar{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));top:max(8px,env(safe-area-inset-top));flex-wrap:wrap;justify-content:center;gap:6px;padding:6px}
+ #mbar button{min-height:44px;padding:0 12px;font-size:15px;flex:0 0 auto}
+ .hints,#o-next .kbd{display:none!important}
+ #ctx{max-width:calc(100vw - 16px);left:8px!important;right:8px}
+ #ctx div{min-height:44px;display:flex;align-items:center}
+}

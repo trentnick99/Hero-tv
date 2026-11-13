@@ -2,6 +2,13 @@
 from . import __version__
 
 NOTES = {
+    "1.40.0": [
+        "Phones: every video now plays on an iPhone, .mkv files and Dolby sound included. HERO TV converts what a phone cannot open while you watch - no more making copies first.",
+        "Phones: Menu > Quality picks how much is sent, from High (1080p) down to Data saver (360p, about 0.3 GB an hour) for mobile data. Automatic sends the file itself whenever it plays and suits the connection.",
+        "Watch away from home: Settings > Other devices > Watch away from home sets it up through Tailscale, a free app that links your own devices privately - nothing is opened to the internet.",
+        "Phones pair without typing a code: scan the code in Settings, or on a paired phone use Menu > Phone > Put HERO TV on the Home Screen, so it opens like an app.",
+        "Phones: the button bar no longer runs off a narrow screen, the buttons are thumb-sized, and Full screen uses the iPhone's own player (AirPlay and picture-in-picture).",
+    ],
     "1.39.6": [
         "Tidied: messages say \"1 video\" or \"3 videos\" instead of \"video(s)\".",
         "Settings: text boxes, lists and buttons look the same on every page, and the top line only says \"Press Save\" on pages that have a Save button.",

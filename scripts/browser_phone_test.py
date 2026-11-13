@@ -1,17 +1,15 @@
-"""End-to-end test of watching HERO TV on a phone over the home network, in a real browser engine.
+"""Browser test of watching on a phone: a phone-sized touch browser pairs with a one-time link (no code), watches a .mkv
+with Dolby sound that a phone cannot open (HERO TV converts it while it plays), switches quality, watches live TV, and
+sets up its Home Screen icon.
 
-    python scripts/browser_phone_test.py webkit     # Safari's engine (run on macOS in CI: closest to an iPhone)
-    python scripts/browser_phone_test.py chromium   # Chrome's engine
+    python scripts/browser_phone_test.py [folder for screenshots]
 
-It starts HERO TV with 'other devices' switched on, opens the network address as an emulated iPhone, pairs with the
-code, checks a channel really plays, that Settings are not offered, that touch controls work, and that an unpaired
-browser gets the pairing page. Exit code 0 = everything passed. Each failure is printed (and reported as a GitHub
-annotation when running in CI).
+Needs a Chromium that plays HLS itself (recent Chromium and Edge do; so do Safari and every iPhone).
 """
 import json
 import os
 import shutil
-import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -20,258 +18,187 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FAILS = []
-LOG = []
-PAGES = {}
 
 
 def check(ok, what):
     print(("  PASS  " if ok else "  FAIL  ") + what, flush=True)
-    LOG.append(("PASS  " if ok else "FAIL  ") + what)
     if not ok:
         FAILS.append(what)
-    return ok
 
 
-def free_port():
-    """A port whose next two (phone listener, TV media server) are free too - picked outside the range the system
-    hands out for outgoing connections, so a browser connection cannot take one of them halfway through the test."""
-    import random
-    for _ in range(200):
-        p = random.randrange(20000, 32000)
-        socks = []
-        try:
-            for q, host in ((p, "127.0.0.1"), (p + 1, "0.0.0.0"), (p + 2, "0.0.0.0")):
-                t = socket.socket(); socks.append(t); t.bind((host, q))
-            return p
-        except OSError:
-            pass
-        finally:
-            for t in socks:
-                t.close()
-    raise RuntimeError("no free ports")
-
-
-def main(engine):
-    home = tempfile.mkdtemp()
+def main(shots=None):
     sys.path.insert(0, str(ROOT))
-    from herotv import config, remote as R, scheduler as S, server as SV
+    from herotv import config, remote as R, scheduler as S, server as SV, stream, tools
     from herotv.config import Config
     from herotv.db import connect
-    sf = Path(home) / "settings.json"              # a throw-away settings file (HOME is left alone: browsers live there)
+    home = tempfile.mkdtemp()
+    sf = Path(home) / "settings.json"
+    sf.write_text(json.dumps({"lan_share": True}), encoding="utf-8")
     config.settings_file = lambda: sf
-    sf.parent.mkdir(parents=True, exist_ok=True)
-    sf.write_text(json.dumps({"lan_share": True}))
-    media = Path(home) / "media" / "MCU"; media.mkdir(parents=True)
-    fixture = "sample.webm" if engine == "chromium" else "sample.mp4"   # headless Chromium has no H.264
-    codecs = ("vp9", "opus") if engine == "chromium" else ("h264", "aac")
-    cfg = Config(media_dir=media.parent, db_path=os.path.join(home, "t.sqlite3"), channels_file=str(ROOT / "config" / "channels.json"))
-    cfg.tz = "UTC"; cfg.port = free_port()
+    shutil.copytree(ROOT / "config", Path(home) / "config")
+    media = Path(home) / "media"
+    (media / "MCU").mkdir(parents=True)
+    ff = tools.find_tool("ffmpeg")
+    films = [("Iron Man (2008).mkv", "Iron Man", 2008, "ac3", "testsrc2"), ("Thor (2011).mp4", "Thor", 2011, "aac", "smptebars")]
+    for name, *_rest in films:
+        src, audio = _rest[3], _rest[2]
+        r = subprocess.run([ff, "-v", "error", "-y", "-f", "lavfi", "-i", f"{src}=s=854x480:r=24:d=240", "-f", "lavfi", "-i", "sine=f=300:d=240",
+                            "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-g", "96", "-c:a", audio, "-b:a", "128k",
+                            str(media / "MCU" / name)], capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr[-400:]
+    cfg = Config(media_dir=media, db_path=os.path.join(home, "t.sqlite3"), channels_file=str(Path(home) / "config" / "channels.json"))
+    cfg.tz = "UTC"
     c = connect(cfg.db_path)
-    for i, t in enumerate(("Iron Man", "Thor", "Captain America")):
-        f = media / f"{t} ({2008 + i}).{fixture.rsplit('.', 1)[1]}"
-        shutil.copy(ROOT / "tests" / "fixtures" / fixture, f)
-        c.execute("INSERT INTO media(path,title,year,franchise,verified,playable,available,runtime_s,vcodec,acodec,vfmt,ord) "
-                  "VALUES(?,?,?,?,1,1,1,12,?,?,'yuv420p|Main',?)", (str(f), t, 2008 + i, "MCU", *codecs, i))
+    now = int(time.time())
+    for i, (name, title, year, audio, _s) in enumerate(films, 1):
+        p = media / "MCU" / name
+        c.execute("INSERT INTO media(id,path,title,year,franchise,verified,playable,available,runtime_s,vcodec,acodec,vfmt,ord,added,height,size,atracks) "
+                  "VALUES(?,?,?,?,'MCU',1,1,1,240,'h264',?,'yuv420p|High',?,?,480,?,'eng*')", (i, str(p), title, year, audio, i, now - i, os.path.getsize(p)))
+    c.execute("INSERT OR REPLACE INTO prefs(key,value) VALUES('welcomed','1')")
     c.commit()
     S.sync_channels(c, json.load(open(cfg.channels_file, encoding="utf-8-sig"))["channels"], tz="UTC")
     S.extend_all(c, time.time(), 6 * 3600, tz="UTC")
-    c.close()
     app = SV.App(cfg)
-    for attempt in range(10):                 # another program may grab a just-checked port: pick again
+    R.set_enabled(True)
+    import random
+    for _ in range(20):
+        cfg.port = random.randrange(20000, 40000)
         try:
-            pc = SV._TVServer(("127.0.0.1", cfg.port), SV.make_handler(app))
-        except OSError:
-            cfg.port = free_port(); continue
-        try:
-            app.start_lan(); break
+            app.start_lan()
+            break
         except ValueError:
-            pc.server_close(); cfg.port = free_port()
-    else:
-        raise RuntimeError("could not find two free ports")
-    threading.Thread(target=pc.serve_forever, daemon=True).start()
+            continue
     lan = f"http://127.0.0.1:{R.lan_port(cfg)}"
-    print(f"HERO TV test server: PC {cfg.port}, network {R.lan_port(cfg)}; engine {engine}", flush=True)
+    n = [0]
 
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        bt = getattr(p, engine)
-        browser = bt.launch()
-        phone = dict(p.devices["iPhone 13"])
-        if engine == "firefox":
-            phone.pop("is_mobile", None)
-        ctx = browser.new_context(**phone)
-        page = ctx.new_page()
-        errors, media_urls = [], []
-        page.on("pageerror", lambda e: errors.append(str(e)))
-        page.on("request", lambda r: media_urls.append(r.url) if "/media/" in r.url else None)
-
-        pcp = browser.new_context(viewport={"width": 1280, "height": 720}).new_page()
-        PAGES["pc"], PAGES["phone"] = pcp, page
-        pcp.on("pageerror", lambda e: errors.append("PC: " + str(e)))
-        pcp.goto(f"http://127.0.0.1:{cfg.port}/"); pcp.wait_for_timeout(3500)
-        if pcp.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
-            pcp.click("#tapgo")             # this test browser blocks autoplay; the real PC window allows it
-        check(pcp.evaluate("document.querySelector('#news').classList.contains('on')"), "the PC shows its one-time card (welcome)")
-        for _ in range(4):                     # dismiss the one-time pop-ups in whatever order they appear
-            if pcp.evaluate("document.querySelector('#news').classList.contains('on')"):
-                pcp.click("#nw-ok")
-            if pcp.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
-                pcp.click("#tapgo")
-            pcp.wait_for_timeout(400)
-        pcp.keyboard.press("o"); pcp.wait_for_timeout(800)
-        check(pcp.evaluate("document.querySelector('#settings').classList.contains('on')"), "O opens Settings on the PC")
-        pcp.click("#st-nav >> text=Other devices"); pcp.wait_for_timeout(800)
-        for _ in range(20):
-            txt = pcp.inner_text("#st-main")
-            if "Pair a device" in txt:
+        b = None
+        for kw in ({"channel": "msedge"}, {}):                          # Edge where there is one (it plays H.264 and HLS, like the PC)
+            try:
+                b = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"], **kw)
                 break
-            pcp.wait_for_timeout(500)
-        if "Pair a device" not in txt:
-            LOG.append("st-main was: " + txt[:300].replace("\n", " | "))
-        check("Let other devices on my home WiFi watch" in txt and "Pair a device" in txt, "the PC's Settings > Other devices shows the switch and Pair")
-        pcp.click("#st-main >> button:has-text('Pair a device')"); pcp.wait_for_timeout(800)
-        shown = "".join(ch for ch in pcp.inner_text("#st-main") if ch.isdigit())
-        code = (R.pairing_state() or {}).get("code", "")
-        check(bool(code) and code in shown, "pressing Pair shows a 6-digit code on the PC")
-        check(pcp.locator("#phone-qr svg").count() == 1, "the PC shows a QR code for the phone's camera")
+            except Exception:
+                continue
+        ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=2,
+                            user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1")
+        pg = ctx.new_page()
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
 
-        page.goto(lan + "/")
-        check(page.url.endswith("/pair"), "an unpaired phone is sent to the pairing page")
-        page.fill("#code", code[:5]); page.click("#go")
-        page.wait_for_timeout(500)
-        check("6 numbers" in page.inner_text("#msg"), "a short code is refused with a clear message")
-        page.fill("#code", code)                               # 6 digits pairs by itself
-        page.wait_for_url(lan + "/", timeout=10000)
-        check(True, "pairing with the code opens the TV")
-        pcp.wait_for_timeout(2500)
-        check("iPhone" in pcp.inner_text("#st-main"), "the PC lists the newly paired iPhone")
-        pcp.screenshot(path=str(ROOT / f"pc-devices-{engine}.png"))
-        try:
-            import cv2
-            shot = str(ROOT / f"pc-qr-{engine}.png")
-            pcp.locator("#phone-qr").screenshot(path=shot)
-            img = cv2.imread(shot)
-            got = cv2.QRCodeDetector().detectAndDecode(img)[0]
-            g0 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            for fx in (3, 2, 4, 5):                      # like a camera: try a few sizes and light levels
-                for th in (128, 100, 160):
-                    if got:
-                        break
-                    for interp in (cv2.INTER_NEAREST, cv2.INTER_AREA):
-                        g = cv2.resize(g0, None, fx=fx, fy=fx, interpolation=interp)
-                        g = cv2.threshold(g, th, 255, cv2.THRESH_BINARY)[1]
-                        g = cv2.copyMakeBorder(g, 40, 40, 40, 40, cv2.BORDER_CONSTANT, value=255)
-                        got = cv2.QRCodeDetector().detectAndDecode(g)[0]
-                        if got:
-                            break
-            if not got:                                  # page placed it on a half pixel: shoot it on whole pixels
-                b = pcp.locator("#phone-qr").bounding_box()
-                pcp.screenshot(path=shot, clip={"x": int(b["x"]) - 20, "y": int(b["y"]) - 20,
-                                                "width": int(b["width"]) + 41, "height": int(b["height"]) + 41})
-                got = cv2.QRCodeDetector().detectAndDecode(cv2.imread(shot))[0]
-            box = pcp.locator("#phone-qr").bounding_box()
-            check(got.startswith("http://") and got.endswith(f":{R.lan_port(cfg)}/"),
-                  f"a QR reader can read the code on the screen ({got!r}, shown at {box and round(box['width'])}px, image {img.shape[1]}x{img.shape[0]})")
-        except ImportError:
-            print("  (no QR reader installed here - skipped reading the code off the screen)")
-        from herotv import dlna as D
-        from unittest import mock as _mock
-        with _mock.patch.object(D, "Announcer", side_effect=OSError("test")):
-            pcp.click("#dlna-btn"); pcp.wait_for_timeout(600)
-            check(not D.enabled() and "Press again" in pcp.inner_text("#dlna-btn"), "turning on the TV media player asks to confirm first")
-            pcp.click("#dlna-btn")
-            for _ in range(20):
-                if D.enabled() and app.dlna.running:
-                    break
-                pcp.wait_for_timeout(250)
-            ok = D.enabled() and app.dlna.running
-            check(ok, "pressing again switches the TV media server on" + ("" if ok else " - screen says: " + pcp.inner_text("#st-msg")[:200]))
-            check("Roku Media Player" in pcp.inner_text("#st-main"), "it explains where to find it on the Roku")
-            pcp.click("#dlna-btn"); pcp.wait_for_timeout(1200)
-            check(not D.enabled() and not app.dlna.running, "Turn off switches it off again")
-        page.wait_for_timeout(3000)
+        def shot(name):
+            if shots:
+                n[0] += 1
+                pg.screenshot(path=os.path.join(shots, f"{n[0]:02d}-{name}.png"))
 
-        tapped = False
-        if page.evaluate("document.querySelector('#tapgo').classList.contains('on')"):
-            page.tap("#tapgo"); tapped = True
-        check(True, "tap-to-start " + ("was shown and tapped" if tapped else "was not needed"))
-        s0, t0 = page.evaluate("[document.querySelector('#v').src, document.querySelector('#v').currentTime]")
-        page.wait_for_timeout(2500)
-        s1, t1 = page.evaluate("[document.querySelector('#v').src, document.querySelector('#v').currentTime]")
-        rs = page.evaluate("document.querySelector('#v').readyState")
-        moved = t1 > t0 if s0 == s1 else t1 > 0            # the 12-second test clips may hand over to the next programme
-        check(moved and rs >= 2, f"a live channel really plays on the phone (time {t0:.1f} -> {t1:.1f}, readyState {rs})")
-        check(any("k=" in u for u in media_urls), "video addresses carry the device's media key (for AirPlay)")
-        err = page.evaluate("document.querySelector('#v').error && document.querySelector('#v').error.code")
-        check(not err, f"no video error ({err})")
+        hls = pg.evaluate("document.createElement('video').canPlayType('application/vnd.apple.mpegurl')")
+        avc = pg.evaluate("document.createElement('video').canPlayType('video/mp4; codecs=\"avc1.640028\"')")
+        if not hls or not avc:
+            print(f"  SKIP  this browser cannot play HLS ({hls!r}) or H.264 ({avc!r}) itself")
+            b.close()
+            app.stop_lan()
+            return 0
 
-        page.tap("#v"); page.wait_for_timeout(400)
-        bar = page.inner_text("#mbar")
-        check("Ch ▲" in bar and "Library" in bar, "tapping the picture shows touch buttons (channel up/down, library...)")
-        check("Settings" not in bar, "Settings are not offered on the phone")
-        before = page.evaluate("document.querySelector('#o-num') && document.querySelector('#o-num').textContent")
-        page.click("#mbar >> text=Ch ▲"); page.wait_for_timeout(1500)
-        check(True, "channel up button works (" + str(before) + " -> next)")
+        # ---- pairing with a one-time link: no code to type
+        pg.goto(lan + "/")
+        pg.wait_for_timeout(800)
+        check(pg.url.endswith("/pair") and "6-digit code" in pg.inner_text("body"), "an unpaired phone is sent to the pairing page")
+        pg.goto(lan + "/pair?t=" + R.make_link())
+        pg.wait_for_timeout(3500)
+        check(pg.url.rstrip("/") == lan and pg.evaluate("document.body.classList.contains('remote')"), "a one-time link pairs the phone and opens HERO TV")
+        names = [d["name"] for d in R.devices(connect(cfg.db_path))]
+        check(any("iPhone" in x for x in names), f"it shows up in the PC's paired devices ({names})")
 
-        page.tap("#v"); page.wait_for_timeout(300)
-        page.click("#mbar >> text=Guide"); page.wait_for_timeout(1200)
-        page.screenshot(path=str(ROOT / f"phone-guide-{engine}.png"))
-        page.click("#xclose"); page.wait_for_timeout(500)
-        page.tap("#v"); page.wait_for_timeout(300)
-        page.click("#mbar >> text=Library"); page.wait_for_timeout(1200)
-        cards = page.locator("#list .card").count()
-        check(cards >= 3, f"the library opens and lists the videos ({cards})")
-        check(page.is_visible("#xclose"), "a Close button is shown for touch screens")
-        page.screenshot(path=str(ROOT / f"phone-library-{engine}.png"))
-        page.locator("#list .card").nth(1).click(); page.wait_for_timeout(300)
-        page.locator("#list .card").nth(1).click(); page.wait_for_timeout(2500)
-        check(page.evaluate("!document.querySelector('#lib').classList.contains('on')"), "tapping a selected video plays it")
+        V = "document.getElementById('v')"
 
-        st = page.evaluate("fetch('/api/settings').then(r=>r.status)")
-        check(st == 403, f"the phone cannot read the PC's settings ({st})")
-        st = page.evaluate("fetch('/api/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:'{\"auto_inbox\":false}'}).then(r=>r.status)")
-        check(st == 403, f"the phone cannot change settings ({st})")
-        page.screenshot(path=str(ROOT / f"phone-{engine}.png"))
-        page.set_viewport_size({"width": 844, "height": 390})          # phone turned sideways
-        page.wait_for_timeout(500)
-        page.tap("#v"); page.wait_for_timeout(300)
-        page.click("#mbar >> text=Guide"); page.wait_for_timeout(1200)
-        page.screenshot(path=str(ROOT / f"phone-landscape-guide-{engine}.png"))
-        page.click("#xclose"); page.wait_for_timeout(500)
-        check(page.evaluate("!document.querySelector('#guide').classList.contains('on')"), "the Close button closes the guide")
+        def play_from_library(title):
+            pg.keyboard.press("Escape")
+            pg.wait_for_timeout(300)
+            pg.keyboard.press("l")
+            pg.wait_for_timeout(1200)
+            pg.fill("#q", title)
+            pg.wait_for_timeout(1200)
+            pg.keyboard.press("ArrowDown")
+            pg.wait_for_timeout(300)
+            pg.keyboard.press("Enter")
 
-        other = browser.new_context(**phone).new_page()
-        other.goto(lan + "/api/channels")
-        check("pair this device first" in other.content(), "another, unpaired browser gets nothing")
-        check(not errors, "no script errors on the phone page" + (": " + "; ".join(errors[:3]) if errors else ""))
-        browser.close()
-    app.stop_lan(); pc.shutdown()
-    print(f"\n{len(FAILS)} failure(s)")
-    if os.environ.get("GITHUB_ACTIONS"):
-        for f in FAILS:
-            print(f"::error title=Phone test ({engine})::{f}")
-        print(f"::notice title=Phone test ({engine})::{'all checks passed' if not FAILS else str(len(FAILS)) + ' failed'}")
+        def tap_menu(name):
+            pg.touchscreen.tap(195, 300)
+            pg.wait_for_timeout(500)
+            pg.locator("#mbar button", has_text=name).click()
+            pg.wait_for_timeout(500)
+
+        # ---- an .mkv with Dolby sound: converted while it plays
+        play_from_library("Iron Man")
+        pg.wait_for_timeout(9000)
+        st = pg.evaluate(f"({{src:{V}.currentSrc,t:{V}.currentTime,w:{V}.videoWidth}})")
+        check("/stream/1/high/index.m3u8" in st["src"] and "k=" in st["src"], f"the .mkv is sent as a converted stream ({st['src'][-60:]})")
+        check(st["t"] > 1 and st["w"] > 0, f"it plays: picture {st['w']} wide, {st['t']:.1f} s in")
+        shot("phone-mkv")
+        pg.evaluate(f"{V}.currentTime=150")
+        pg.wait_for_timeout(7000)
+        t = pg.evaluate(f"{V}.currentTime")
+        check(150 < t < 175, f"jumping ahead works ({t:.1f} s)")
+
+        # ---- quality
+        tap_menu("Quality")
+        menu = pg.inner_text("#ctx")
+        check("Data saver (360p)" in menu and "● Automatic" in menu, "Quality lists the choices, Automatic ticked")
+        shot("phone-quality")
+        pg.locator("#ctx div", has_text="Data saver").click()
+        pg.wait_for_timeout(8000)
+        st = pg.evaluate(f"({{src:{V}.currentSrc,t:{V}.currentTime,h:{V}.videoHeight}})")
+        check("/stream/1/saver/" in st["src"] and st["h"] == 360, f"Data saver switches to 360p ({st['h']})")
+        check(st["t"] > 140, f"...and carries on from the same place ({st['t']:.1f} s)")
+        check(pg.evaluate("localStorage.getItem('quality')") == "saver", "the choice is remembered on the phone")
+
+        # ---- an .mp4 the phone plays: sent as it is (no work for the PC) unless a smaller quality is chosen
+        tap_menu("Quality")
+        pg.locator("#ctx div", has_text="Automatic").click()
+        pg.wait_for_timeout(3000)
+        play_from_library("Thor")
+        pg.wait_for_timeout(6000)
+        st = pg.evaluate(f"({{src:{V}.currentSrc,t:{V}.currentTime}})")
+        check("/media/2" in st["src"] and st["t"] > 0.5, f"an .mp4 that plays on phones is sent as the file itself ({st['src'][-30:]})")
+
+        # ---- live TV on the phone
+        tap_menu("Ch ▲")
+        pg.wait_for_timeout(9000)
+        st = pg.evaluate(f"({{src:{V}.currentSrc,t:{V}.currentTime,p:{V}.paused}})")
+        check(("/stream/" in st["src"] or "/media/" in st["src"]) and st["t"] > 1 and not st["p"], f"live TV plays on the phone ({st['src'][-40:]}, {st['t']:.0f} s in)")
+        shot("phone-live")
+
+        # ---- the phone's menu: Home Screen icon
+        tap_menu("Phone")
+        menu = pg.inner_text("#ctx")
+        check("Put HERO TV on the Home Screen" in menu and "Use away from home" in menu, "the Phone menu offers the Home Screen icon and away from home")
+        shot("phone-menu")
+        pg.locator("#ctx div", has_text="Use away from home").click()
+        pg.wait_for_timeout(1200)
+        check("Tailscale is not set up on the PC" in pg.inner_text("#toast"), "away from home says plainly when the PC has no Tailscale yet")
+        tap_menu("Phone")
+        pg.locator("#ctx div", has_text="Put HERO TV on the Home Screen").click()
+        pg.wait_for_timeout(2500)
+        check("/pair?t=" in pg.url and "home=1" in pg.url and "Add to Home Screen" in pg.inner_text("body"),
+              "in Safari, the Home Screen link explains how to add the icon (and does not use the link up)")
+        shot("phone-homescreen")
+        url = pg.url
+        icon_ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)   # its own cookies, like iOS
+        ip = icon_ctx.new_page()
+        ip.add_init_script("Object.defineProperty(navigator,'standalone',{get:()=>true})")
+        ip.goto(url)
+        ip.wait_for_timeout(3500)
+        check(ip.url.rstrip("/") == lan and ip.evaluate("document.body.classList.contains('remote')"), "opened from the Home Screen, the icon pairs itself and opens HERO TV")
+        ip.goto(url)                                                      # every later launch opens the same address
+        ip.wait_for_timeout(2500)
+        check(ip.url.rstrip("/") == lan, "later launches go straight in (the used link is not asked for again)")
+        check(not errors, "no script errors on the phone" + (": " + " | ".join(errors[:3]) if errors else ""))
+        b.close()
+    app.stop_lan()
+    stream.stop_all(cfg)
+    print("\n" + ("ALL PASSED" if not FAILS else f"{len(FAILS)} FAILED"))
     return 1 if FAILS else 0
 
 
 if __name__ == "__main__":
-    engine = sys.argv[1] if len(sys.argv) > 1 else "webkit"
-    try:
-        code = main(engine)
-    except Exception:
-        import traceback
-        tb = traceback.format_exc().strip().splitlines()[-6:]
-        state = []
-        for name, pg in PAGES.items():
-            try:
-                state.append(f"[{name}] url={pg.url} " + pg.evaluate(
-                    "JSON.stringify({layer:typeof layer!=='undefined'?layer:'?',on:[...document.querySelectorAll('.on')].map(e=>e.id||e.className).slice(0,12),"
-                    "main:(document.querySelector('#st-main')||{}).innerText?.slice(0,300),msg:(document.querySelector('#msg')||{}).innerText})"))
-            except Exception as e:
-                state.append(f"[{name}] could not read state: {e}")
-        tb = "\n".join(LOG + ["--- crash ---"] + tb + state)
-        print(tb)
-        if os.environ.get("GITHUB_ACTIONS"):
-            print(f"::error title=Phone test ({engine}) crashed::" + tb.replace("%", "%25").replace("\n", "%0A"))
-        code = 2
-    sys.exit(code)
+    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else None))

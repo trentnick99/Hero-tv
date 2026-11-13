@@ -10,6 +10,8 @@ import sys
 import tempfile
 
 RULE = "HERO TV (home network)"
+RULE_AWAY = "HERO TV (away from home, Tailscale)"
+TAILNET = "100.64.0.0/10,fd7a:115c:a1e0::/48"
 
 
 def program():
@@ -131,3 +133,53 @@ def fix(alias="", shell=None):
     if rc <= 32:
         raise ValueError("Windows did not allow the change (the permission question was answered No).")
     return True
+
+
+# ---------- away from home (Tailscale) ----------
+FIX_AWAY = r"""
+$ErrorActionPreference = 'SilentlyContinue'
+$exe = %s
+Get-NetFirewallApplicationFilter -Program $exe | Get-NetFirewallRule | Where-Object { "$($_.Direction)" -eq 'Inbound' -and "$($_.Action)" -eq 'Block' } | Remove-NetFirewallRule
+Get-NetFirewallRule -DisplayName %s | Remove-NetFirewallRule
+New-NetFirewallRule -DisplayName %s -Direction Inbound -Program $exe -Action Allow -Profile Any -RemoteAddress %s | Out-Null
+"""
+
+
+def fix_away_script():
+    """Lets HERO TV in from Tailscale addresses only (whatever Windows calls the Tailscale network), and removes any
+    block rule left by a closed 'Allow access?' question."""
+    return FIX_AWAY % (_ps_quote(program()), _ps_quote(RULE_AWAY), _ps_quote(RULE_AWAY), ",".join(_ps_quote(a) for a in TAILNET.split(",")))
+
+
+def fix_away(shell=None):
+    if os.name != "nt" and shell is None:
+        raise ValueError("This fix is for Windows.")
+    fd, path = tempfile.mkstemp(prefix="herotv-away-", suffix=".ps1")
+    with os.fdopen(fd, "w", encoding="utf-8-sig") as fh:
+        fh.write(fix_away_script())
+    args = f'-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{path}"'
+    if shell is not None:
+        return shell(path, args)
+    import ctypes
+    rc = ctypes.windll.shell32.ShellExecuteW(None, "runas", "powershell.exe", args, None, 0)
+    if rc <= 32:
+        raise ValueError("Windows did not allow the change (the permission question was answered No).")
+    return True
+
+
+def away_firewall(ts_ip, snap):
+    """'ok', 'blocked' or 'missing': can a phone on Tailscale get through Windows Firewall to HERO TV?
+    None when it cannot be told (not Windows, or PowerShell failed)."""
+    if snap is None or not ts_ip:
+        return None
+    alias = next((i["alias"] for i in snap["ips"] if i.get("ip") == ts_ip), "")
+    category = next((p["category"] for p in snap["profiles"] if p.get("alias") == alias), "") or "Public"
+    cat = {"domainauthenticated": "Domain", "public": "Public"}.get(category.lower(), "Private")
+    rules = snap["rules"]
+    if any(r.get("action", "").lower() == "block" and _covers(r.get("profile", ""), cat) for r in rules):
+        return "blocked"
+    if any(r.get("name") == RULE_AWAY and r.get("action", "").lower() == "allow" for r in rules):
+        return "ok"
+    if any(r.get("action", "").lower() == "allow" and _covers(r.get("profile", ""), cat) for r in rules):
+        return "ok"
+    return "missing"

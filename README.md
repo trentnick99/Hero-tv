@@ -109,3 +109,37 @@ It uses the same library, posters and details as the rest of HERO TV; nothing is
 `herotv/roulette/` (engine), `web/roulette.js` and `web/roulette.css` (screens); tests are `tests/test_roulette.py` and
 `scripts/browser_roulette_test.py`. Its tables (`rl_games`, `rl_rounds`, `rl_guesses`, `rl_events`, `rl_categories`) live in
 HERO TV's own database and are created the first time the game is opened.
+
+
+## Watching on your phone (at home and away)
+
+**At home:** Settings > Other devices > switch on *Let other devices on my home WiFi watch*, then pair the phone once (scan
+the QR code, or type the 6-digit code). On the phone, Menu > Phone > *Put HERO TV on the Home Screen* adds an icon that
+opens it like an app.
+
+**Every video plays.** A phone gets the file itself when it can play it and the file suits the connection. Anything else
+(.mkv files, Dolby or DTS sound, H.265, a big file on mobile data) is converted while you watch into HLS, the format
+iPhones and Android phones play natively (`herotv/stream.py`). It converts in 4-second pieces on a fixed grid, so the phone
+can jump anywhere; it works about three minutes ahead of the phone and then rests. At most two conversions run at once,
+using the graphics card when it can (NVIDIA / Intel / AMD, checked once) and the processor otherwise.
+
+| Quality (Menu > Quality on the phone) | Picture | About |
+|---|---|---|
+| Automatic | the file when it plays and suits the connection; otherwise High at home, Medium away | |
+| High | 1080p | 6 Mbit/s, 2.8 GB an hour |
+| Medium | 720p | 3 Mbit/s, 1.4 GB an hour |
+| Low | 480p | 1.2 Mbit/s, 0.6 GB an hour |
+| Data saver | 360p | 0.6 Mbit/s, 0.3 GB an hour |
+
+**Away from home** works through [Tailscale](https://tailscale.com), a free app that puts your own devices on one private,
+encrypted network. Nothing on the router changes and nothing is opened to the internet.
+
+1. Install Tailscale on the PC and sign in. Install Tailscale on the phone and sign in with the same account.
+2. Settings > Other devices > *Watch away from home* shows the PC's Tailscale address and checks Windows Firewall
+   (*Let my Tailscale devices in* adds a rule for Tailscale addresses only).
+3. Press *Show a code for my phone* and scan it with the phone (Tailscale on). It pairs by itself; the link works once,
+   for 15 minutes. A phone already paired at home can use Menu > Phone > *Use away from home* instead.
+
+The PC must be on, with HERO TV open or running in the background (Settings > Other devices > Always on). Code:
+`herotv/away.py` (Tailscale status), `herotv/remote.py` (which addresses may connect, one-time pairing links),
+`herotv/netcheck.py` (the firewall rule), `web/pair.html` (pairing and the Home Screen icon).

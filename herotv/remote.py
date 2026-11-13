@@ -5,6 +5,10 @@ is PAIRED: the PC shows a 6-digit code for 10 minutes, the device types it in on
 a cookie). A wrong code 5 times cancels it. Paired devices can watch, browse and keep their place - they cannot open
 Settings, Tools, the channel editor, uploads or anything that changes files. Remove a device in Settings at any time.
 The PC itself (127.0.0.1:8787) is unchanged and never needs pairing.
+
+Away from home, the same listener answers through Tailscale (see away.py): a private network between your own devices,
+so nothing is opened to the internet. Pairing works the same way there. Instead of a code, a device can also pair with
+a one-time link (a QR code on the PC, or a link an already paired phone asks for) that works once, for 15 minutes.
 """
 import hashlib
 import ipaddress
@@ -23,9 +27,10 @@ COOKIE = "herotv_dev"
 # What a paired device may use. Everything else on the network port answers 403.
 REMOTE_GET_API = {"channels", "guide", "library", "info", "now", "prefs", "skip", "theme", "weather", "weather/alerts",
                   "health", "hb", "checklist", "help", "device", "reminders", "ondemand", "collections"}
-REMOTE_GET_API_PREFIX = ("info/", "subs/", "skip/", "channel/", "progress/", "next/", "missing/", "tv/", "play/", "gain/", "collections/")
-REMOTE_POST_API = {"progress", "favorite", "seen", "prefs", "reminders"}    # prefs from a phone are answered but never saved
-OPEN_PATHS = {"/pair", "/pair.html", "/api/pair"}            # usable before pairing
+REMOTE_GET_API_PREFIX = ("info/", "subs/", "skip/", "channel/", "progress/", "next/", "missing/", "tv/", "play/", "gain/", "collections/", "watch/")
+REMOTE_POST_API = {"progress", "favorite", "seen", "prefs", "reminders", "device/link"}    # prefs from a phone are answered but never saved
+OPEN_PATHS = {"/pair", "/pair.html", "/api/pair", "/icon.png"}   # usable before pairing
+LINK_SECONDS = 900
 
 SCHEMA = """CREATE TABLE IF NOT EXISTS devices(token_hash TEXT PRIMARY KEY, media_key TEXT UNIQUE, name TEXT,
             created INTEGER, last_seen INTEGER, ip TEXT)"""
@@ -125,7 +130,8 @@ def _by_name():
 
 
 def host_ok(host_header):
-    """The network port only answers to a plain IP address (blocks DNS-rebinding tricks from web pages)."""
+    """The network port only answers to a plain IP address on the home network or Tailscale, or to this PC's own
+    Tailscale name (blocks DNS-rebinding tricks, where a web page on the internet pretends to be this PC)."""
     h = (host_header or "").strip().lower()
     if h.startswith("["):
         h = h[1:h.find("]")] if "]" in h else h
@@ -134,8 +140,12 @@ def host_ok(host_header):
     try:
         ip = ipaddress.ip_address(h)
     except ValueError:
+        if h.endswith(".ts.net") or ("." not in h and h):              # only then is it worth asking Tailscale
+            from . import away
+            return h in away.own_names()
         return False
-    return ip.is_private or ip.is_loopback
+    from . import away
+    return ip.is_private or ip.is_loopback or away.is_tailnet(h)
 
 
 # ---------- pairing ----------
@@ -176,6 +186,42 @@ def pair(conn, code, name="", ip="", now=None):
                  (_h(token), mkey, (str(name or "").strip() or "Device")[:60], int(now), int(now), ip))
     conn.commit()
     return token, mkey
+
+
+# ---------- one-time pairing links ----------
+_links = {}                                      # token -> expires (in memory: a link never outlives HERO TV)
+
+
+def make_link(now=None):
+    """A token that pairs one device, once, within 15 minutes (shown as a QR code on the PC, or handed to a paired phone
+    that wants its Home Screen app or its away-from-home address paired too)."""
+    now = now or time.time()
+    tok = secrets.token_urlsafe(18)
+    with _lock:
+        for k in [k for k, exp in _links.items() if exp <= now]:
+            del _links[k]
+        while len(_links) >= 8:                  # a few at a time is plenty; the oldest goes first
+            del _links[min(_links, key=_links.get)]
+        _links[tok] = now + LINK_SECONDS
+    return tok
+
+
+def link_ok(tok, now=None):
+    now = now or time.time()
+    with _lock:
+        exp = _links.get(str(tok or ""))
+        return bool(exp and exp > now)
+
+
+def pair_link(conn, tok, name="", ip="", now=None):
+    """Swap a one-time link for a device key, like pair() does for a code. Returns (token, media_key)."""
+    now = now or time.time()
+    with _lock:
+        exp = _links.pop(str(tok or ""), None)
+    if not exp or exp <= now:
+        raise ValueError("This pairing link has been used already or is too old. Make a new one: on the PC, Settings > "
+                         "Other devices; or on a paired phone, Menu > Use away from home.")
+    return add_device(conn, name, ip, now)
 
 
 def add_device(conn, name, ip="", now=None):
